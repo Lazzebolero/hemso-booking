@@ -22,6 +22,20 @@
 .env
 .env.*
 
+# Windows / editor (ska aldrig versionshanteras)
+*.swp
+*.lnk
+* - kopia*
+* - kopia.*
+*.bladey.php
+
+# SSH-nycklar och känsligt — ska endast ligga i ~/.ssh/ på din dator
+/id_ed25519
+/id_rsa
+/id_ecdsa
+*.pem
+lazzebolero*
+
 /database/testing.sqlite
 
 .phpunit.result.cache
