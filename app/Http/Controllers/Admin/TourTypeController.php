@@ -10,7 +10,9 @@ class TourTypeController extends Controller
 {
     public function index()
     {
-        $tourTypes = TourType::orderBy('sort_order')->orderBy('name')->get();
+        $tourTypes = TourType::orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         return view('admin.settings.tour-types', compact('tourTypes'));
     }
@@ -20,14 +22,17 @@ class TourTypeController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
             'is_active' => ['nullable', 'boolean'],
             'is_default' => ['nullable', 'boolean'],
         ]);
 
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
+        $data['default_duration_minutes'] = (int) $data['default_duration_minutes'];
         $data['is_active'] = $request->boolean('is_active');
         $data['is_default'] = $request->boolean('is_default');
 
+        // endast en default
         if ($data['is_default']) {
             TourType::query()->update(['is_default' => false]);
         }
@@ -42,20 +47,27 @@ class TourTypeController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
             'is_active' => ['nullable', 'boolean'],
             'is_default' => ['nullable', 'boolean'],
         ]);
 
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
+        $data['default_duration_minutes'] = (int) $data['default_duration_minutes'];
         $data['is_active'] = $request->boolean('is_active');
         $data['is_default'] = $request->boolean('is_default');
 
+        // hantera default
         if ($data['is_default']) {
-            TourType::query()->update(['is_default' => false]);
+            TourType::where('id', '!=', $tourType->id)->update(['is_default' => false]);
         }
 
+        // säkerställ att minst en default finns
         if (!$data['is_default'] && $tourType->is_default) {
-            $hasAnotherDefault = TourType::where('id', '!=', $tourType->id)->where('is_default', true)->exists();
+            $hasAnotherDefault = TourType::where('id', '!=', $tourType->id)
+                ->where('is_default', true)
+                ->exists();
+
             if (!$hasAnotherDefault) {
                 $data['is_default'] = true;
             }
@@ -69,10 +81,13 @@ class TourTypeController extends Controller
     public function destroy(TourType $tourType)
     {
         $wasDefault = $tourType->is_default;
+
         $tourType->delete();
 
+        // sätt ny default automatiskt
         if ($wasDefault) {
             $newDefault = TourType::orderBy('sort_order')->orderBy('name')->first();
+
             if ($newDefault) {
                 $newDefault->update(['is_default' => true]);
             }

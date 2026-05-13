@@ -1,18 +1,25 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+@php
+    $prefix = \App\Support\ActiveRole::routePrefix();
+@endphp
+
+<div class="page-header">
     <div>
-        <h2 class="mb-1">Skapa bokning</h2>
-        <div class="muted">Registrera en ny bokning.</div>
+        <h2 class="page-title">Skapa bokning</h2>
+        <div class="page-subtitle">Registrera en ny bokning och koppla den till rätt tur.</div>
     </div>
 
-    <a href="{{ route('admin.bookings.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-2"></i>Tillbaka
-    </a>
+    <div class="page-actions">
+        <a href="{{ route($prefix . '.bookings.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Tillbaka
+        </a>
+    </div>
 </div>
 
-<form method="POST" action="{{ route('admin.bookings.store') }}">
+<form method="POST" action="{{ route($prefix . '.bookings.store') }}">
+    @csrf
     @include('admin.bookings.form')
 </form>
 @endsection

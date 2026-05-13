@@ -5,6 +5,11 @@ namespace App\Providers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use App\Listeners\LogAuthenticationEvent;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -17,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerSettingHelper();
         $this->applySystemTimezone();
+		Event::listen(Login::class, LogAuthenticationEvent::class);
+		Event::listen(Failed::class, LogAuthenticationEvent::class);
+		Event::listen(Logout::class, LogAuthenticationEvent::class);
     }
 
     protected function registerSettingHelper(): void
@@ -79,4 +87,6 @@ class AppServiceProvider extends ServiceProvider
             date_default_timezone_set('Europe/Stockholm');
         }
     }
+	
+	
 }

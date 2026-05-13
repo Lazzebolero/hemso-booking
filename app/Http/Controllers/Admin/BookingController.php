@@ -66,26 +66,30 @@ class BookingController extends Controller
         return view('admin.bookings.index', compact('bookings', 'scope'));
     }
 
-    public function create()
-    {
-        $tours = Tour::with(['bookings', 'tourType'])
-            ->whereDate('tour_date', '>=', now()->toDateString())
-            ->where('status', 'planned')
-            ->orderBy('tour_date')
-            ->orderBy('start_time')
-            ->get();
+    public function create(Request $request)
+{
+    $tours = Tour::with(['bookings', 'tourType'])
+        ->whereDate('tour_date', '>=', now()->toDateString())
+        ->where('status', 'planned')
+        ->orderBy('tour_date')
+        ->orderBy('start_time')
+        ->get();
 
-        $languages = Language::where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
+    $languages = Language::where('is_active', true)
+        ->orderBy('sort_order')
+        ->orderBy('name')
+        ->get();
 
-        return view('admin.bookings.create', [
-            'booking' => new Booking(),
-            'tours' => $tours,
-            'languages' => $languages,
-        ]);
-    }
+    // 👉 NYTT: hämta tour_id från URL
+    $selectedTourId = $request->get('tour_id');
+
+    return view('admin.bookings.create', [
+        'booking' => new Booking(),
+        'tours' => $tours,
+        'languages' => $languages,
+        'selectedTourId' => $selectedTourId, // 👈 viktigt
+    ]);
+}
 
     public function store(Request $request)
     {

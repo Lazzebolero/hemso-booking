@@ -11,10 +11,13 @@ class TourType extends Model
         'sort_order',
         'is_active',
         'is_default',
+		'default_duration_minutes',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_default' => 'boolean',
+		'default_duration_minutes' => 'integer',
+		
     ];
 }

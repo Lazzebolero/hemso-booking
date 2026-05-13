@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ $bookingPage->page_title }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body style="background:#f8fafc; font-family:Arial, sans-serif;">
+    <div style="max-width:760px; margin:40px auto; background:#fff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+        <h1>{{ $bookingPage->page_title }}</h1>
+
+        <p><strong>{{ $tour->title }}</strong><br>
+        {{ $tour->tour_date }} kl {{ substr($tour->start_time ?? '', 0, 5) }}</p>
+
+        @if(session('special_booking_success'))
+            <div style="background:#dcfce7; color:#166534; padding:12px; border-radius:10px; margin-bottom:16px;">
+                {{ $bookingPage->thank_you_text ?: 'Tack för din bokning.' }}
+            </div>
+        @endif
+
+        @if($bookingPage->page_text)
+            <div style="margin-bottom:20px;">{!! nl2br(e($bookingPage->page_text)) !!}</div>
+        @endif
+
+        <div style="margin-bottom:20px;">
+            <strong>Priser</strong><br>
+            Vuxen: {{ number_format((float) $bookingPage->adult_price, 2, ',', ' ') }} kr<br>
+            Ungdom: {{ number_format((float) $bookingPage->youth_price, 2, ',', ' ') }} kr<br>
+            Barn: {{ number_format((float) $bookingPage->child_price, 2, ',', ' ') }} kr
+        </div>
+
+        @if($isFull)
+            <div style="background:#fee2e2; color:#991b1b; padding:12px; border-radius:10px;">
+                {{ $bookingPage->full_tour_text ?: 'Denna tur är fullbokad.' }}
+            </div>
+        @else
+            @if($errors->any())
+                <div style="background:#fee2e2; color:#991b1b; padding:12px; border-radius:10px; margin-bottom:16px;">
+                    <ul style="margin:0; padding-left:20px;">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('public.tour-booking.store', $bookingPage->slug) }}">
+                @csrf
+
+                <div style="display:grid; gap:12px;">
+                    <input type="text" name="contact_name" placeholder="Kontaktperson" value="{{ old('contact_name') }}" required class="form-control">
+                    <input type="text" name="phone" placeholder="Telefon" value="{{ old('phone') }}" class="form-control">
+                    <input type="email" name="email" placeholder="E-post" value="{{ old('email') }}" required class="form-control">
+
+                    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+                        <input type="number" min="0" name="men_count" placeholder="Män" value="{{ old('men_count', 0) }}" class="form-control" required>
+                        <input type="number" min="0" name="women_count" placeholder="Kvinnor" value="{{ old('women_count', 0) }}" class="form-control" required>
+                        <input type="number" min="0" name="youth_count" placeholder="Ungdom" value="{{ old('youth_count', 0) }}" class="form-control" required>
+                        <input type="number" min="0" name="child_count" placeholder="Barn" value="{{ old('child_count', 0) }}" class="form-control" required>
+                    </div>
+
+                    <textarea name="notes" rows="4" class="form-control" placeholder="Meddelande">{{ old('notes') }}</textarea>
+
+                    @if($bookingPage->booking_terms)
+                        <div style="font-size:14px; color:#475569;">
+                            {!! nl2br(e($bookingPage->booking_terms)) !!}
+                        </div>
+                    @endif
+
+                    <button class="btn btn-primary" type="submit">Skicka bokning</button>
+                </div>
+            </form>
+        @endif
+    </div>
+</body>
+</html>

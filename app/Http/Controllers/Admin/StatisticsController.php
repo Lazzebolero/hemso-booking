@@ -71,6 +71,10 @@ class StatisticsController extends Controller
                 'Datum',
                 'Veckodag',
                 'Bokade',
+                'Män',
+                'Kvinnor',
+                'Ungdomar',
+                'Barn',
                 'Status',
                 'Ankomststatus',
             ], ';');
@@ -83,6 +87,10 @@ class StatisticsController extends Controller
                     $row->tour?->tour_date,
                     $row->tour?->tour_date ? Carbon::parse($row->tour->tour_date)->locale('sv')->dayName : '',
                     $row->total_count,
+                    $row->men_count ?? 0,
+                    $row->women_count ?? 0,
+                    $row->youth_count ?? 0,
+                    $row->child_count ?? 0,
                     $row->status,
                     $row->arrival_status,
                 ], ';');
@@ -124,24 +132,38 @@ class StatisticsController extends Controller
             })
             ->get();
 
+        $activeBookings = $bookings
+            ->where('is_waitlist', false)
+            ->whereNotIn('status', ['cancelled']);
+
+        $menCount = (int) $activeBookings->sum(fn ($booking) => (int) ($booking->men_count ?? 0));
+        $womenCount = (int) $activeBookings->sum(fn ($booking) => (int) ($booking->women_count ?? 0));
+        $youthCount = (int) $activeBookings->sum(fn ($booking) => (int) ($booking->youth_count ?? 0));
+        $childCount = (int) $activeBookings->sum(fn ($booking) => (int) ($booking->child_count ?? 0));
+
         $summary = [
             'tours' => (int) $tours->count(),
             'bookings' => (int) $bookings->count(),
-            'booked_people' => (int) $bookings->where('is_waitlist', false)->sum('total_count'),
+            'booked_people' => (int) $activeBookings->sum('total_count'),
             'cancelled' => (int) $bookings->where('status', 'cancelled')->count(),
             'waitlist' => (int) $bookings->where('is_waitlist', true)->count(),
             'late_cancel' => (int) $bookings->where('arrival_status', 'late_cancel')->count(),
             'no_show' => (int) $bookings->where('arrival_status', 'no_show')->count(),
             'occupancy_rate' => $tours->sum('max_participants') > 0
-                ? round(($bookings->where('is_waitlist', false)->sum('total_count') / $tours->sum('max_participants')) * 100)
+                ? round(($activeBookings->sum('total_count') / $tours->sum('max_participants')) * 100)
                 : 0,
+
+            'men_count' => $menCount,
+            'women_count' => $womenCount,
+            'youth_count' => $youthCount,
+            'child_count' => $childCount,
         ];
 
         $distribution = [
-            'Bokade' => $summary['booked_people'],
-            'No-show' => $summary['no_show'],
-            'Avbokad sent' => $summary['late_cancel'],
-            'Avbokade' => $summary['cancelled'],
+            'Män' => $summary['men_count'],
+            'Kvinnor' => $summary['women_count'],
+            'Ungdomar' => $summary['youth_count'],
+            'Barn' => $summary['child_count'],
         ];
 
         $timeline = $this->buildTimeline($from, $to, $period);
@@ -170,10 +192,16 @@ class StatisticsController extends Controller
             return [
                 'label' => $label,
                 'bookings' => (int) $items->sum(fn ($tour) =>
-                    $tour->bookings->where('is_waitlist', false)->count()
+                    $tour->bookings
+                        ->where('is_waitlist', false)
+                        ->whereNotIn('status', ['cancelled'])
+                        ->count()
                 ),
                 'booked_people' => (int) $items->sum(fn ($tour) =>
-                    $tour->bookings->where('is_waitlist', false)->sum('total_count')
+                    $tour->bookings
+                        ->where('is_waitlist', false)
+                        ->whereNotIn('status', ['cancelled'])
+                        ->sum('total_count')
                 ),
             ];
         })->sortByDesc('booked_people')->values()->all();
@@ -326,6 +354,7 @@ class StatisticsController extends Controller
                         });
                 })
                     ->where('is_waitlist', false)
+                    ->whereNotIn('status', ['cancelled'])
                     ->sum('total_count');
             })->values()->all();
 
@@ -404,6 +433,7 @@ class StatisticsController extends Controller
             $query->whereBetween('tour_date', [$from->toDateString(), $to->toDateString()]);
         })
             ->where('is_waitlist', false)
+            ->whereNotIn('status', ['cancelled'])
             ->sum('total_count');
     }
 

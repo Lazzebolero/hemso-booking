@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveRole;
+use App\Http\Middleware\RequireActiveRole;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,9 +14,17 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
+            // NYA rollsystemet
+            'ensure.active.role' => EnsureActiveRole::class,
+            'active.role' => RequireActiveRole::class,
+
+            // (valfritt) behåll endast om du inte hunnit ta bort överallt
+            // 'role' => \App\Http\Middleware\RoleMiddleware::class,
+			 'restaurant.statistics.access' => \App\Http\Middleware\EnsureRestaurantStatisticsAccess::class,
         ]);
+		
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
-    })->create();
+    })
+    ->create();

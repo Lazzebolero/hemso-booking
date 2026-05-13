@@ -1,371 +1,468 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+@php
+    $todayToursCollection = $todayTours ?? collect();
+    $upcomingToursCollection = $upcomingTours ?? collect();
+    $ongoingToursCollection = $ongoingTours ?? collect();
+    $lateUnstartedToursCollection = $lateUnstartedTours ?? collect();
+
+    $nextUpcomingTour = $upcomingToursCollection->first();
+    $timeToNextTour = '-';
+
+    $prefix = \App\Support\ActiveRole::routePrefix();
+
+    if ($nextUpcomingTour && $nextUpcomingTour->tour_date && $nextUpcomingTour->start_time) {
+        $nextTourAt = \Carbon\Carbon::parse($nextUpcomingTour->tour_date)
+            ->setTimeFromTimeString($nextUpcomingTour->start_time);
+
+        $minutes = max(0, (int) round(now()->diffInMinutes($nextTourAt, false)));
+
+        if ($minutes >= 60) {
+            $hours = floor($minutes / 60);
+            $remainingMinutes = $minutes % 60;
+
+            $timeToNextTour = $remainingMinutes > 0
+                ? $hours . 'h ' . $remainingMinutes . ' min'
+                : $hours . 'h';
+        } else {
+            $timeToNextTour = $minutes . ' min';
+        }
+    }
+@endphp
+
+<div class="page-header">
     <div>
-        <h2 class="mb-1">Dashboard</h2>
-        <div class="muted">Pågående turer, dagens visningar och kommande turer.</div>
+        <h2 class="page-title">Dashboard</h2>
+        <div class="page-subtitle">Översikt över pågående, kommande och dagens turer.</div>
     </div>
 
     <div class="page-actions">
-        <a href="{{ route('quick-tours.create') }}" class="btn btn-primary">
-            <i class="bi bi-lightning-charge-fill me-2"></i>Starta snabbtur
-        </a>
-
-        <a href="{{ route('admin.tours.create') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-plus-circle me-2"></i>Ny tur
-        </a>
-
-        <a href="{{ route('admin.bookings.create') }}" class="btn btn-outline-secondary">
+        <a href="{{ route($prefix . '.bookings.create') }}" class="btn btn-primary">
             <i class="bi bi-journal-plus me-2"></i>Ny bokning
         </a>
 
-        <a href="{{ route('admin.reports.create') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>Ny felrapport
+        <a href="{{ route($prefix . '.bookings.quick-create') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-lightning-charge me-2"></i>Snabbbokning
+        </a>
+
+        <a href="{{ route($prefix . '.tours.create') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-plus-circle me-2"></i>Ny tur
+        </a>
+
+        <a href="{{ route('quick-tours.create') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-lightning-charge-fill me-2"></i>Snabbtur
         </a>
     </div>
 </div>
 
 <div class="stats-grid mb-4">
     <div class="stats-card">
-        <div class="stats-icon"><i class="bi bi-people-fill"></i></div>
-        <div class="stats-label">Bokade besökare idag</div>
+        <div class="stats-label">Bokade idag</div>
         <div class="stats-value">{{ $todayBookedPeople ?? 0 }}</div>
         <div class="stats-subtext">Totalt bokade personer på dagens turer</div>
     </div>
 
-    <div class="stats-card accent-success">
-        <div class="stats-icon"><i class="bi bi-play-circle-fill"></i></div>
-        <div class="stats-label">På startad tur</div>
+    <div class="stats-card">
+        <div class="stats-label">I berget just nu</div>
         <div class="stats-value">{{ $startedNotCompletedPeople ?? 0 }}</div>
         <div class="stats-subtext">
-            Fördelat på {{ $startedToursCount ?? 0 }} {{ (($startedToursCount ?? 0) == 1) ? 'tur' : 'turer' }}
+            Fördelade på {{ $startedToursCount ?? 0 }} {{ (($startedToursCount ?? 0) == 1) ? 'tur' : 'turer' }}
         </div>
     </div>
 
-    <div class="stats-card accent-warning">
-        <div class="stats-icon"><i class="bi bi-signpost-2-fill"></i></div>
-        <div class="stats-label">Dagens visningar</div>
-        <div class="stats-value">{{ isset($todayTours) ? $todayTours->count() : 0 }}</div>
-        <div class="stats-subtext">Alla turer planerade idag</div>
+    <div class="stats-card">
+        <div class="stats-label">Turer idag</div>
+        <div class="stats-value">{{ $todayToursCollection->count() }}</div>
+        <div class="stats-subtext">Planerade, startade och avslutade</div>
     </div>
 
-    <div class="stats-card accent-danger">
-        <div class="stats-icon"><i class="bi bi-collection-fill"></i></div>
-        <div class="stats-label">Totalt antal personer</div>
-        <div class="stats-value">{{ $totalPeopleToday ?? 0 }}</div>
-        <div class="stats-subtext">Summering av dagens bokade personer</div>
+    <div class="stats-card">
+        <div class="stats-label">Tid till nästa tur</div>
+        <div class="stats-value">{{ $timeToNextTour }}</div>
+        <div class="stats-subtext">
+            @if($nextUpcomingTour)
+                {{ !empty($nextUpcomingTour->start_time) ? substr($nextUpcomingTour->start_time, 0, 5) : '-' }}
+                • {{ $nextUpcomingTour->title }}
+            @else
+                Ingen kommande tur
+            @endif
+        </div>
     </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-12">
-        <div class="page-card">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+<div class="admin-grid-2">
+    <div>
+        <div class="page-card compact-card mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div>
-                    <div class="section-title mb-1">Pågående turer</div>
-                    <div class="muted">Turer som har startat men ännu inte avslutats.</div>
+                    <div class="section-title mb-1">Kommande turer</div>
+                    <div class="small-muted">Prioriterad översikt för bokning och planering.</div>
                 </div>
             </div>
 
-            @forelse($ongoingTours ?? [] as $tour)
-                @php
-                    $typeName = $tour->tourType?->name ?? '-';
-                @endphp
-
-                <div class="page-card mb-3">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-                        <div>
-                            <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                                <div class="fw-bold">{{ $tour->title }}</div>
-                                <span class="badge-soft badge-soft-success">Pågående</span>
-                            </div>
-
-                            <div class="muted mb-2">
-                                {{ $tour->tour_date ? \Carbon\Carbon::parse($tour->tour_date)->format('Y-m-d') : '-' }}
-                                kl {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
-                            </div>
-
-                            <div class="small muted">Turtyp</div>
-                            <div class="fw-semibold mb-2">{{ $typeName }}</div>
-
-                            <div class="small muted">Guide</div>
-                            <div class="fw-semibold">{{ $tour->guide?->name ?? 'Ej tilldelad' }}</div>
-                        
-						@php
-    $languageCodes = $tour->bookings
-        ->flatMap(fn ($booking) => $booking->languages->pluck('code'))
-        ->filter()
-        ->map(fn ($code) => strtoupper($code))
-        ->unique()
-        ->values();
-@endphp
-
-<div class="small muted">Språk</div>
-<div class="fw-semibold mb-2">
-    @if($languageCodes->isEmpty())
-        -
-    @else
-        {{ $languageCodes->implode(' + ') }}
-    @endif
-</div></div>
-
-                        <div class="text-end">
-                            <div class="small muted">Bokade personer</div>
-                            <div class="fw-bold fs-4">{{ $tour->booked_people_count ?? 0 }}</div>
-
-                            <div class="small muted mt-2">Antal bokningar</div>
-                            <div class="fw-semibold">{{ $tour->booking_groups_count ?? 0 }}</div>
-
-                            <div class="small muted mt-2">Max deltagare</div>
-                            <div class="fw-semibold">{{ $tour->max_participants ?? 0 }}</div>
-
+            <div class="table-responsive-modern">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th style="width: 130px;">Tid</th>
+                            <th>Tur</th>
+                            <th style="width: 140px;">Guide</th>
+                            <th style="width: 70px;">Språk</th>
+                            <th style="width: 80px;">Bokade</th>
+                            <th style="width: 90px;">Beläggning</th>
+                            <th style="width: 260px;">Åtgärder</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($upcomingToursCollection as $tour)
                             @php
-                                $occupancyPercent = ($tour->max_participants ?? 0) > 0
-                                    ? round((($tour->booked_people_count ?? 0) / $tour->max_participants) * 100)
-                                    : 0;
+                                $booked = $tour->booked_people_count ?? 0;
+                                $max = $tour->max_participants ?? 0;
+                                $occupancyPercent = $max > 0 ? round(($booked / $max) * 100) : 0;
+
+                                $progressColor = $occupancyPercent < 40
+                                    ? 'var(--brand-danger)'
+                                    : ($occupancyPercent < 70 ? 'var(--brand-warning)' : 'var(--brand-success)');
+
+                                $languageCodes = $tour->bookings
+                                    ->flatMap(fn ($booking) => $booking->languages->pluck('code'))
+                                    ->filter()
+                                    ->map(fn ($code) => strtoupper($code))
+                                    ->unique()
+                                    ->values();
                             @endphp
 
-                            <div class="small muted mt-2">Beläggning</div>
-                            <div class="fw-semibold mb-2">{{ $occupancyPercent }}%</div>
-                            <div class="progress-modern" style="width: 220px; max-width: 100%;">
-                                <div style="width: {{ min(100, $occupancyPercent) }}%; background: var(--brand-success);"></div>
-                            </div>
-                        </div>
-                    </div>
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">
+                                        {{ $tour->tour_date ? \Carbon\Carbon::parse($tour->tour_date)->format('Y-m-d') : '-' }}
+                                    </div>
+                                    <div class="small-muted">
+                                        {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
+                                    </div>
+                                </td>
 
-                    <div class="d-flex justify-content-end flex-wrap gap-2 mt-3">
-                        <a href="{{ route('admin.tours.show', $tour) }}" class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-eye me-1"></i>Visa
-                        </a>
+                                <td>
+                                    <div class="fw-semibold">{{ $tour->title }}</div>
+                                    <div class="small-muted">{{ $tour->tourType?->name ?? '-' }}</div>
+                                </td>
 
-                        <form method="POST" action="{{ route('admin.tours.complete', $tour) }}">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-stop-fill me-1"></i>Avsluta
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            @empty
-                <div class="text-center muted py-4">
-                    Inga pågående turer just nu.
-                </div>
-            @endforelse
+                                <td>
+                                    <div class="fw-semibold">{{ $tour->guide?->name ?? 'Ej tilldelad' }}</div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-semibold">
+                                        @if($languageCodes->isEmpty())
+                                            -
+                                        @else
+                                            {{ $languageCodes->implode(' + ') }}
+                                        @endif
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-bold">{{ $booked }}/{{ $max }}</div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-semibold mb-1">{{ $occupancyPercent }}%</div>
+                                    <div class="progress-modern" style="width: 86px;">
+                                        <div style="width: {{ min(100, $occupancyPercent) }}%; background: {{ $progressColor }};"></div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="toolbar-inline">
+                                        <a href="{{ route($prefix . '.bookings.create', ['tour_id' => $tour->id]) }}" class="btn btn-sm btn-primary">
+                                            Boka
+                                        </a>
+
+                                        <a href="{{ route($prefix . '.tours.show', $tour) }}" class="btn btn-sm btn-outline-secondary">
+                                            Visa
+                                        </a>
+
+                                        <a href="{{ route($prefix . '.tours.edit', $tour) }}" class="btn btn-sm btn-outline-secondary">
+                                            Redigera
+                                        </a>
+
+                                        @if(Route::has($prefix . '.tours.cancel') && ($tour->status ?? null) === 'planned')
+                                            <form method="POST" action="{{ route($prefix . '.tours.cancel', $tour) }}" onsubmit="return confirm('Ställa in turen?')">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    Ställ in
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center muted py-4">
+                                    Inga kommande turer hittades.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-</div>
 
-<div class="row g-4 mb-4">
-    <div class="col-xl-8">
-        <div class="page-card h-100">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div class="page-card compact-card">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div>
-                    <div class="section-title mb-1">Dagens visningar</div>
-                    <div class="muted">Visar dagens turer med bokade personer och antal bokningar.</div>
+                    <div class="section-title mb-1">Dagens turer</div>
+                    <div class="small-muted">Kompakt översikt över dagens schema.</div>
                 </div>
             </div>
 
-            @forelse($todayTours ?? [] as $tour)
+            <div class="table-responsive-modern">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th style="width: 115px;">Tid</th>
+                            <th>Tur</th>
+                            <th style="width: 135px;">Guide</th>
+                            <th style="width: 85px;">Språk</th>
+                            <th style="width: 90px;">Bokade</th>
+                            <th style="width: 100px;">Status</th>
+                            <th style="width: 210px;">Åtgärder</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($todayToursCollection as $tour)
+                            @php
+                                $status = $tour->status ?? 'planned';
+
+                                $statusClass = match($status) {
+                                    'planned' => 'badge-soft badge-soft-warning',
+                                    'started' => 'badge-soft badge-soft-success',
+                                    'completed' => 'badge-soft badge-soft-secondary',
+                                    'cancelled' => 'badge-soft badge-soft-danger',
+                                    default => 'badge-soft badge-soft-warning',
+                                };
+
+                                $statusLabel = match($status) {
+                                    'planned' => 'Planerad',
+                                    'started' => 'Startad',
+                                    'completed' => 'Avslutad',
+                                    'cancelled' => 'Inställd',
+                                    default => ucfirst($status),
+                                };
+
+                                $languageCodes = $tour->bookings
+                                    ->flatMap(fn ($booking) => $booking->languages->pluck('code'))
+                                    ->filter()
+                                    ->map(fn ($code) => strtoupper($code))
+                                    ->unique()
+                                    ->values();
+                            @endphp
+
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}</div>
+                                    <div class="small-muted">{{ $tour->tour_date ? \Carbon\Carbon::parse($tour->tour_date)->format('Y-m-d') : '-' }}</div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-semibold">{{ $tour->title }}</div>
+                                    <div class="small-muted">{{ $tour->tourType?->name ?? '-' }}</div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-semibold">{{ $tour->guide?->name ?? 'Ej tilldelad' }}</div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-semibold">
+                                        @if($languageCodes->isEmpty())
+                                            -
+                                        @else
+                                            {{ $languageCodes->implode(' + ') }}
+                                        @endif
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-bold">{{ $tour->booked_people_count ?? 0 }}</div>
+                                    <div class="small-muted">av {{ $tour->max_participants ?? 0 }}</div>
+                                </td>
+
+                                <td>
+                                    <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
+                                </td>
+
+                                <td>
+                                    <div class="toolbar-inline">
+                                        <a href="{{ route($prefix . '.tours.show', $tour) }}" class="btn btn-sm btn-outline-secondary">
+                                            Visa
+                                        </a>
+
+                                        @if(($tour->status ?? null) !== 'completed')
+                                            <a href="{{ route($prefix . '.tours.edit', $tour) }}" class="btn btn-sm btn-outline-secondary">
+                                                Redigera
+                                            </a>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center muted py-4">
+                                    Inga turer finns för idag.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="page-card compact-card">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div class="section-title mb-0">Pågående turer</div>
+                <div class="small-muted">Uppdateras automatiskt var 30:e sekund</div>
+            </div>
+
+            @forelse($ongoingToursCollection as $tour)
                 @php
-                    $status = $tour->status ?? 'planned';
+                    $estimatedEndTime = '-';
+                    $remainingToEnd = '-';
 
-                    $statusClass = match($status) {
-                        'planned' => 'badge-soft badge-soft-warning',
-                        'started' => 'badge-soft badge-soft-success',
-                        'completed' => 'badge-soft badge-soft-secondary',
-                        'cancelled' => 'badge-soft badge-soft-danger',
-                        default => 'badge-soft badge-soft-warning',
-                    };
+                    if (!empty($tour->started_at) && !empty($tour->start_time) && !empty($tour->end_time)) {
+                        try {
+                            $normalizedStart = strlen($tour->start_time) === 5 ? $tour->start_time . ':00' : $tour->start_time;
+                            $normalizedEnd = strlen($tour->end_time) === 5 ? $tour->end_time . ':00' : $tour->end_time;
 
-                    $statusLabel = match($status) {
-                        'planned' => 'Planerad',
-                        'started' => 'Startad',
-                        'completed' => 'Avslutad',
-                        'cancelled' => 'Inställd',
-                        default => ucfirst($status),
-                    };
+                            $plannedStart = \Carbon\Carbon::createFromFormat('H:i:s', $normalizedStart);
+                            $plannedEnd = \Carbon\Carbon::createFromFormat('H:i:s', $normalizedEnd);
 
-                    $typeName = $tour->tourType?->name ?? '-';
+                            $durationMinutes = $plannedStart->diffInMinutes($plannedEnd, false);
+
+                            if ($durationMinutes > 0) {
+                                $actualEndAt = \Carbon\Carbon::parse($tour->started_at)->addMinutes($durationMinutes);
+                                $estimatedEndTime = $actualEndAt->format('H:i');
+
+                                $remainingMinutes = (int) now()->diffInMinutes($actualEndAt, false);
+
+                                if ($remainingMinutes > 60) {
+                                    $hours = floor($remainingMinutes / 60);
+                                    $minutes = $remainingMinutes % 60;
+                                    $remainingToEnd = $minutes > 0 ? $hours . 'h ' . $minutes . ' min kvar' : $hours . 'h kvar';
+                                } elseif ($remainingMinutes > 0) {
+                                    $remainingToEnd = $remainingMinutes . ' min kvar';
+                                } elseif ($remainingMinutes === 0) {
+                                    $remainingToEnd = 'slutar nu';
+                                } else {
+                                    $remainingToEnd = 'borde vara klar';
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                        }
+                    }
                 @endphp
 
-                <div class="page-card mb-3">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div class="info-item mb-3">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
                         <div>
-                            <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                                <div class="fw-bold">{{ $tour->title }}</div>
-                                <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
-                            </div>
-
-                            <div class="muted mb-2">
-                                {{ $tour->tour_date ? \Carbon\Carbon::parse($tour->tour_date)->format('Y-m-d') : '-' }}
-                                kl {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
-                                @if(!empty($tour->end_time))
-                                    – {{ substr($tour->end_time, 0, 5) }}
+                            <div class="fw-semibold">{{ $tour->title }}</div>
+                            <div class="small-muted">
+                                @if(!empty($tour->started_at))
+                                    Turen startade {{ \Carbon\Carbon::parse($tour->started_at)->format('H:i') }}
+                                @elseif(!empty($tour->start_time))
+                                    {{ substr($tour->start_time, 0, 5) }}
+                                @else
+                                    -
                                 @endif
-                            </div>
-
-                            <div class="small muted">Turtyp</div>
-                            <div class="fw-semibold mb-2">{{ $typeName }}</div>
-
-                            <div class="small muted">Guide</div>
-                            <div class="fw-semibold">{{ $tour->guide?->name ?? 'Ej tilldelad' }}</div>
-							@php
-    $languageCodes = $tour->bookings
-        ->flatMap(fn ($booking) => $booking->languages->pluck('code'))
-        ->filter()
-        ->map(fn ($code) => strtoupper($code))
-        ->unique()
-        ->values();
-@endphp
-
-<div class="small muted">Språk</div>
-<div class="fw-semibold mb-2">
-    @if($languageCodes->isEmpty())
-        -
-    @else
-        {{ $languageCodes->implode(' + ') }}
-    @endif
-</div>
-                        </div>
-
-                        <div class="text-end">
-                            <div class="small muted">Bokade personer</div>
-                            <div class="fw-bold fs-4">{{ $tour->booked_people_count ?? 0 }}</div>
-
-                            <div class="small muted mt-2">Antal bokningar</div>
-                            <div class="fw-semibold">{{ $tour->booking_groups_count ?? 0 }}</div>
-
-                            <div class="small muted mt-2">Max deltagare</div>
-                            <div class="fw-semibold">{{ $tour->max_participants ?? 0 }}</div>
-
-                            @php
-                                $occupancyPercent = ($tour->max_participants ?? 0) > 0
-                                    ? round((($tour->booked_people_count ?? 0) / $tour->max_participants) * 100)
-                                    : 0;
-                            @endphp
-
-                            <div class="small muted mt-2">Beläggning</div>
-                            <div class="fw-semibold mb-2">{{ $occupancyPercent }}%</div>
-                            <div class="progress-modern" style="width: 220px; max-width: 100%;">
-                                <div style="width: {{ min(100, $occupancyPercent) }}%; background: var(--brand-success);"></div>
+                                • {{ $tour->guide?->name ?? 'Ej tilldelad' }}
                             </div>
                         </div>
+                        <span class="badge-soft badge-soft-success">Pågående</span>
                     </div>
 
-                    <div class="d-flex justify-content-end flex-wrap gap-2 mt-3">
-                        <a href="{{ route('admin.tours.show', $tour) }}" class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-eye me-1"></i>Visa
-                        </a>
-
-                        @if(($tour->status ?? null) !== 'completed')
-                            <a href="{{ route('admin.tours.edit', $tour) }}" class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-pencil-square me-1"></i>Redigera
-                            </a>
-                        @endif
-
-                        @if(($tour->status ?? null) === 'planned')
-                            <form method="POST" action="{{ route('admin.tours.start', $tour) }}">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-play-fill me-1"></i>Starta
-                                </button>
-                            </form>
-                        @endif
-
-                        @if(($tour->status ?? null) === 'started')
-                            <form method="POST" action="{{ route('admin.tours.complete', $tour) }}">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-stop-fill me-1"></i>Avsluta
-                                </button>
-                            </form>
-                        @endif
-                    </div>
-                </div>
-            @empty
-                <div class="text-center muted py-4">
-                    Inga turer finns för idag.
-                </div>
-            @endforelse
-        </div>
-    </div>
-
-    <div class="col-xl-4">
-        <div class="page-card h-100">
-            <div class="section-title mb-3">Kommande turer</div>
-
-            @forelse($upcomingTours ?? [] as $tour)
-                @php
-                    $status = $tour->status ?? 'planned';
-
-                    $statusClass = match($status) {
-                        'planned' => 'badge-soft badge-soft-warning',
-                        'started' => 'badge-soft badge-soft-success',
-                        'completed' => 'badge-soft badge-soft-secondary',
-                        'cancelled' => 'badge-soft badge-soft-danger',
-                        default => 'badge-soft badge-soft-warning',
-                    };
-
-                    $statusLabel = match($status) {
-                        'planned' => 'Planerad',
-                        'started' => 'Startad',
-                        'completed' => 'Avslutad',
-                        'cancelled' => 'Inställd',
-                        default => ucfirst($status),
-                    };
-                @endphp
-
-                <div class="border rounded-4 p-3 mb-3 bg-white">
-                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                        <div class="fw-semibold">{{ $tour->title }}</div>
-                        <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
-                    </div>
-
-                    <div class="small muted mb-1">
-                        {{ $tour->tour_date ? \Carbon\Carbon::parse($tour->tour_date)->format('Y-m-d') : '-' }}
-                        kl {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
-                    </div>@php
-    $languageCodes = $tour->bookings
-        ->flatMap(fn ($booking) => $booking->languages->pluck('code'))
-        ->filter()
-        ->map(fn ($code) => strtoupper($code))
-        ->unique()
-        ->values();
-@endphp
-
-<div class="small muted">Språk</div>
-<div class="fw-semibold mb-2">
-    @if($languageCodes->isEmpty())
-        -
-    @else
-        {{ $languageCodes->implode(' + ') }}
-    @endif
-</div>
-
-                    <div class="small muted mb-1">Turtyp</div>
-                    <div class="fw-semibold mb-2">{{ $tour->tourType?->name ?? '-' }}</div>
-
-                    <div class="d-flex justify-content-between small">
+                    <div class="d-flex justify-content-between small mt-2">
                         <span class="muted">Bokade</span>
                         <span class="fw-semibold">{{ $tour->booked_people_count ?? 0 }}</span>
                     </div>
 
-                    <div class="d-flex justify-content-between small mt-1">
-                        <span class="muted">Bokningar</span>
-                        <span class="fw-semibold">{{ $tour->booking_groups_count ?? 0 }}</span>
+                    <div class="d-flex justify-content-between small mt-2">
+                        <span class="muted">Beräknas klar</span>
+                        <span class="fw-semibold">{{ $estimatedEndTime }}</span>
                     </div>
 
-                    <div class="mt-3">
-                        <a href="{{ route('admin.tours.show', $tour) }}" class="btn btn-sm btn-outline-secondary w-100">
-                            Visa tur
+                    <div class="d-flex justify-content-between small mt-1">
+                        <span class="muted">Tid kvar</span>
+                        <span class="fw-semibold">{{ $remainingToEnd }}</span>
+                    </div>
+
+                    <div class="toolbar-inline mt-3">
+                        <a href="{{ route($prefix . '.tours.show', $tour) }}" class="btn btn-sm btn-outline-secondary w-100">
+                            Visa
                         </a>
                     </div>
                 </div>
             @empty
-                <div class="muted">Inga kommande turer hittades.</div>
+                <div class="muted small">Inga pågående turer just nu.</div>
             @endforelse
+
+            @if($lateUnstartedToursCollection->isNotEmpty())
+                <hr style="border:0;border-top:1px solid #e2e8f0;margin:1rem 0;">
+
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div class="section-title mb-0">Ej startade turer</div>
+                    <div class="small-muted">Starttid passerad med mer än 10 minuter</div>
+                </div>
+
+                @foreach($lateUnstartedToursCollection as $tour)
+                    <div class="info-item mb-3" style="background:#fff7ed;border-color:#fed7aa;">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="fw-semibold">{{ $tour->title }}</div>
+                                <div class="small-muted">
+                                    {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
+                                    • {{ $tour->guide?->name ?? 'Ej tilldelad' }}
+                                </div>
+                            </div>
+                            <span class="badge-soft badge-soft-warning">Ej startad</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between small mt-2">
+                            <span class="muted">Bokade</span>
+                            <span class="fw-semibold">{{ $tour->booked_people_count ?? 0 }}</span>
+                        </div>
+
+                        <div class="toolbar-inline mt-3">
+                            <a href="{{ route($prefix . '.tours.show', $tour) }}" class="btn btn-sm btn-outline-secondary w-100">
+                                Visa
+                            </a>
+
+                            <a href="{{ route($prefix . '.tours.edit', $tour) }}" class="btn btn-sm btn-outline-secondary w-100">
+                                Redigera
+                            </a>
+
+                            @if(Route::has($prefix . '.tours.cancel'))
+                                <form method="POST" action="{{ route($prefix . '.tours.cancel', $tour) }}" class="w-100" onsubmit="return confirm('Ställa in turen?')">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                        Ställ in
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            @endif
         </div>
     </div>
 </div>
+
+<script>
+    setTimeout(function () {
+        window.location.reload();
+    }, 30000);
+</script>
 @endsection

@@ -3,71 +3,209 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\LogService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(): View
     {
-        $users = User::orderBy('name')->paginate(20);
+        $users = User::with('roles')
+            ->orderBy('name')
+            ->paginate(20);
+
         return view('admin.users.index', compact('users'));
     }
 
-    public function create()
+    public function create(): View
     {
-        return view('admin.users.form', ['user' => new User()]);
-    }
+        $roles = Role::query()
+            ->orderBy('name')
+            ->get();
 
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:50',
-            'role' => 'required|in:admin,host,guide',
-            'is_active' => 'required|boolean',
-            'password' => 'required|string|min:8|confirmed',
+        return view('admin.users.form', [
+            'user' => new User(),
+            'roles' => $roles,
         ]);
-        $data['password'] = Hash::make($data['password']);
-        $user = User::create($data);
-        LogService::log('user', $user->id, 'created', null, $user->only(['name','email','role','is_active']), 'Skapade användare');
-        return redirect()->route('admin.users.index')->with('success', 'Användare skapad.');
     }
 
-    public function edit(User $user)
+    public function store(Request $request): RedirectResponse
     {
-        return view('admin.users.form', compact('user'));
-    }
+        $data = $this->validated($request, true);
 
-    public function update(Request $request, User $user)
-    {
-        $old = $user->only(['name','email','role','is_active']);
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'phone' => 'nullable|string|max:50',
-            'role' => 'required|in:admin,host,guide',
-            'is_active' => 'required|boolean',
-            'password' => 'nullable|string|min:8|confirmed',
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'is_active' => (bool) ($data['is_active'] ?? true),
+            'is_kiosk' => (bool) ($data['is_kiosk'] ?? false),
+            'kiosk_target' => !empty($data['is_kiosk']) ? ($data['kiosk_target'] ?? null) : null,
+            'password' => Hash::make($data['password']),
         ]);
+
+        $roleIds = Role::query()
+            ->whereIn('slug', $data['roles'])
+            ->pluck('id')
+            ->all();
+
+        $user->roles()->sync($roleIds);
+
+        LogService::log(
+            'user',
+            $user->id,
+            'created',
+            null,
+            $user->fresh('roles')->only([
+                'name',
+                'email',
+                'phone',
+                'is_active',
+                'is_kiosk',
+                'kiosk_target',
+            ]) + [
+                'roles' => $user->fresh('roles')->roles->pluck('slug')->all(),
+            ],
+            'Skapade användare'
+        );
+
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', 'Användare skapad.');
+    }
+
+    public function edit(User $user): View
+    {
+        $roles = Role::query()
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.users.form', [
+            'user' => $user->load('roles'),
+            'roles' => $roles,
+        ]);
+    }
+
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        $old = $user->load('roles')->only([
+            'name',
+            'email',
+            'phone',
+            'is_active',
+            'is_kiosk',
+            'kiosk_target',
+        ]) + [
+            'roles' => $user->roles->pluck('slug')->all(),
+        ];
+
+        $data = $this->validated($request, false, $user);
+
+        $user->update([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'is_active' => (bool) ($data['is_active'] ?? true),
+            'is_kiosk' => (bool) ($data['is_kiosk'] ?? false),
+            'kiosk_target' => !empty($data['is_kiosk']) ? ($data['kiosk_target'] ?? null) : null,
+        ]);
+
         if (!empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        } else {
-            unset($data['password']);
+            $user->update([
+                'password' => Hash::make($data['password']),
+            ]);
         }
-        $user->update($data);
-        LogService::log('user', $user->id, 'updated', $old, $user->fresh()->only(['name','email','role','is_active']), 'Uppdaterade användare');
-        return redirect()->route('admin.users.index')->with('success', 'Användare uppdaterad.');
+
+        $roleIds = Role::query()
+            ->whereIn('slug', $data['roles'])
+            ->pluck('id')
+            ->all();
+
+        $user->roles()->sync($roleIds);
+
+        $fresh = $user->fresh('roles');
+
+        LogService::log(
+            'user',
+            $user->id,
+            'updated',
+            $old,
+            $fresh->only([
+                'name',
+                'email',
+                'phone',
+                'is_active',
+                'is_kiosk',
+                'kiosk_target',
+            ]) + [
+                'roles' => $fresh->roles->pluck('slug')->all(),
+            ],
+            'Uppdaterade användare'
+        );
+
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', 'Användare uppdaterad.');
     }
 
-    public function destroy(User $user)
+    public function destroy(User $user): RedirectResponse
     {
-        $old = $user->only(['name','email','role','is_active']);
+        $old = $user->load('roles')->only([
+            'name',
+            'email',
+            'phone',
+            'is_active',
+            'is_kiosk',
+            'kiosk_target',
+        ]) + [
+            'roles' => $user->roles->pluck('slug')->all(),
+        ];
+
+        $userId = $user->id;
+        $user->roles()->detach();
         $user->delete();
-        LogService::log('user', $user->id, 'deleted', $old, null, 'Tog bort användare');
+
+        LogService::log(
+            'user',
+            $userId,
+            'deleted',
+            $old,
+            null,
+            'Tog bort användare'
+        );
+
         return back()->with('success', 'Användare borttagen.');
+    }
+
+    private function validated(Request $request, bool $isCreate, ?User $user = null): array
+    {
+        $emailRule = 'required|email|unique:users,email';
+        if (! $isCreate && $user) {
+            $emailRule .= ',' . $user->id;
+        }
+
+        return $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => $emailRule,
+            'phone' => 'nullable|string|max:50',
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'exists:roles,slug',
+            'is_active' => 'required|boolean',
+
+            'is_kiosk' => 'nullable|boolean',
+            'kiosk_target' => [
+                'nullable',
+                Rule::in(['restaurant-board']),
+            ],
+
+            'password' => $isCreate
+                ? 'required|string|min:8|confirmed'
+                : 'nullable|string|min:8|confirmed',
+        ]);
     }
 }

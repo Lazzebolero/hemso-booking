@@ -34,5 +34,16 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+	
+	'restaurant_statistics' => [
+
+    'password' => env('RESTAURANT_STATISTICS_PASSWORD'),
+],
+'security_alerts' => [
+    'email' => env('SECURITY_ALERT_EMAIL', env('MAIL_FROM_ADDRESS')),
+    'failed_threshold' => env('SECURITY_ALERT_FAILED_THRESHOLD', 8),
+    'minutes' => env('SECURITY_ALERT_MINUTES', 15),
+    'cooldown_minutes' => env('SECURITY_ALERT_COOLDOWN_MINUTES', 60),
+],
 
 ];

@@ -9,15 +9,63 @@ use App\Models\User;
 use App\Services\LogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Models\WorkShift;
 
 class QuickTourController extends Controller
 {
-    public function create()
-    {
-        $guides = User::where('role', 'guide')->orderBy('name')->get();
+   public function create()
+{
+    $quickTourDate = now()->toDateString();
 
-        return view('quick-tours.create', compact('guides'));
+    $guides = User::query()
+        ->whereHas('roles', function ($query) {
+            $query->where('slug', Roles::GUIDE);
+        })
+        ->with(['workShifts' => function ($query) use ($quickTourDate) {
+            $query->whereDate('shift_date', $quickTourDate)
+                ->where('shift_role', Roles::GUIDE)
+                ->whereNotIn('status', ['cancelled'])
+                ->orderBy('start_time');
+        }])
+        ->orderBy('name')
+        ->get();
+
+    $languages = Language::query()
+        ->orderBy('sort_order')
+        ->orderBy('name')
+        ->get();
+
+    $defaultLanguageIds = Language::query()
+        ->where('code', 'sv')
+        ->pluck('id')
+        ->map(fn ($id) => (int) $id)
+        ->values()
+        ->all();
+
+    if (empty($defaultLanguageIds)) {
+        $defaultLanguageIds = Language::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->limit(1)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
+
+    if (session('active_role') === Roles::GUIDE) {
+        return view('guide.quick-tours.create', compact(
+            'languages',
+            'defaultLanguageIds'
+        ));
+    }
+
+    return view('admin.quick-tours.create', compact(
+        'guides',
+        'languages',
+        'defaultLanguageIds'
+    ));
+}
 
     public function store(Request $request)
     {
@@ -53,7 +101,7 @@ class QuickTourController extends Controller
         }
 
         $tour = Tour::create([
-            'title' => 'Snabbtur ' . $now->format('Y-m-d H:i'),
+            'title' => 'Tur ' . $now->format('H:i'),
             'tour_type_id' => $quickTourType?->id,
             'description' => $data['notes'] ?? null,
             'tour_date' => $now->toDateString(),

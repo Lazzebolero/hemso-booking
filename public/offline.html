@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Offline – Hemsö</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #e2e8f0;
+        --warn: #fff7ed;
+        --warnLine: #fdba74;
+        --warnText: #9a3412;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+        color: var(--text);
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+      }
+      .card {
+        width: 100%;
+        max-width: 560px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        padding: 18px 18px 16px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 1.25rem;
+        font-weight: 850;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .hint {
+        margin-top: 12px;
+        border-radius: 14px;
+        padding: 12px 12px;
+        background: var(--warn);
+        border: 1px solid var(--warnLine);
+        color: var(--warnText);
+        font-weight: 650;
+      }
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-weight: 750;
+        cursor: pointer;
+      }
+      .btn-primary {
+        border: 0;
+        color: #fff;
+        background: linear-gradient(135deg, #38bdf8, #2563eb);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Du är offline</h1>
+      <p>
+        Sidor du <strong>nyss besökt medan du var online</strong> kan ofta öppnas igen här. Sidor du aldrig laddat innan kan inte hämtas utan nät.
+      </p>
+      <p>
+        <strong>Skicka formulär offline:</strong> använd sidor som redan är öppna (t.ex. snabbtur eller meddelanden). Då kan åtgärden köas och skickas när täckning återkommer.
+      </p>
+      <div class="hint">
+        Tips: efter varje uppdatering av appen, öppna viktiga sidor en gång online så de sparas lokalt.
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="location.reload()">Försök igen</button>
+        <button class="btn" onclick="history.back()">Tillbaka</button>
+      </div>
+    </div>
+  </body>
+</html>
+

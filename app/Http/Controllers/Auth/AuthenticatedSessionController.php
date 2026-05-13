@@ -7,6 +7,9 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -24,7 +27,17 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        $this->ensureIsNotRateLimited($request);
+
+        try {
+            $request->authenticate();
+
+            RateLimiter::clear($this->throttleKey($request));
+        } catch (ValidationException $e) {
+            RateLimiter::hit($this->throttleKey($request), 300);
+
+            throw $e;
+        }
 
         $request->session()->regenerate();
 
@@ -43,5 +56,31 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /**
+     * Check if user is rate limited
+     */
+    protected function ensureIsNotRateLimited(Request $request): void
+    {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey($request), 5)) {
+            return;
+        }
+
+        $seconds = RateLimiter::availableIn($this->throttleKey($request));
+
+        throw ValidationException::withMessages([
+            'email' => 'För många misslyckade inloggningsförsök. Försök igen om ' . ceil($seconds / 60) . ' minuter.',
+        ]);
+    }
+
+    /**
+     * Unique key per email + IP
+     */
+    protected function throttleKey(Request $request): string
+    {
+        return Str::transliterate(
+            Str::lower($request->input('email')) . '|' . $request->ip()
+        );
     }
 }

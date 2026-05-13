@@ -22,6 +22,8 @@
 .env
 .env.*
 
+/database/testing.sqlite
+
 .phpunit.result.cache
 .idea
 .vscode

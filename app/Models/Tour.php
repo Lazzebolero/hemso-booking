@@ -27,7 +27,10 @@ class Tour extends Model
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
     ];
-
+	public function bookingPage()
+{
+    return $this->hasOne(\App\Models\TourBookingPage::class);
+}
     public function guide()
     {
         return $this->belongsTo(User::class, 'guide_id');

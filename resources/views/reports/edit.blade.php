@@ -1,17 +1,22 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $prefix = \App\Support\ActiveRole::routePrefix();
+@endphp
+
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
     <div>
         <h2 class="mb-1">Redigera felrapport</h2>
         <div class="muted">Uppdatera kategori, prioritet, status och beskrivning.</div>
     </div>
-    <a href="{{ route('admin.reports.index') }}" class="btn btn-outline-secondary">
+
+    <a href="{{ route($prefix . '.reports.index') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left me-2"></i>Tillbaka
     </a>
 </div>
 
-<form method="POST" action="{{ route('admin.reports.update', $report) }}">
+<form method="POST" action="{{ route($prefix . '.reports.update', $report) }}">
     @csrf
     @method('PUT')
 
