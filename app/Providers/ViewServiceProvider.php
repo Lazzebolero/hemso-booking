@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\TourType;
 use App\Services\FacilityReportAlertService;
+use App\Support\Roles;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -22,7 +23,7 @@ class ViewServiceProvider extends ServiceProvider
             $activeRole = session('active_role');
             $newOpenFacilityReportsCount = 0;
 
-            if ($user !== null && in_array($activeRole, ['admin', 'host'], true)) {
+            if ($user !== null && $activeRole === Roles::ADMIN) {
                 $newOpenFacilityReportsCount = FacilityReportAlertService::countNewOpenSinceAcknowledgmentForUser($user);
             }
 

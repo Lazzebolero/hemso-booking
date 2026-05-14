@@ -42,7 +42,7 @@ class FacilityReportController extends Controller
     public function index()
     {
         $user = auth()->user();
-        if ($user instanceof User && ($user->hasRole(Roles::ADMIN) || $user->hasRole(Roles::HOST))) {
+        if ($user instanceof User && session('active_role') === Roles::ADMIN) {
             if (Schema::hasColumn('users', 'facility_reports_acknowledged_at')) {
                 $user->forceFill(['facility_reports_acknowledged_at' => now()])->saveQuietly();
             }
@@ -139,7 +139,7 @@ class FacilityReportController extends Controller
         }
 
         return redirect()
-            ->route(request()->routeIs('host.*') ? 'host.reports.show' : 'admin.reports.show', $report)
+            ->route('admin.reports.show', $report)
             ->with('success', 'Felrapport uppdaterad.');
     }
 }

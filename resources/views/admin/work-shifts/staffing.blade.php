@@ -19,15 +19,21 @@
         </div>
     </div>
 
+    @if(Route::has($prefix . '.work-shifts.index') || Route::has($prefix . '.work-shifts.person'))
     <div class="page-actions">
+        @if(Route::has($prefix . '.work-shifts.index'))
         <a href="{{ route($prefix . '.work-shifts.index', ['date' => $selectedDate->toDateString()]) }}" class="btn btn-outline-secondary">
             Dagvy
         </a>
+        @endif
 
+        @if(Route::has($prefix . '.work-shifts.person'))
         <a href="{{ route($prefix . '.work-shifts.person') }}" class="btn btn-outline-secondary">
             Personvy
         </a>
+        @endif
     </div>
+    @endif
 </div>
 
 <div class="page-card mb-4">
@@ -127,11 +133,13 @@
                             @endif
                         </div>
 
+                        @if(Route::has($prefix . '.work-shifts.edit'))
                         <div class="staffing-actions">
                             <a href="{{ route($prefix . '.work-shifts.edit', $shift) }}" class="btn btn-sm btn-outline-secondary">
                                 Redigera
                             </a>
                         </div>
+                        @endif
                     </div>
                 @endforeach
             </div>

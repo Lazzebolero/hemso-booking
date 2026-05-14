@@ -5,9 +5,13 @@ namespace App\Support;
 class Roles
 {
     public const ADMIN = 'admin';
+
     public const HOST = 'host';
+
     public const GUIDE = 'guide';
+
     public const RESTAURANT = 'restaurant';
+
     public const RESTAURANT_STATISTIK = 'restaurant_statistik';
 
     public static function labels(): array
@@ -25,7 +29,7 @@ class Roles
     {
         return [
             self::ADMIN => 'Administration och full kontroll',
-            self::HOST => 'Bokning och turplanering. På mobil används samma personalvy som för restaurang (pass, schema, dokument, chatt).',
+            self::HOST => 'Efter inloggning väljer du bokningsdashboard eller mobil personalvy (som restaurang).',
             self::GUIDE => 'Guidevy för turer och rapportering',
             self::RESTAURANT => 'Personalsida för restaurang',
             self::RESTAURANT_STATISTIK => 'Ren statistiksida för restaurangskärm utan navigation',

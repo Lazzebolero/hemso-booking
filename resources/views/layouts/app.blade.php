@@ -862,6 +862,7 @@
     $isGuideArea = request()->routeIs('guide.*');
     $activeRole = session('active_role');
     $adminHostPrefix = in_array($activeRole, ['admin', 'host'], true) ? $activeRole : 'admin';
+    $hostStaffShell = $activeRole === \App\Support\Roles::HOST && request()->routeIs('staff.*');
 
     $activeSystemMessages = collect();
     $unreadSystemMessagesCount = 0;
@@ -907,7 +908,7 @@
 @endphp
 
 <div class="app-shell">
-    @if($user && !$isGuideArea)
+    @if($user && !$isGuideArea && ! $hostStaffShell)
         <aside class="sidebar sidebar-flex">
             <div class="brand-box">
                 <div class="brand-title"><i class="bi bi-fort me-2"></i>Hemsö</div>
@@ -928,6 +929,13 @@
            title="Samma mobilanpassade vy som för restaurangpersonal: pass, schema, dokument och meddelanden.">
             <i class="bi bi-phone"></i>
             <span>Mobil personalvy</span>
+        </a>
+    @endif
+    @if($activeRole === \App\Support\Roles::HOST && Route::has('host.entry'))
+        <a class="side-link {{ request()->routeIs('host.entry') ? 'active-link' : '' }}"
+           href="{{ route('host.entry') }}">
+            <i class="bi bi-grid-3x3-gap"></i>
+            <span>Byt arbetsyta</span>
         </a>
     @endif
     @if(in_array($activeRole, ['admin', 'host'], true))
@@ -981,17 +989,18 @@
                     <span>Batch skapa turer</span>
                 </a>
             @endif
+		@if(Route::has($adminHostPrefix . '.work-shifts.staffing'))
 		<div class="menu-section">
   <div class="nav-section-title">Vilka jobbar</div>
 
-    @if(Route::has($adminHostPrefix . '.work-shifts.staffing'))
         <a class="side-link {{ request()->routeIs('admin.work-shifts.staffing') || request()->routeIs('host.work-shifts.staffing') ? 'active-link' : '' }}"
            href="{{ route($adminHostPrefix . '.work-shifts.staffing') }}">
             <i class="bi bi-people-fill"></i>
             <span>Dagens personal</span>
         </a>
-    @endif
 	</div>
+	@endif
+	@if(Route::has($adminHostPrefix . '.work-shifts.index') || Route::has($adminHostPrefix . '.work-shifts.person') || ($activeRole === 'admin' && (Route::has('admin.time.control-panel') || Route::has('admin.time.payroll-locks.index') || Route::has('admin.time.index'))))
 		<div class="nav-section">
 			<div class="nav-section">
     <div class="nav-section-title">Personal planering</div>
@@ -1011,6 +1020,7 @@
             <span>Personvy</span>
         </a>
     @endif
+    @if($activeRole === 'admin')
 	@if(Route::has('admin.time.control-panel'))
     <a class="side-link {{ request()->routeIs('admin.time.control-panel') ? 'active-link' : '' }}"
        href="{{ route('admin.time.control-panel') }}">
@@ -1034,7 +1044,10 @@
         <span>Tider/Lön</span>
     </a>
 @endif
-</div>
+    @endif
+			</div>
+		</div>
+@endif
         <div class="nav-section">
             <div class="nav-section-title">Statistik</div>
 
@@ -1385,7 +1398,7 @@
 }
 </style>
 
-<div class="restaurant-mobile-header d-lg-none">
+<div class="restaurant-mobile-header @unless($hostStaffShell) d-lg-none @endunless">
     <div class="restaurant-mobile-greeting">
         <div class="restaurant-mobile-avatar">
             <i class="bi bi-person-badge"></i>
@@ -1407,10 +1420,19 @@
     <div class="restaurant-mobile-nav">
         @if(session('active_role') === \App\Support\Roles::HOST && Route::has('host.dashboard'))
             <a href="{{ route('host.dashboard') }}"
-               class="restaurant-mobile-btn {{ request()->routeIs('host.*') ? 'active' : '' }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('host.dashboard') ? 'active' : '' }}"
                title="Bokning och turer"
                aria-label="Bokning och turer">
                 <i class="bi bi-columns-gap"></i>
+            </a>
+        @endif
+
+        @if(session('active_role') === \App\Support\Roles::HOST && Route::has('host.entry'))
+            <a href="{{ route('host.entry') }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('host.entry') ? 'active' : '' }}"
+               title="Byt arbetsyta"
+               aria-label="Byt arbetsyta">
+                <i class="bi bi-grid-3x3-gap"></i>
             </a>
         @endif
 
@@ -1508,7 +1530,7 @@
 
 
 <div class="content-wrap">
-            @if($user)
+            @if($user && ! $hostStaffShell)
                 <div class="topbar">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                         <div>

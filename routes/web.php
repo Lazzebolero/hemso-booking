@@ -40,6 +40,7 @@ use App\Http\Controllers\AppPulseController;
 use App\Http\Controllers\GroupChatController;
 use App\Http\Controllers\Guide\DashboardController as GuideDashboardController;
 use App\Http\Controllers\Guide\FacilityReportController as GuideFacilityReportController;
+use App\Http\Controllers\Host\HostEntryController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MyScheduleController;
 use App\Http\Controllers\PublicTourBookingController;
@@ -435,6 +436,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
     ->prefix('host')
     ->name('host.')
     ->group(function () {
+        Route::get('/valj-vy', HostEntryController::class)->name('entry');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('tours/batch-create', [TourBatchController::class, 'create'])->name('tours.batch-create');
@@ -452,22 +454,6 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
 
         Route::get('work-shifts/staffing', [WorkShiftController::class, 'staffing'])
             ->name('work-shifts.staffing');
-        Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
-        Route::get('work-shifts/create', [WorkShiftController::class, 'create'])->name('work-shifts.create');
-        Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');
-        Route::get('work-shifts/{workShift}/edit', [WorkShiftController::class, 'edit'])->name('work-shifts.edit');
-        Route::put('work-shifts/{workShift}', [WorkShiftController::class, 'update'])->name('work-shifts.update');
-        Route::delete('work-shifts/{workShift}', [WorkShiftController::class, 'destroy'])->name('work-shifts.destroy');
-
-        Route::post('work-shifts/copy-week', [WorkShiftController::class, 'copyWeek'])->name('work-shifts.copy-week');
-        Route::post('work-shifts/copy-day', [WorkShiftController::class, 'copyDay'])->name('work-shifts.copy-day');
-        Route::post('work-shifts/copy-day-many', [WorkShiftController::class, 'copyDayToMany'])->name('work-shifts.copy-day-many');
-
-        Route::get('work-shift-templates', [WorkShiftTemplateController::class, 'index'])->name('work-shift-templates.index');
-        Route::post('work-shift-templates', [WorkShiftTemplateController::class, 'store'])->name('work-shift-templates.store');
-        Route::put('work-shift-templates/{workShiftTemplate}', [WorkShiftTemplateController::class, 'update'])->name('work-shift-templates.update');
-        Route::delete('work-shift-templates/{workShiftTemplate}', [WorkShiftTemplateController::class, 'destroy'])->name('work-shift-templates.destroy');
-        Route::post('work-shift-templates/generate', [WorkShiftTemplateController::class, 'generate'])->name('work-shift-templates.generate');
 
         Route::get('bookings/export-csv', [BookingController::class, 'exportCsv'])->name('bookings.export-csv');
         Route::get('quick-bookings/create', [QuickBookingController::class, 'create'])->name('bookings.quick-create');
@@ -480,18 +466,9 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
         Route::get('restaurant-board', [RestaurantBoardController::class, 'index'])->name('restaurant-board');
         Route::get('restaurant-board/kiosk', [RestaurantBoardController::class, 'kiosk'])->name('restaurant-board.kiosk');
 
-        Route::get('reports/create', [FacilityReportController::class, 'create'])->name('reports.create');
-        Route::post('reports', [FacilityReportController::class, 'store'])->name('reports.store');
-        Route::get('reports/{report}/attachment', [FacilityReportController::class, 'attachment'])->name('reports.attachment');
-        Route::resource('reports', FacilityReportController::class)->except(['create', 'store']);
-
         Route::get('statistics', [StatisticsController::class, 'index'])->name('statistics.index');
         Route::get('statistics/live', [StatisticsController::class, 'live'])->name('statistics.live');
-        Route::get('work-shifts/person', [WorkShiftController::class, 'person'])
-            ->name('work-shifts.person');
 
-        Route::post('work-shifts/person', [WorkShiftController::class, 'storePerson'])
-            ->name('work-shifts.person.store');
         Route::get('system-health', [SystemHealthController::class, 'index'])
             ->name('system-health.index');
         Route::get('system-logs', [SystemLogController::class, 'index'])

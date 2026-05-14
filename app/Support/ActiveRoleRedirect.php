@@ -10,7 +10,7 @@ class ActiveRoleRedirect
     {
         return match ($role) {
             Roles::ADMIN => 'admin.dashboard',
-            Roles::HOST => 'host.dashboard',
+            Roles::HOST => 'host.entry',
             Roles::GUIDE => 'guide.dashboard',
             Roles::RESTAURANT => 'staff.dashboard',
 

@@ -247,6 +247,65 @@ class FacilityReportAdminNotificationTest extends TestCase
             ->assertDontSee('data-facility-reports-nav-badge', false);
     }
 
+    public function test_host_dashboard_does_not_show_new_facility_reports_notice(): void
+    {
+        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
+            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
+        }
+
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $host = User::factory()->create();
+        $host->assignRoles([$hostRole]);
+
+        $guide = User::factory()->create();
+        $guide->assignRoles([$guideRole]);
+
+        $category = ReportCategory::query()->create([
+            'name' => 'Kat host dash',
+            'code' => 'test_cat_host_dash',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $priority = ReportPriority::query()->create([
+            'name' => 'Låg',
+            'code' => 'test_pri_host_dash',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $open = ReportStatus::query()->firstOrCreate(
+            ['code' => 'open'],
+            [
+                'name' => 'Öppen',
+                'is_active' => true,
+                'sort_order' => 1,
+            ]
+        );
+
+        FacilityReport::query()->create([
+            'title' => 'Rapport värd ska inte se',
+            'description' => 'Text',
+            'category_id' => $category->id,
+            'priority_id' => $priority->id,
+            'status_id' => $open->id,
+            'location_id' => null,
+            'location_text' => null,
+            'reported_by' => $guide->id,
+            'assigned_to' => null,
+            'attachment_path' => null,
+        ]);
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->get(route('host.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Nya felrapporter', false)
+            ->assertDontSee('data-facility-reports-nav-badge', false);
+    }
+
     public function test_dashboard_notice_returns_after_new_open_report_after_acknowledgment(): void
     {
         if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {

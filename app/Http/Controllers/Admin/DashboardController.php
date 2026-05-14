@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Tour;
 use App\Services\FacilityReportAlertService;
+use App\Support\Roles;
 
 class DashboardController extends Controller
 {
@@ -98,7 +99,10 @@ class DashboardController extends Controller
         $totalPeopleToday = $todayBookedPeople;
         $nextTour = $upcomingTours->first();
 
-        $newOpenFacilityReportsCount = FacilityReportAlertService::countNewOpenSinceAcknowledgmentForUser(auth()->user());
+        $newOpenFacilityReportsCount = 0;
+        if (session('active_role') === Roles::ADMIN) {
+            $newOpenFacilityReportsCount = FacilityReportAlertService::countNewOpenSinceAcknowledgmentForUser(auth()->user());
+        }
 
         return view('admin.dashboard', compact(
             'todayTours',
