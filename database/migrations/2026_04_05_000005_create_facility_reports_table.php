@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('facility_reports', function (Blueprint $table) {
@@ -18,6 +19,7 @@ return new class extends Migration {
             $table->foreignId('reported_by')->constrained('users')->cascadeOnDelete();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
             $table->text('internal_comment')->nullable();
+            $table->string('attachment_path', 512)->nullable();
             $table->timestamp('resolved_at')->nullable();
             $table->timestamps();
         });

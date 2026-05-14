@@ -26,6 +26,10 @@ return new class extends Migration
         }
 
         if ($driver === 'mysql') {
+            if (! Schema::hasColumn('users', 'role')) {
+                return;
+            }
+
             DB::statement("
                 ALTER TABLE users
                 MODIFY role ENUM('admin','host','guide','restaurant')
@@ -51,6 +55,10 @@ return new class extends Migration
         }
 
         if ($driver === 'mysql') {
+            if (! Schema::hasColumn('users', 'role')) {
+                return;
+            }
+
             DB::statement("
                 ALTER TABLE users
                 MODIFY role ENUM('admin','host','guide')

@@ -10,19 +10,27 @@ class Booking extends Model
     use HasFactory;
 
     protected $fillable = [
-    'tour_id',
-    'booking_name',
-    'contact_name',
-    'men_count',
-    'women_count',
-    'youth_count',
-    'child_count',
-    'total_count',
-    'notes',
-    'status',
-    'created_by',
-    'updated_by',
-];
+        'tour_id',
+        'booking_name',
+        'contact_name',
+        'phone',
+        'email',
+        'men_count',
+        'women_count',
+        'youth_count',
+        'child_count',
+        'total_count',
+        'notes',
+        'status',
+        'is_waitlist',
+        'is_walk_in',
+        'arrival_status',
+        'checked_in_at',
+        'reminder_sent_at',
+        'moved_from_tour_id',
+        'created_by',
+        'updated_by',
+    ];
 
     protected $casts = [
         'is_waitlist' => 'boolean',

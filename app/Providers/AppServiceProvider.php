@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use App\Listeners\LogAuthenticationEvent;
 use Illuminate\Auth\Events\Failed;
@@ -20,11 +21,37 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->forceLocalUrlFromConfig();
+
         $this->registerSettingHelper();
         $this->applySystemTimezone();
 		Event::listen(Login::class, LogAuthenticationEvent::class);
 		Event::listen(Failed::class, LogAuthenticationEvent::class);
 		Event::listen(Logout::class, LogAuthenticationEvent::class);
+    }
+
+    /**
+     * Avoid mixed http/https URL detection on local Laragon (breaks session cookies → 419 on POST).
+     */
+    protected function forceLocalUrlFromConfig(): void
+    {
+        if (! $this->app->environment('local')) {
+            return;
+        }
+
+        $rootUrl = (string) config('app.url');
+
+        if ($rootUrl === '') {
+            return;
+        }
+
+        URL::forceRootUrl($rootUrl);
+
+        $scheme = parse_url($rootUrl, PHP_URL_SCHEME);
+
+        if (is_string($scheme) && $scheme !== '') {
+            URL::forceScheme($scheme);
+        }
     }
 
     protected function registerSettingHelper(): void
