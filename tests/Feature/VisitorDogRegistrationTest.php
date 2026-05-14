@@ -13,6 +13,23 @@ use Tests\TestCase;
 
 class VisitorDogRegistrationTest extends TestCase
 {
+    public function test_host_can_open_visitor_dog_create_form(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $user = User::factory()->create();
+        $user->assignRoles([$hostRole]);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::HOST])
+            ->get(route('visitor-dogs.create'))
+            ->assertOk()
+            ->assertSee('Besökshund', false);
+    }
+
     public function test_guide_can_open_form_and_register_dog(): void
     {
         if (! Schema::hasTable('visitor_dogs')) {
@@ -127,6 +144,40 @@ class VisitorDogRegistrationTest extends TestCase
             ->get(route('admin.visitor-dogs.show', $dog))
             ->assertOk()
             ->assertSee('List-test-hund', false);
+    }
+
+    public function test_admin_visitor_dog_photo_route_streams_file(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        Storage::fake('public');
+
+        $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $registrar = User::factory()->create();
+        $registrar->assignRoles([$guideRole]);
+
+        $path = 'visitor_dogs/2026/05/test-photo.jpg';
+        Storage::disk('public')->put($path, '%PDF-1.4 fake for binary');
+
+        $dog = VisitorDog::factory()->create([
+            'dog_name' => 'Foto-test',
+            'visit_date' => now()->toDateString(),
+            'photo_path' => $path,
+            'registered_by' => $registrar->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->assignRoles([$adminRole]);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.visitor-dogs.photo', $dog))
+            ->assertOk();
     }
 
     public function test_host_can_view_visitor_dogs_list_and_detail(): void

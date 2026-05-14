@@ -60,7 +60,7 @@
     <div class="page-card">
         <div class="section-title mb-3">Bild</div>
         @if($dog->photo_path)
-            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($dog->photo_path) }}"
+            <img src="{{ route($vPrefix . '.visitor-dogs.photo', $dog) }}"
                  alt="Bild på {{ $dog->dog_name }}"
                  class="img-fluid rounded"
                  style="max-height: 420px; object-fit: contain;">

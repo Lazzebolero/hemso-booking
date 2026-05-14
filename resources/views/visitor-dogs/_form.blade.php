@@ -38,8 +38,10 @@
 
     <div class="mb-4">
         <label for="photo" class="form-label fw-semibold">Bild</label>
-        <input type="file" name="photo" id="photo" class="form-control" accept="image/*,.heic,.heif">
-        <div class="form-text">Valfritt. Max 10 MB (jpg, png, webp m.m.).</div>
+        <input type="file" name="photo" id="photo" class="form-control"
+               accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+               capture="environment">
+        <div class="form-text">Valfritt. Max 10 MB. På mobil kan du ta foto direkt (kamera), som vid felrapport.</div>
     </div>
 
     <button type="submit" class="btn btn-primary btn-lg w-100">

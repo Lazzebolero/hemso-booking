@@ -9,9 +9,11 @@ use Symfony\Component\HttpFoundation\Response;
 class RequireAnyActiveRole
 {
     /**
-     * @param  string  $roles  Kommaseparerade slugs, t.ex. "guide,host"
+     * Laravel skickar varje värde efter kolon som separat argument, t.ex.
+     * active.roles:guide,host → handle(..., 'guide', 'host').
+     * Stödjer även ett enda kommaseparerat argument om det förekommer.
      */
-    public function handle(Request $request, Closure $next, string $roles): Response
+    public function handle(Request $request, Closure $next, string ...$roleArguments): Response
     {
         $user = $request->user();
 
@@ -19,7 +21,15 @@ class RequireAnyActiveRole
             return redirect()->route('login');
         }
 
-        $allowed = array_values(array_filter(array_map('trim', explode(',', $roles))));
+        $allowed = [];
+        foreach ($roleArguments as $arg) {
+            foreach (array_filter(array_map('trim', explode(',', $arg))) as $slug) {
+                if ($slug !== '') {
+                    $allowed[$slug] = true;
+                }
+            }
+        }
+        $allowed = array_keys($allowed);
 
         $activeRole = session('active_role');
 

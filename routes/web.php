@@ -281,6 +281,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('visitor-dogs', [AdminVisitorDogController::class, 'index'])->name('visitor-dogs.index');
+        Route::get('visitor-dogs/{visitorDog}/photo', [AdminVisitorDogController::class, 'photo'])->name('visitor-dogs.photo');
         Route::get('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'show'])->name('visitor-dogs.show');
 
         Route::get('tours/batch-create', [TourBatchController::class, 'create'])->name('tours.batch-create');
@@ -457,6 +458,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('visitor-dogs', [AdminVisitorDogController::class, 'index'])->name('visitor-dogs.index');
+        Route::get('visitor-dogs/{visitorDog}/photo', [AdminVisitorDogController::class, 'photo'])->name('visitor-dogs.photo');
         Route::get('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'show'])->name('visitor-dogs.show');
 
         Route::get('tours/batch-create', [TourBatchController::class, 'create'])->name('tours.batch-create');

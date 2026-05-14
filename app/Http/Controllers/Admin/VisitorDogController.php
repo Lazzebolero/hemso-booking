@@ -7,7 +7,9 @@ use App\Models\VisitorDog;
 use App\Support\Roles;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class VisitorDogController extends Controller
 {
@@ -56,6 +58,28 @@ class VisitorDogController extends Controller
             'dog' => $visitorDog,
             'visitorDogsRoutePrefix' => $this->visitorDogsRoutePrefix(),
         ]);
+    }
+
+    /**
+     * Strömma bild från disk (samma idé som felrapport-bilaga — fungerar utan public/storage-symlink).
+     */
+    public function photo(VisitorDog $visitorDog): BinaryFileResponse
+    {
+        if (empty($visitorDog->photo_path)) {
+            abort(404);
+        }
+
+        if (! Storage::disk('public')->exists($visitorDog->photo_path)) {
+            abort(404);
+        }
+
+        $absolutePath = Storage::disk('public')->path($visitorDog->photo_path);
+
+        if (! is_file($absolutePath)) {
+            abort(404);
+        }
+
+        return response()->file($absolutePath);
     }
 
     private function visitorDogsRoutePrefix(): string
