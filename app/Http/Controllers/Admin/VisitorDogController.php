@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Js;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -55,25 +54,11 @@ class VisitorDogController extends Controller
             ->paginate(24)
             ->withQueryString();
 
-        $lightboxItems = $dogs->getCollection()
-            ->map(static function (VisitorDog $dog) use ($prefix): array {
-                return [
-                    'photo' => route($prefix.'.visitor-dogs.photo', $dog),
-                    'show' => route($prefix.'.visitor-dogs.show', $dog),
-                    'name' => $dog->dog_name,
-                    'date' => $dog->visit_date?->format('Y-m-d') ?? '',
-                    'breed' => $dog->breed ?? '',
-                ];
-            })
-            ->values()
-            ->all();
-
         return view('admin.visitor-dogs.gallery', [
             'dogs' => $dogs,
             'fromDate' => $from->toDateString(),
             'toDate' => $to->toDateString(),
             'visitorDogsRoutePrefix' => $prefix,
-            'lightboxItems' => Js::from($lightboxItems),
         ]);
     }
 
