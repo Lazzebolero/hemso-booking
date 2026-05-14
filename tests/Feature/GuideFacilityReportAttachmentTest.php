@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -22,6 +23,7 @@ class GuideFacilityReportAttachmentTest extends TestCase
             $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
         }
 
+        Mail::fake();
         Storage::fake('public');
 
         $user = User::factory()->create();

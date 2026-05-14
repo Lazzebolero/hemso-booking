@@ -21,11 +21,14 @@ class User extends Authenticatable
         'is_active',
         'is_kiosk',
         'kiosk_target',
+        'facility_reports_acknowledged_at',
     ];
-public function timeEntries()
-{
-    return $this->hasMany(\App\Models\TimeEntry::class);
-}
+
+    public function timeEntries()
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -36,6 +39,7 @@ public function timeEntries()
         'is_active' => 'boolean',
         'is_kiosk' => 'boolean',
         'password' => 'hashed',
+        'facility_reports_acknowledged_at' => 'datetime',
     ];
 
     /*
@@ -156,10 +160,10 @@ public function timeEntries()
 
     public function workShifts(): HasMany
     {
-        return $this->hasMany(\App\Models\WorkShift::class);
+        return $this->hasMany(WorkShift::class);
     }
 
-    public function workingShiftFor(string $role, $date): ?\App\Models\WorkShift
+    public function workingShiftFor(string $role, $date): ?WorkShift
     {
         return $this->workShifts()
             ->whereDate('shift_date', $date)

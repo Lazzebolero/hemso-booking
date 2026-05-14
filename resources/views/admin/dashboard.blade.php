@@ -1,6 +1,70 @@
 @extends('layouts.app')
 
 @section('content')
+@once
+    <style>
+        .dashboard-facility-reports-callout {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem 1.25rem;
+            padding: 1.2rem 1.35rem;
+            border-radius: 14px;
+            border: 2px solid #ea580c;
+            border-left-width: 8px;
+            border-left-color: #c2410c;
+            background: linear-gradient(125deg, #fff7ed 0%, #ffedd5 38%, #fed7aa 100%);
+            box-shadow:
+                0 0 0 1px rgba(234, 88, 12, 0.12),
+                0 12px 32px rgba(234, 88, 12, 0.18),
+                0 4px 12px rgba(15, 23, 42, 0.06);
+        }
+
+        .dashboard-facility-reports-callout .callout-icon-wrap {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            flex: 1 1 220px;
+            min-width: 0;
+        }
+
+        .dashboard-facility-reports-callout .callout-icon {
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(194, 65, 12, 0.15);
+            color: #9a3412;
+            font-size: 1.35rem;
+        }
+
+        .dashboard-facility-reports-callout .callout-title {
+            font-size: 1.08rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #7c2d12;
+            margin: 0 0 0.35rem;
+            line-height: 1.25;
+        }
+
+        .dashboard-facility-reports-callout .callout-body {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #9a3412;
+            line-height: 1.45;
+        }
+
+        .dashboard-facility-reports-callout .btn {
+            flex-shrink: 0;
+            font-weight: 700;
+        }
+    </style>
+@endonce
 @php
     $todayToursCollection = $todayTours ?? collect();
     $upcomingToursCollection = $upcomingTours ?? collect();
@@ -55,6 +119,29 @@
         </a>
     </div>
 </div>
+
+@if(($newOpenFacilityReportsCount ?? 0) > 0)
+    <div class="dashboard-facility-reports-callout mb-4" role="status">
+        <div class="callout-icon-wrap">
+            <div class="callout-icon" aria-hidden="true">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div>
+                <p class="callout-title">Nya felrapporter</p>
+                <p class="callout-body">
+                    @if(($newOpenFacilityReportsCount ?? 0) === 1)
+                        Det finns <strong>1</strong> öppen felrapport som inkommit sedan du senast öppnade listan.
+                    @else
+                        Det finns <strong>{{ $newOpenFacilityReportsCount }}</strong> öppna felrapporter som inkommit sedan du senast öppnade listan.
+                    @endif
+                </p>
+            </div>
+        </div>
+        <a href="{{ route($prefix . '.reports.index') }}" class="btn btn-dark">
+            <i class="bi bi-list-ul me-2"></i>Visa felrapporter
+        </a>
+    </div>
+@endif
 
 <div class="stats-grid mb-4">
     <div class="stats-card">

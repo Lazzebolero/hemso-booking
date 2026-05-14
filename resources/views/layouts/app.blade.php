@@ -154,6 +154,22 @@
             box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.14);
         }
 
+        .sidebar-nav-badge {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.35rem;
+            height: 1.35rem;
+            padding: 0 0.35rem;
+            border-radius: 999px;
+            background: #f59e0b;
+            color: #0f172a;
+            font-size: 0.72rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
         .sidebar-footer {
             margin-top: 1.25rem;
             padding-top: 0.9rem;
@@ -1047,6 +1063,13 @@
                    href="{{ route($adminHostPrefix . '.reports.index') }}">
                     <i class="bi bi-exclamation-triangle"></i>
                     <span>Felrapporter</span>
+                    @if(($newOpenFacilityReportsCount ?? 0) > 0)
+                        <span
+                            class="sidebar-nav-badge"
+                            data-facility-reports-nav-badge="{{ (int) $newOpenFacilityReportsCount }}"
+                            aria-label="Antal nya öppna felrapporter sedan listan senast öppnades"
+                        >{{ $newOpenFacilityReportsCount > 99 ? '99+' : $newOpenFacilityReportsCount }}</span>
+                    @endif
                 </a>
             @endif
 

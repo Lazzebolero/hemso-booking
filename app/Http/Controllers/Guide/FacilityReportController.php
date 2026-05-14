@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Guide;
 
+use App\Events\FacilityReportCreated;
 use App\Http\Controllers\Controller;
 use App\Models\FacilityReport;
 use App\Models\ReportCategory;
@@ -92,6 +93,8 @@ class FacilityReportController extends Controller
                 'Skapade felrapport från guidevy'
             );
         }
+
+        FacilityReportCreated::dispatch($report);
 
         return redirect()
             ->route('guide.dashboard')

@@ -10,6 +10,7 @@ use App\Models\ReportPriority;
 use App\Models\ReportStatus;
 use App\Models\User;
 use App\Services\LogService;
+use App\Support\Roles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -39,14 +40,19 @@ class FacilityReportController extends Controller
 
     public function index()
     {
+        $user = auth()->user();
+        if ($user instanceof User && ($user->hasRole(Roles::ADMIN) || $user->hasRole(Roles::HOST))) {
+            $user->forceFill(['facility_reports_acknowledged_at' => now()])->saveQuietly();
+        }
+
         $reports = FacilityReport::with([
-                'category',
-                'priority',
-                'statusRelation',
-                'location',
-                'reporter',
-                'assignee',
-            ])
+            'category',
+            'priority',
+            'statusRelation',
+            'location',
+            'reporter',
+            'assignee',
+        ])
             ->latest()
             ->paginate(20);
 
