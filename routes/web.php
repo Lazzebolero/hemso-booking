@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\LoginEventController;
 use App\Http\Controllers\Admin\NotificationLogController;
 use App\Http\Controllers\Admin\NotificationTemplateController;
 use App\Http\Controllers\Admin\QuickBookingController;
+use App\Http\Controllers\Admin\ReportOptionController;
 use App\Http\Controllers\Admin\ReportSettingsController;
 use App\Http\Controllers\Admin\RestaurantBoardController;
 use App\Http\Controllers\Admin\SecurityOverviewController;
@@ -365,6 +366,12 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::post('settings/reports/locations', [ReportSettingsController::class, 'storeLocation'])->name('settings.reports.locations.store');
         Route::put('settings/reports/locations/{location}', [ReportSettingsController::class, 'updateLocation'])->name('settings.reports.locations.update');
         Route::delete('settings/reports/locations/{location}', [ReportSettingsController::class, 'destroyLocation'])->name('settings.reports.locations.destroy');
+
+        Route::get('settings/report-options', [ReportOptionController::class, 'index'])->name('report-options.index');
+        Route::post('settings/report-options', [ReportOptionController::class, 'store'])->name('report-options.store');
+        Route::put('settings/report-options/{reportOption}', [ReportOptionController::class, 'update'])->name('report-options.update');
+        Route::delete('settings/report-options/{reportOption}', [ReportOptionController::class, 'destroy'])->name('report-options.destroy');
+
         Route::get('work-shifts/person', [WorkShiftController::class, 'person'])
             ->name('work-shifts.person');
 
