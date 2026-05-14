@@ -152,7 +152,7 @@
                     </span>
                     <span>
                         <span class="host-entry-link-title">Bokning och turer</span>
-                        <span class="host-entry-link-desc d-block">Dashboard med turer, bokningar och driftvyer.</span>
+                        <span class="host-entry-link-desc d-block">Vanlig dashboard med sidomeny — turer, bokningar och drift. Ingen mobil personalnav här.</span>
                     </span>
                 </a>
             @endif
@@ -164,7 +164,7 @@
                     </span>
                     <span>
                         <span class="host-entry-link-title">Mobil personalvy</span>
-                        <span class="host-entry-link-desc d-block">Pass, schema, dokument och meddelanden — samma yta som restaurangpersonal.</span>
+                        <span class="host-entry-link-desc d-block">Som restaurangpersonal: pass, schema, dokument, meddelanden och tid — utan att administrera turer eller bokningar.</span>
                     </span>
                 </a>
             @endif

@@ -29,7 +29,7 @@ class Roles
     {
         return [
             self::ADMIN => 'Administration och full kontroll',
-            self::HOST => 'Efter inloggning väljer du bokningsdashboard eller mobil personalvy (som restaurang).',
+            self::HOST => 'Välj efter inloggning: vanlig bokningsdashboard, eller mobil personalvy (som restaurang) utan tur- och bokningsadmin där.',
             self::GUIDE => 'Guidevy för turer och rapportering',
             self::RESTAURANT => 'Personalsida för restaurang',
             self::RESTAURANT_STATISTIK => 'Ren statistiksida för restaurangskärm utan navigation',

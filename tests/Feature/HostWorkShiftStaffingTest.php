@@ -28,6 +28,7 @@ class HostWorkShiftStaffingTest extends TestCase
             ->get(route('host.work-shifts.staffing', ['date' => '2000-01-01']))
             ->assertOk()
             ->assertSee('Dagens personal', false)
+            ->assertDontSee('Entrévärd · Personalvy', false)
             ->assertDontSee('Dagvy', false)
             ->assertDontSee('Personvy', false)
             ->assertDontSee('Redigera', false);

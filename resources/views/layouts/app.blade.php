@@ -862,7 +862,12 @@
     $isGuideArea = request()->routeIs('guide.*');
     $activeRole = session('active_role');
     $adminHostPrefix = in_array($activeRole, ['admin', 'host'], true) ? $activeRole : 'admin';
-    $hostStaffShell = $activeRole === \App\Support\Roles::HOST && request()->routeIs('staff.*');
+    $hostStaffShell = $activeRole === \App\Support\Roles::HOST && (
+        request()->routeIs('staff.*')
+        || request()->routeIs('messages.*')
+        || request()->routeIs('group-chats.*')
+        || request()->routeIs('time.*')
+    );
 
     $activeSystemMessages = collect();
     $unreadSystemMessagesCount = 0;
@@ -1272,8 +1277,8 @@
 
     <main class="main-area">
 
-<!-- RESTAURANT / VÄRD MOBILNAV (samma personalvy som restaurang) -->
-@if(in_array(session('active_role'), [\App\Support\Roles::RESTAURANT, \App\Support\Roles::HOST], true))
+<!-- Restaurang: alltid mobilrad under lg. Värd: endast i personal-/meddelande-/tidyta (inte bokningsdashboard). -->
+@if(session('active_role') === \App\Support\Roles::RESTAURANT || $hostStaffShell)
 <style>
 @media (max-width: 991.98px) {
     .sidebar,
@@ -1408,8 +1413,8 @@
                 Hej {{ auth()->user()->name ?? 'Restaurang' }}
             </div>
             <div class="restaurant-mobile-subtitle">
-                @if(session('active_role') === \App\Support\Roles::HOST)
-                    Entrévärd · Mobil personalvy
+                @if($hostStaffShell)
+                    Entrévärd · Personalvy
                 @else
                     Restaurang · Personalvy
                 @endif
@@ -1418,16 +1423,7 @@
     </div>
 
     <div class="restaurant-mobile-nav">
-        @if(session('active_role') === \App\Support\Roles::HOST && Route::has('host.dashboard'))
-            <a href="{{ route('host.dashboard') }}"
-               class="restaurant-mobile-btn {{ request()->routeIs('host.dashboard') ? 'active' : '' }}"
-               title="Bokning och turer"
-               aria-label="Bokning och turer">
-                <i class="bi bi-columns-gap"></i>
-            </a>
-        @endif
-
-        @if(session('active_role') === \App\Support\Roles::HOST && Route::has('host.entry'))
+        @if($hostStaffShell && Route::has('host.entry'))
             <a href="{{ route('host.entry') }}"
                class="restaurant-mobile-btn {{ request()->routeIs('host.entry') ? 'active' : '' }}"
                title="Byt arbetsyta"
@@ -1526,7 +1522,7 @@
     </div>
 </div>
 @endif
-<!-- RESTAURANT / VÄRD MOBILNAV END -->
+<!-- Restaurangmobilnav / värd personalmobilnav END -->
 
 
 <div class="content-wrap">

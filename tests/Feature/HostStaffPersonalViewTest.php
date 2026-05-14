@@ -20,7 +20,7 @@ class HostStaffPersonalViewTest extends TestCase
             ->withSession(['active_role' => Roles::HOST])
             ->get(route('staff.dashboard'))
             ->assertOk()
-            ->assertSee('Entrévärd · Mobil personalvy', false)
+            ->assertSee('Entrévärd · Personalvy', false)
             ->assertDontSee('Administrera bokningar', false)
             ->assertDontSee('Boknings- och guidesystem', false);
 
