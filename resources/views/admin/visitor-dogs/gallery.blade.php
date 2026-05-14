@@ -167,9 +167,21 @@
         max-width: 28rem;
     }
 }
+.visitor-dog-gallery-tile.btn {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100%;
+    min-width: 0;
+    text-align: start;
+}
 .visitor-dog-gallery-thumb {
     aspect-ratio: 4 / 3;
     position: relative;
+    width: 100%;
+    min-height: 0;
+    flex-shrink: 0;
     background: var(--surface-muted, #f1f5f9);
 }
 .visitor-dog-gallery-tile:focus-visible {
