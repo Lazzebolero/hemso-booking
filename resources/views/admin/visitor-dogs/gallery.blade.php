@@ -61,15 +61,7 @@
             }
             this.idx = (this.idx + 1) % this.items.length;
         },
-        destroy() {
-            document.documentElement.classList.remove('visitor-dog-gallery-scroll-lock');
-            document.body.classList.remove('visitor-dog-gallery-scroll-lock');
-        },
      }"
-     x-init="$watch('open', (value) => {
-        document.documentElement.classList.toggle('visitor-dog-gallery-scroll-lock', value);
-        document.body.classList.toggle('visitor-dog-gallery-scroll-lock', value);
-     })"
      @keydown.window="if (!open) { return; }
         if ($event.key === 'Escape') { close(); }
         else if ($event.key === 'ArrowLeft') { prev(); $event.preventDefault(); }
@@ -77,7 +69,7 @@
     @if($dogs->isEmpty())
         <p class="text-muted mb-0">Inga hundbilder i valt intervall.</p>
     @else
-        <div class="visitor-dog-gallery-grid mx-auto">
+        <div class="visitor-dog-gallery-grid">
             @foreach($dogs as $dog)
                 <button type="button"
                         class="visitor-dog-gallery-tile btn border-0 p-0 text-start bg-transparent w-100"
@@ -103,54 +95,54 @@
         </div>
     @endif
 
-    <template x-teleport="body">
-        <div x-show="open"
-             x-cloak
-             class="visitor-dog-lightbox position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-             style="z-index: 1080; background: rgba(15, 23, 42, 0.88);"
-             @click.self="close()"
-             x-transition.opacity.duration.200ms>
-            <div class="visitor-dog-lightbox-inner position-relative w-100 h-100 d-flex flex-column p-2 p-md-4"
-                 style="max-width: 1200px; max-height: 100vh;">
-                <div class="d-flex justify-content-between align-items-center gap-2 mb-2 flex-shrink-0">
-                    <div class="text-white text-truncate small" x-show="items.length" x-text="items[idx]?.name + ' · ' + (items[idx]?.date || '')"></div>
-                    <button type="button"
-                            class="btn btn-sm btn-light"
-                            @click="close()"
-                            aria-label="Stäng">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </div>
-                <div class="flex-grow-1 d-flex align-items-center justify-content-center position-relative overflow-hidden rounded-3 bg-black bg-opacity-25">
-                    <template x-if="items.length">
-                        <img :src="items[idx]?.photo"
-                             :alt="items[idx]?.name"
-                             class="visitor-dog-lightbox-img rounded-3 border border-secondary border-opacity-25 shadow-lg">
-                    </template>
-                    <button type="button"
-                            class="btn btn-light btn-sm position-absolute top-50 start-0 translate-middle-y ms-1 d-none d-md-inline-flex"
-                            @click.stop="prev()"
-                            aria-label="Föregående bild">
-                        <i class="bi bi-chevron-left"></i>
-                    </button>
-                    <button type="button"
-                            class="btn btn-light btn-sm position-absolute top-50 end-0 translate-middle-y me-1 d-none d-md-inline-flex"
-                            @click.stop="next()"
-                            aria-label="Nästa bild">
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                </div>
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 flex-shrink-0">
-                    <div class="small text-white-50 text-truncate" x-show="items.length" x-text="items[idx]?.breed ? ('Ras: ' + items[idx].breed) : ''"></div>
-                    <a :href="items[idx]?.show"
-                       class="btn btn-sm btn-outline-light"
-                       x-show="items.length"
-                       @click="close()">
-                        Öppna detaljer
-                    </a>
+    <template x-if="open">
+        <template x-teleport="body">
+            <div class="visitor-dog-lightbox position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                 style="z-index: 1080; background: rgba(15, 23, 42, 0.88);"
+                 @click.self="close()"
+                 x-transition.opacity.duration.200ms>
+                <div class="visitor-dog-lightbox-inner position-relative w-100 h-100 d-flex flex-column p-2 p-md-4"
+                     style="max-width: 1200px; max-height: 100vh;">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-2 flex-shrink-0">
+                        <div class="text-white text-truncate small" x-show="items.length" x-text="items[idx]?.name + ' · ' + (items[idx]?.date || '')"></div>
+                        <button type="button"
+                                class="btn btn-sm btn-light"
+                                @click="close()"
+                                aria-label="Stäng">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="flex-grow-1 d-flex align-items-center justify-content-center position-relative overflow-hidden rounded-3 bg-black bg-opacity-25">
+                        <template x-if="items.length">
+                            <img :src="items[idx]?.photo"
+                                 :alt="items[idx]?.name"
+                                 class="visitor-dog-lightbox-img rounded-3 border border-secondary border-opacity-25 shadow-lg">
+                        </template>
+                        <button type="button"
+                                class="btn btn-light btn-sm position-absolute top-50 start-0 translate-middle-y ms-1 d-none d-md-inline-flex"
+                                @click.stop="prev()"
+                                aria-label="Föregående bild">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <button type="button"
+                                class="btn btn-light btn-sm position-absolute top-50 end-0 translate-middle-y me-1 d-none d-md-inline-flex"
+                                @click.stop="next()"
+                                aria-label="Nästa bild">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 flex-shrink-0">
+                        <div class="small text-white-50 text-truncate" x-show="items.length" x-text="items[idx]?.breed ? ('Ras: ' + items[idx].breed) : ''"></div>
+                        <a :href="items[idx]?.show"
+                           class="btn btn-sm btn-outline-light"
+                           x-show="items.length"
+                           @click="close()">
+                            Öppna detaljer
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        </template>
     </template>
 </div>
 
@@ -158,24 +150,16 @@
 [x-cloak] {
     display: none !important;
 }
-html.visitor-dog-gallery-scroll-lock,
-body.visitor-dog-gallery-scroll-lock {
-    overflow: hidden !important;
-}
 .visitor-dog-gallery-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.55rem 0.6rem;
-    max-width: 30rem;
+    gap: 0.85rem 1rem;
+    width: 100%;
+    max-width: 100%;
 }
-@media (min-width: 400px) {
+@media (min-width: 900px) {
     .visitor-dog-gallery-grid {
-        max-width: 36rem;
-    }
-}
-@media (min-width: 576px) {
-    .visitor-dog-gallery-grid {
-        max-width: 42rem;
+        gap: 1rem 1.15rem;
     }
 }
 .visitor-dog-gallery-tile.btn {
