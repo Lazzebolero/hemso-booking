@@ -1032,6 +1032,15 @@
                     </a>
                 @endif
 
+                @if(Route::has('visitor-dogs.create'))
+                    <a href="{{ route('visitor-dogs.create') }}"
+                       class="guide-mobile-action {{ request()->routeIs('visitor-dogs.*') ? 'guide-mobile-action-active' : '' }}"
+                       title="Besökshund"
+                       aria-label="Besökshund">
+                        <i class="bi bi-heart-pulse"></i>
+                    </a>
+                @endif
+
                 @if(Route::has('quick-tours.create'))
                     <a href="{{ route('quick-tours.create') }}"
                        class="guide-mobile-action guide-mobile-action-primary"

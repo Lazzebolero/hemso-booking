@@ -33,7 +33,7 @@ use App\Http\Controllers\Admin\SystemMessageStatusController;
 use App\Http\Controllers\Admin\TourBatchController;
 use App\Http\Controllers\Admin\TourController;
 use App\Http\Controllers\Admin\TourTypeController;
-use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\VisitorDogController as AdminVisitorDogController;
 use App\Http\Controllers\Admin\WorkShiftController;
 use App\Http\Controllers\Admin\WorkShiftTemplateController;
 use App\Http\Controllers\AppPulseController;
@@ -51,7 +51,7 @@ use App\Http\Controllers\Staff\StaffDashboardController;
 use App\Http\Controllers\Staff\StaffDocumentController as StaffStaffDocumentController;
 use App\Http\Controllers\Staff\StaffScheduleController;
 use App\Http\Controllers\TimeClockController;
-use App\Http\Controllers\TimeEntryController;
+use App\Http\Controllers\VisitorDogController;
 use App\Support\ActiveRoleRedirect;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
@@ -256,6 +256,20 @@ Route::middleware(['auth', 'ensure.active.role'])
 
 /*
 |--------------------------------------------------------------------------
+| Besökshundar (guide och värd)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'ensure.active.role', 'active.roles:guide,host'])
+    ->prefix('besokshundar')
+    ->name('visitor-dogs.')
+    ->group(function () {
+        Route::get('/', [VisitorDogController::class, 'create'])->name('create');
+        Route::post('/', [VisitorDogController::class, 'store'])->name('store');
+    });
+
+/*
+|--------------------------------------------------------------------------
 | Admin
 |--------------------------------------------------------------------------
 */
@@ -265,6 +279,9 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
     ->name('admin.')
     ->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('visitor-dogs', [AdminVisitorDogController::class, 'index'])->name('visitor-dogs.index');
+        Route::get('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'show'])->name('visitor-dogs.show');
 
         Route::get('tours/batch-create', [TourBatchController::class, 'create'])->name('tours.batch-create');
         Route::post('tours/batch-create', [TourBatchController::class, 'store'])->name('tours.batch-store');
@@ -438,6 +455,9 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
     ->group(function () {
         Route::get('/valj-vy', HostEntryController::class)->name('entry');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('visitor-dogs', [AdminVisitorDogController::class, 'index'])->name('visitor-dogs.index');
+        Route::get('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'show'])->name('visitor-dogs.show');
 
         Route::get('tours/batch-create', [TourBatchController::class, 'create'])->name('tours.batch-create');
         Route::post('tours/batch-create', [TourBatchController::class, 'store'])->name('tours.batch-store');

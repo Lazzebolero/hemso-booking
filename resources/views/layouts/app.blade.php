@@ -867,6 +867,7 @@
         || request()->routeIs('messages.*')
         || request()->routeIs('group-chats.*')
         || request()->routeIs('time.*')
+        || request()->routeIs('visitor-dogs.*')
     );
 
     $activeSystemMessages = collect();
@@ -928,6 +929,18 @@
                         <span>Dashboard</span>
                     </a>
                 @endif
+    @if(in_array($activeRole, ['admin', 'host'], true) && (Route::has('admin.visitor-dogs.index') || Route::has('host.visitor-dogs.index')))
+        @php
+            $visitorDogsListRouteName = $activeRole === \App\Support\Roles::HOST && Route::has('host.visitor-dogs.index')
+                ? 'host.visitor-dogs.index'
+                : 'admin.visitor-dogs.index';
+        @endphp
+        <a class="side-link {{ request()->routeIs('admin.visitor-dogs.*') || request()->routeIs('host.visitor-dogs.*') ? 'active-link' : '' }}"
+           href="{{ route($visitorDogsListRouteName) }}">
+            <i class="bi bi-list-ul"></i>
+            <span>Besökshundar</span>
+        </a>
+    @endif
     @if($activeRole === \App\Support\Roles::HOST && Route::has('staff.dashboard'))
         <a class="side-link {{ request()->routeIs('staff.*') ? 'active-link' : '' }}"
            href="{{ route('staff.dashboard') }}"
@@ -984,6 +997,14 @@
                    href="{{ route('quick-tours.create') }}">
                     <i class="bi bi-rocket-takeoff"></i>
                     <span>Snabbtur</span>
+                </a>
+            @endif
+
+            @if($activeRole === \App\Support\Roles::HOST && Route::has('visitor-dogs.create'))
+                <a class="side-link {{ request()->routeIs('visitor-dogs.create') ? 'active-link' : '' }}"
+                   href="{{ route('visitor-dogs.create') }}">
+                    <i class="bi bi-heart-pulse"></i>
+                    <span>Besökshund</span>
                 </a>
             @endif
 
@@ -1429,6 +1450,24 @@
                title="Byt arbetsyta"
                aria-label="Byt arbetsyta">
                 <i class="bi bi-grid-3x3-gap"></i>
+            </a>
+        @endif
+
+        @if($hostStaffShell && Route::has('host.visitor-dogs.index'))
+            <a href="{{ route('host.visitor-dogs.index') }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('host.visitor-dogs.*') ? 'active' : '' }}"
+               title="Besökshundar"
+               aria-label="Besökshundar">
+                <i class="bi bi-list-ul"></i>
+            </a>
+        @endif
+
+        @if($hostStaffShell && Route::has('visitor-dogs.create'))
+            <a href="{{ route('visitor-dogs.create') }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('visitor-dogs.create') ? 'active' : '' }}"
+               title="Besökshund"
+               aria-label="Besökshund">
+                <i class="bi bi-heart-pulse"></i>
             </a>
         @endif
 

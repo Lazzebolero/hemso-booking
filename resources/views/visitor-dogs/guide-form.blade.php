@@ -1,0 +1,18 @@
+@extends('layouts.guide')
+
+@section('content')
+<div class="guide-card mb-3">
+    <div class="page-header mb-0 pb-3" style="border-bottom: 1px solid var(--brand-line-soft);">
+        <div>
+            <h2 class="page-title" style="font-size: 1.15rem;">Besökshund</h2>
+            <p class="page-subtitle mb-0" style="font-size: 0.88rem;">
+                Registrera hund som lämnas i vård vid grindstugan under guidad tur.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="guide-card">
+    @include('visitor-dogs._form', ['defaultVisitDate' => $defaultVisitDate])
+</div>
+@endsection
