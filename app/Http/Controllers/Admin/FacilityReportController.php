@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\LogService;
 use App\Support\Roles;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class FacilityReportController extends Controller
@@ -42,7 +43,9 @@ class FacilityReportController extends Controller
     {
         $user = auth()->user();
         if ($user instanceof User && ($user->hasRole(Roles::ADMIN) || $user->hasRole(Roles::HOST))) {
-            $user->forceFill(['facility_reports_acknowledged_at' => now()])->saveQuietly();
+            if (Schema::hasColumn('users', 'facility_reports_acknowledged_at')) {
+                $user->forceFill(['facility_reports_acknowledged_at' => now()])->saveQuietly();
+            }
         }
 
         $reports = FacilityReport::with([

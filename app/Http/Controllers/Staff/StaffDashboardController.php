@@ -40,49 +40,58 @@ class StaffDashboardController extends StaffBaseController
             ? ($activeRole->slug ?? null)
             : null;
 
-        $systemMessagesQuery = SystemMessage::query()
-            ->visibleNow()
-            ->when($activeRoleSlug, fn ($query) => $query->forRole($activeRoleSlug))
-            ->notDismissedForUser($user->id)
-            ->with(['users' => function ($query) use ($user) {
-                $query->where('users.id', $user->id);
-            }]);
+        $systemMessages = collect();
+        $unreadSystemMessagesCount = 0;
 
-        if (Schema::hasColumn('system_messages', 'starts_at')) {
-            $systemMessagesQuery->orderByDesc('starts_at');
+        if (Schema::hasTable('system_messages')) {
+            $systemMessagesQuery = SystemMessage::query()
+                ->visibleNow()
+                ->when($activeRoleSlug, fn ($query) => $query->forRole($activeRoleSlug))
+                ->notDismissedForUser($user->id)
+                ->with(['users' => function ($query) use ($user) {
+                    $query->where('users.id', $user->id);
+                }]);
+
+            if (Schema::hasColumn('system_messages', 'starts_at')) {
+                $systemMessagesQuery->orderByDesc('starts_at');
+            }
+
+            if (Schema::hasColumn('system_messages', 'created_at')) {
+                $systemMessagesQuery->orderByDesc('created_at');
+            }
+
+            $systemMessages = $systemMessagesQuery
+                ->limit(5)
+                ->get();
+
+            $unreadSystemMessagesCount = SystemMessage::query()
+                ->visibleNow()
+                ->when($activeRoleSlug, fn ($query) => $query->forRole($activeRoleSlug))
+                ->notDismissedForUser($user->id)
+                ->whereDoesntHave('users', function ($query) use ($user) {
+                    $query->where('users.id', $user->id)
+                        ->whereNotNull('system_message_user.read_at');
+                })
+                ->count();
         }
 
-        if (Schema::hasColumn('system_messages', 'created_at')) {
-            $systemMessagesQuery->orderByDesc('created_at');
+        $conversationParticipants = collect();
+
+        if (Schema::hasTable('conversation_participants')) {
+            $conversationParticipantsQuery = ConversationParticipant::query()
+                ->with('conversation')
+                ->where('user_id', $user->id);
+
+            if (Schema::hasColumn('conversation_participants', 'updated_at')) {
+                $conversationParticipantsQuery->orderByDesc('updated_at');
+            } elseif (Schema::hasColumn('conversation_participants', 'created_at')) {
+                $conversationParticipantsQuery->orderByDesc('created_at');
+            }
+
+            $conversationParticipants = $conversationParticipantsQuery
+                ->limit(5)
+                ->get();
         }
-
-        $systemMessages = $systemMessagesQuery
-            ->limit(5)
-            ->get();
-
-        $unreadSystemMessagesCount = SystemMessage::query()
-            ->visibleNow()
-            ->when($activeRoleSlug, fn ($query) => $query->forRole($activeRoleSlug))
-            ->notDismissedForUser($user->id)
-            ->whereDoesntHave('users', function ($query) use ($user) {
-                $query->where('users.id', $user->id)
-                    ->whereNotNull('system_message_user.read_at');
-            })
-            ->count();
-
-        $conversationParticipantsQuery = ConversationParticipant::query()
-            ->with('conversation')
-            ->where('user_id', $user->id);
-
-        if (Schema::hasColumn('conversation_participants', 'updated_at')) {
-            $conversationParticipantsQuery->orderByDesc('updated_at');
-        } elseif (Schema::hasColumn('conversation_participants', 'created_at')) {
-            $conversationParticipantsQuery->orderByDesc('created_at');
-        }
-
-        $conversationParticipants = $conversationParticipantsQuery
-            ->limit(5)
-            ->get();
 
         $latestDocuments = StaffDocument::query()
             ->active()

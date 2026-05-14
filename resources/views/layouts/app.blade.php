@@ -915,13 +915,21 @@
             </div>
 
     <nav class="side-nav">
-	@if(Route::has('admin.dashboard'))
-                    <a class="side-link {{ request()->routeIs('admin.dashboard') ? 'active-link' : '' }}"
-                       href="{{ route('admin.dashboard') }}">
+	@if(Route::has($adminHostPrefix . '.dashboard'))
+                    <a class="side-link {{ request()->routeIs('admin.dashboard') || request()->routeIs('host.dashboard') ? 'active-link' : '' }}"
+                       href="{{ route($adminHostPrefix . '.dashboard') }}">
                         <i class="bi bi-speedometer2"></i>
                         <span>Dashboard</span>
                     </a>
                 @endif
+    @if($activeRole === \App\Support\Roles::HOST && Route::has('staff.dashboard'))
+        <a class="side-link {{ request()->routeIs('staff.*') ? 'active-link' : '' }}"
+           href="{{ route('staff.dashboard') }}"
+           title="Samma mobilanpassade vy som för restaurangpersonal: pass, schema, dokument och meddelanden.">
+            <i class="bi bi-phone"></i>
+            <span>Mobil personalvy</span>
+        </a>
+    @endif
     @if(in_array($activeRole, ['admin', 'host'], true))
         <div class="nav-section">
             <div class="nav-section-title">Dagligt arbete</div>
@@ -1251,8 +1259,8 @@
 
     <main class="main-area">
 
-<!-- RESTAURANT MOBILE NAV START -->
-@if(session('active_role') === \App\Support\Roles::RESTAURANT)
+<!-- RESTAURANT / VÄRD MOBILNAV (samma personalvy som restaurang) -->
+@if(in_array(session('active_role'), [\App\Support\Roles::RESTAURANT, \App\Support\Roles::HOST], true))
 <style>
 @media (max-width: 991.98px) {
     .sidebar,
@@ -1387,16 +1395,29 @@
                 Hej {{ auth()->user()->name ?? 'Restaurang' }}
             </div>
             <div class="restaurant-mobile-subtitle">
-                Restaurang · Personalvy
+                @if(session('active_role') === \App\Support\Roles::HOST)
+                    Entrévärd · Mobil personalvy
+                @else
+                    Restaurang · Personalvy
+                @endif
             </div>
         </div>
     </div>
 
     <div class="restaurant-mobile-nav">
+        @if(session('active_role') === \App\Support\Roles::HOST && Route::has('host.dashboard'))
+            <a href="{{ route('host.dashboard') }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('host.*') ? 'active' : '' }}"
+               title="Bokning och turer"
+               aria-label="Bokning och turer">
+                <i class="bi bi-columns-gap"></i>
+            </a>
+        @endif
+
         <a href="{{ route('staff.dashboard') }}"
-           class="restaurant-mobile-btn {{ request()->routeIs('staff.dashboard') ? 'active' : '' }}"
-           title="Hem"
-           aria-label="Hem">
+           class="restaurant-mobile-btn {{ request()->routeIs('staff.*') ? 'active' : '' }}"
+           title="Personalvy"
+           aria-label="Personalvy">
             <i class="bi bi-house-door"></i>
         </a>
 
@@ -1483,7 +1504,7 @@
     </div>
 </div>
 @endif
-<!-- RESTAURANT MOBILE NAV END -->
+<!-- RESTAURANT / VÄRD MOBILNAV END -->
 
 
 <div class="content-wrap">

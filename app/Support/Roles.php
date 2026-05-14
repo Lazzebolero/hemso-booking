@@ -25,7 +25,7 @@ class Roles
     {
         return [
             self::ADMIN => 'Administration och full kontroll',
-            self::HOST => 'Värdvy och drift',
+            self::HOST => 'Bokning och turplanering. På mobil används samma personalvy som för restaurang (pass, schema, dokument, chatt).',
             self::GUIDE => 'Guidevy för turer och rapportering',
             self::RESTAURANT => 'Personalsida för restaurang',
             self::RESTAURANT_STATISTIK => 'Ren statistiksida för restaurangskärm utan navigation',
