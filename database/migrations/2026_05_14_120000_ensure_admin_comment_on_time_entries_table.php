@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Earlier installs may have run an empty `add_admin_comment` migration; ensure the column exists.
      */
     public function up(): void
     {
@@ -20,9 +20,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         if (! Schema::hasColumn('time_entries', 'admin_comment')) {

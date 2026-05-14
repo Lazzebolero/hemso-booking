@@ -3,16 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PayrollPeriodFilterRequest;
 use App\Models\TimeEntry;
+use App\Services\PayrollExportLogService;
 use App\Services\PayrollPeriodService;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminTimeCsvExportController extends Controller
 {
-    public function entries(Request $request): StreamedResponse
+    public function entries(PayrollPeriodFilterRequest $request): StreamedResponse
     {
-        $period = PayrollPeriodService::resolveFromRequest($request->all());
+        $period = PayrollPeriodService::resolveFromRequest($request->payrollPeriodQuery());
 
         $entries = TimeEntry::query()
             ->with('user')
@@ -24,7 +25,11 @@ class AdminTimeCsvExportController extends Controller
             ->orderBy('start_at')
             ->get();
 
-        return $this->downloadCsv('tidrapport_pass_' . $period['file_label'] . '.csv', function ($handle) use ($entries) {
+        $targetUserId = $request->filled('user_id') ? (int) $request->validated('user_id') : null;
+
+        PayrollExportLogService::logDownload('payroll_csv_entries', $period, $targetUserId);
+
+        return $this->downloadCsv('tidrapport_pass_'.$period['file_label'].'.csv', function ($handle) use ($entries) {
             $this->putRow($handle, [
                 'Namn', 'Roll', 'Datum', 'Original in', 'Original ut',
                 'Rapporterad start', 'Rapporterad slut', 'Rast minuter',
@@ -52,9 +57,9 @@ class AdminTimeCsvExportController extends Controller
         });
     }
 
-    public function summary(Request $request): StreamedResponse
+    public function summary(PayrollPeriodFilterRequest $request): StreamedResponse
     {
-        $period = PayrollPeriodService::resolveFromRequest($request->all());
+        $period = PayrollPeriodService::resolveFromRequest($request->payrollPeriodQuery());
 
         $entries = TimeEntry::query()
             ->with('user')
@@ -86,7 +91,9 @@ class AdminTimeCsvExportController extends Controller
             })
             ->values();
 
-        return $this->downloadCsv('tidrapport_summering_' . $period['file_label'] . '.csv', function ($handle) use ($summary) {
+        PayrollExportLogService::logDownload('payroll_csv_summary', $period, $request->filled('user_id') ? (int) $request->validated('user_id') : null);
+
+        return $this->downloadCsv('tidrapport_summering_'.$period['file_label'].'.csv', function ($handle) use ($summary) {
             $this->putRow($handle, [
                 'Namn', 'Roll', 'Antal pass', 'Totala minuter', 'Total tid',
                 'Öppna', 'Utkast', 'Inskickade', 'Korrigerade', 'Godkända',

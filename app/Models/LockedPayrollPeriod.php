@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LockedPayrollPeriod extends Model
 {
@@ -21,4 +22,9 @@ class LockedPayrollPeriod extends Model
         'end_date' => 'date',
         'locked_at' => 'datetime',
     ];
+
+    public function lockedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'locked_by');
+    }
 }

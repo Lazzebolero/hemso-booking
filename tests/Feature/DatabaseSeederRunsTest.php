@@ -16,6 +16,17 @@ class DatabaseSeederRunsTest extends TestCase
 
         $this->assertTrue(Schema::hasColumn('bookings', 'is_waitlist'));
         $this->assertTrue(Schema::hasTable('booking_language'));
+        $this->assertTrue(Schema::hasTable('tour_types'));
+        $this->assertTrue(Schema::hasTable('tour_booking_pages'));
+        $this->assertTrue(Schema::hasColumn('tours', 'tour_type_id'));
+        $this->assertTrue(Schema::hasTable('settings'));
+        $this->assertTrue(Schema::hasTable('system_messages'));
+        $this->assertTrue(Schema::hasTable('system_message_user'));
+
+        $this->assertTrue(Schema::hasTable('report_categories'));
+        $this->assertTrue(Schema::hasTable('report_priorities'));
+        $this->assertTrue(Schema::hasTable('report_statuses'));
+        $this->assertTrue(Schema::hasTable('staff_documents'));
 
         $this->assertGreaterThan(0, User::query()->count());
         $this->assertGreaterThan(0, Tour::query()->count());

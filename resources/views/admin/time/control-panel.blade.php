@@ -29,6 +29,17 @@
     </div>
 </div>
 
+@if ($errors->any())
+    <div class="alert alert-danger border-0 shadow-sm mb-4">
+        <div class="fw-semibold mb-1">Kunde inte tillämpa filtret</div>
+        <ul class="mb-0 small ps-3">
+            @foreach ($errors->all() as $message)
+                <li>{{ $message }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card border-0 shadow-sm h-100">
@@ -90,20 +101,26 @@
                 <div class="col-md-2">
                     <label class="form-label">Period</label>
                     <select name="period" class="form-select">
-                        <option value="current" {{ request('period', 'current') === 'current' ? 'selected' : '' }}>Aktuell 21–20</option>
-                        <option value="previous" {{ request('period') === 'previous' ? 'selected' : '' }}>Föregående 21–20</option>
-                        <option value="custom" {{ request('period') === 'custom' ? 'selected' : '' }}>Valfri</option>
+                        <option value="current" {{ old('period', request('period', 'current')) === 'current' ? 'selected' : '' }}>Aktuell 21–20</option>
+                        <option value="previous" {{ old('period', request('period', 'current')) === 'previous' ? 'selected' : '' }}>Föregående 21–20</option>
+                        <option value="custom" {{ old('period', request('period', 'current')) === 'custom' ? 'selected' : '' }}>Valfri</option>
                     </select>
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label">Från</label>
-                    <input type="date" name="from" class="form-control" value="{{ request('from', $period['start_date']) }}">
+                    <input type="date" name="from" class="form-control @error('from') is-invalid @enderror" value="{{ old('from', request('from', $period['start_date'])) }}">
+                    @error('from')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label">Till</label>
-                    <input type="date" name="to" class="form-control" value="{{ request('to', $period['end_date']) }}">
+                    <input type="date" name="to" class="form-control @error('to') is-invalid @enderror" value="{{ old('to', request('to', $period['end_date'])) }}">
+                    @error('to')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="col-md-3">

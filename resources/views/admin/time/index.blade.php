@@ -24,6 +24,19 @@
             </a>
         @endif
 
+        @if(Route::has('admin.time.payroll-locks.index'))
+            <a href="{{ route('admin.time.payroll-locks.index') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-lock me-2"></i>Lönelås
+            </a>
+        @endif
+
+    @if(Route::has('admin.time.export'))
+        <a href="{{ route('admin.time.export', request()->query()) }}"
+           class="btn btn-sm btn-success">
+            <i class="bi bi-file-earmark-excel me-2"></i>Excel (enligt filter)
+        </a>
+    @endif
+
     @if(Route::has('admin.time.export.entries-csv'))
     <a href="{{ route('admin.time.export.entries-csv', request()->query()) }}"
        class="btn btn-sm btn-success">
@@ -55,6 +68,17 @@
 @if(session('warning'))
     <div class="alert alert-warning border-0 shadow-sm mb-4">
         {{ session('warning') }}
+    </div>
+@endif
+
+@if ($errors->any())
+    <div class="alert alert-danger border-0 shadow-sm mb-4">
+        <div class="fw-semibold mb-1">Kunde inte tillämpa filtret</div>
+        <ul class="mb-0 small ps-3">
+            @foreach ($errors->all() as $message)
+                <li>{{ $message }}</li>
+            @endforeach
+        </ul>
     </div>
 @endif
 
@@ -107,20 +131,26 @@
                 <div class="col-md-2">
                     <label class="form-label">Period</label>
                     <select name="period" class="form-select">
-                        <option value="current" {{ request('period', 'current') === 'current' ? 'selected' : '' }}>Aktuell 21–20</option>
-                        <option value="previous" {{ request('period') === 'previous' ? 'selected' : '' }}>Föregående 21–20</option>
-                        <option value="custom" {{ request('period') === 'custom' ? 'selected' : '' }}>Valfri</option>
+                        <option value="current" {{ old('period', request('period', 'current')) === 'current' ? 'selected' : '' }}>Aktuell 21–20</option>
+                        <option value="previous" {{ old('period', request('period', 'current')) === 'previous' ? 'selected' : '' }}>Föregående 21–20</option>
+                        <option value="custom" {{ old('period', request('period', 'current')) === 'custom' ? 'selected' : '' }}>Valfri</option>
                     </select>
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label">Från</label>
-                    <input type="date" name="from" class="form-control" value="{{ request('from', $period['start_date']) }}">
+                    <input type="date" name="from" class="form-control @error('from') is-invalid @enderror" value="{{ old('from', request('from', $period['start_date'])) }}">
+                    @error('from')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label">Till</label>
-                    <input type="date" name="to" class="form-control" value="{{ request('to', $period['end_date']) }}">
+                    <input type="date" name="to" class="form-control @error('to') is-invalid @enderror" value="{{ old('to', request('to', $period['end_date'])) }}">
+                    @error('to')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="col-md-2">
@@ -243,6 +273,16 @@
                         <div class="summary-label">Godkända</div>
                         <span class="badge rounded-pill text-bg-success">{{ $row['approved'] }}</span>
                     </div>
+
+                    @if(Route::has('admin.time.payroll-pdf.person') && $row['approved'] > 0)
+                        <div class="summary-stat align-self-center">
+                            <a href="{{ route('admin.time.payroll-pdf.person', array_merge(request()->query(), ['user' => $row['user']->id])) }}"
+                               class="btn btn-sm btn-outline-danger text-nowrap"
+                               title="Ladda ner löneunderlag PDF (endast godkända pass)">
+                                <i class="bi bi-filetype-pdf me-1"></i>PDF
+                            </a>
+                        </div>
+                    @endif
 
                 </div>
 

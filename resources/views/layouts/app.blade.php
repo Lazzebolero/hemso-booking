@@ -995,8 +995,16 @@
     </a>
 @endif
 
+@if(Route::has('admin.time.payroll-locks.index'))
+    <a class="side-link {{ request()->routeIs('admin.time.payroll-locks.*') ? 'active-link' : '' }}"
+       href="{{ route('admin.time.payroll-locks.index') }}">
+        <i class="bi bi-lock"></i>
+        <span>Lönelås</span>
+    </a>
+@endif
+
 @if(Route::has('admin.time.index'))
-    <a class="side-link {{ request()->routeIs('admin.time.*') && !request()->routeIs('admin.time.control-panel') ? 'active-link' : '' }}"
+    <a class="side-link {{ request()->routeIs('admin.time.*') && !request()->routeIs('admin.time.control-panel') && !request()->routeIs('admin.time.payroll-locks.*') ? 'active-link' : '' }}"
        href="{{ route('admin.time.index') }}">
         <i class="bi bi-clock-history"></i>
         <span>Tider/Lön</span>

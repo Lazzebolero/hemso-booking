@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\TimeEntry;
 use App\Models\TimeEntryAudit;
+use App\Services\PayrollLockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class TimeEntryController extends Controller
@@ -50,6 +52,7 @@ class TimeEntryController extends Controller
     {
         abort_unless($timeEntry->user_id === $request->user()->id, 403);
         abort_unless($timeEntry->isEditableByUser(), 403, 'Inskickade tider kan inte ändras i Fas 1.');
+        PayrollLockService::assertWorkDateUnlockedForUser($timeEntry->work_date->format('Y-m-d'));
 
         $timeEntry->load('audits.changedBy');
 
@@ -70,6 +73,8 @@ class TimeEntryController extends Controller
         abort_unless($timeEntry->user_id === $request->user()->id, 403);
         abort_unless($timeEntry->isEditableByUser(), 403, 'Inskickade tider kan inte ändras i Fas 1.');
 
+        $previousWorkDate = $timeEntry->work_date->format('Y-m-d');
+
         $validated = $request->validate([
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
@@ -78,6 +83,11 @@ class TimeEntryController extends Controller
         ]);
 
         $validated['break_minutes'] = (int) ($validated['break_minutes'] ?? 0);
+
+        $newWorkDate = Carbon::parse($validated['start_at'])->toDateString();
+
+        PayrollLockService::assertWorkDateUnlockedForUser($previousWorkDate);
+        PayrollLockService::assertWorkDateUnlockedForUser($newWorkDate);
 
         $this->auditChanges($timeEntry, $validated, $request->user()->id, 'user');
 
@@ -88,6 +98,7 @@ class TimeEntryController extends Controller
         }
 
         $timeEntry->work_date = $timeEntry->start_at->toDateString();
+
         $timeEntry->save();
 
         return redirect()
@@ -99,6 +110,7 @@ class TimeEntryController extends Controller
     {
         abort_unless($timeEntry->user_id === $request->user()->id, 403);
         abort_if($timeEntry->status === TimeEntry::STATUS_OPEN, 422, 'Du måste stämpla ut eller ange sluttid innan du skickar in tiden.');
+        PayrollLockService::assertWorkDateUnlockedForUser($timeEntry->work_date->format('Y-m-d'));
 
         if ($timeEntry->status !== TimeEntry::STATUS_SUBMITTED) {
             TimeEntryAudit::create([

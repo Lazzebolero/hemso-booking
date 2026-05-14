@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TimeEntry;
 use App\Models\TimeEntryAudit;
+use App\Services\PayrollLockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -50,6 +51,8 @@ class TimeClockController extends Controller
 
         $now = $this->resolveClientOccurredAt($request) ?? now();
         $now = $now->timezone(config('app.timezone'));
+
+        PayrollLockService::assertWorkDateUnlockedForUser($now->toDateString());
 
         TimeEntry::create([
             'user_id' => $user->id,

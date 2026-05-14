@@ -6,6 +6,7 @@ use App\Models\FacilityReport;
 use App\Models\ReportCategory;
 use App\Models\ReportPriority;
 use App\Models\ReportStatus;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Http\UploadedFile;
@@ -24,6 +25,8 @@ class GuideFacilityReportAttachmentTest extends TestCase
         Storage::fake('public');
 
         $user = User::factory()->create();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+        $user->assignRoles([$guideRole]);
 
         $category = ReportCategory::query()->create([
             'name' => 'Testkategori',
@@ -39,12 +42,14 @@ class GuideFacilityReportAttachmentTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        ReportStatus::query()->create([
-            'name' => 'Öppen',
-            'code' => 'open',
-            'is_active' => true,
-            'sort_order' => 1,
-        ]);
+        ReportStatus::query()->firstOrCreate(
+            ['code' => 'open'],
+            [
+                'name' => 'Öppen',
+                'is_active' => true,
+                'sort_order' => 1,
+            ]
+        );
 
         $file = UploadedFile::fake()->image('plats.jpg', 120, 120);
 

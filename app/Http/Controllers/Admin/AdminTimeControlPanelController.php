@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PayrollPeriodFilterRequest;
 use App\Models\TimeEntry;
 use App\Services\PayrollPeriodService;
 use App\Services\TimeEntryDeviationService;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AdminTimeControlPanelController extends Controller
 {
-    public function index(Request $request): View
+    public function index(PayrollPeriodFilterRequest $request): View
     {
-        $period = PayrollPeriodService::resolveFromRequest($request->all());
+        $period = PayrollPeriodService::resolveFromRequest($request->payrollPeriodQuery());
 
         $entries = TimeEntry::query()
             ->with(['user', 'audits'])
@@ -48,8 +48,7 @@ class AdminTimeControlPanelController extends Controller
             'corrected' => $correctedEntries,
             'all' => $entries,
             default => $entries
-                ->filter(fn (TimeEntry $entry) =>
-                    $entry->status === TimeEntry::STATUS_OPEN ||
+                ->filter(fn (TimeEntry $entry) => $entry->status === TimeEntry::STATUS_OPEN ||
                     $entry->status === TimeEntry::STATUS_SUBMITTED ||
                     $entry->status === TimeEntry::STATUS_CORRECTED ||
                     count($entry->deviations ?? []) > 0

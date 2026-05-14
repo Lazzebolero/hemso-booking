@@ -1,29 +1,32 @@
 <?php
-use App\Http\Controllers\AppPulseController;
-use App\Http\Controllers\GroupChatController;
-use App\Http\Controllers\MessageController;
-use App\Http\Controllers\MyScheduleController;
-use App\Http\Controllers\PublicTourBookingController;
-use App\Http\Controllers\QuickTourController;
-use App\Http\Controllers\RoleSelectionController;
-use App\Http\Controllers\Admin\AdminPayrollPdfController;
+
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\AdminLockedPayrollPeriodController;
+use App\Http\Controllers\Admin\AdminPayrollPdfController;
+use App\Http\Controllers\Admin\AdminTimeControlPanelController;
+use App\Http\Controllers\Admin\AdminTimeCsvExportController;
+use App\Http\Controllers\Admin\AdminTimeEntryController;
+use App\Http\Controllers\Admin\AdminTimeExportController;
+use App\Http\Controllers\Admin\BackupCheckController;
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FacilityReportController;
 use App\Http\Controllers\Admin\GuideAvailabilityController;
-use App\Http\Controllers\Admin\GuideShiftController;
 use App\Http\Controllers\Admin\GuideStatisticsController;
 use App\Http\Controllers\Admin\LanguageController;
+use App\Http\Controllers\Admin\LoginEventController;
 use App\Http\Controllers\Admin\NotificationLogController;
 use App\Http\Controllers\Admin\NotificationTemplateController;
 use App\Http\Controllers\Admin\QuickBookingController;
 use App\Http\Controllers\Admin\ReportSettingsController;
 use App\Http\Controllers\Admin\RestaurantBoardController;
+use App\Http\Controllers\Admin\SecurityOverviewController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SpecialTourController;
 use App\Http\Controllers\Admin\StaffDocumentController as AdminStaffDocumentController;
 use App\Http\Controllers\Admin\StatisticsController;
+use App\Http\Controllers\Admin\SystemHealthController;
+use App\Http\Controllers\Admin\SystemLogController;
 use App\Http\Controllers\Admin\SystemMessageController;
 use App\Http\Controllers\Admin\SystemMessageStatusController;
 use App\Http\Controllers\Admin\TourBatchController;
@@ -32,30 +35,24 @@ use App\Http\Controllers\Admin\TourTypeController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WorkShiftController;
 use App\Http\Controllers\Admin\WorkShiftTemplateController;
-
+use App\Http\Controllers\AppPulseController;
+use App\Http\Controllers\GroupChatController;
 use App\Http\Controllers\Guide\DashboardController as GuideDashboardController;
 use App\Http\Controllers\Guide\FacilityReportController as GuideFacilityReportController;
-
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\MyScheduleController;
+use App\Http\Controllers\PublicTourBookingController;
+use App\Http\Controllers\QuickTourController;
+use App\Http\Controllers\RestaurantStatisticsController;
+use App\Http\Controllers\RoleSelectionController;
 use App\Http\Controllers\Staff\StaffDashboardController;
 use App\Http\Controllers\Staff\StaffDocumentController as StaffStaffDocumentController;
 use App\Http\Controllers\Staff\StaffScheduleController;
-
+use App\Http\Controllers\TimeClockController;
+use App\Http\Controllers\TimeEntryController;
 use App\Support\ActiveRoleRedirect;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\RestaurantStatisticsController;
-use App\Http\Controllers\Admin\SystemHealthController;
-use App\Http\Controllers\Admin\SystemLogController;
-use App\Http\Controllers\Admin\LoginEventController;
-use App\Http\Controllers\Admin\SecurityOverviewController;
-use App\Http\Controllers\Admin\BackupCheckController;
-use App\Http\Controllers\TimeClockController;
-use App\Http\Controllers\TimeEntryController;
-
-use App\Http\Controllers\Admin\AdminTimeEntryController;
-use App\Http\Controllers\Admin\AdminTimeExportController;
-use App\Http\Controllers\Admin\AdminTimeControlPanelController;
-use App\Http\Controllers\Admin\AdminTimeCsvExportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -183,8 +180,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/system-messages/force-popup/panel', [SystemMessageController::class, 'forcePopupPanel'])
         ->name('system-messages.force-popup-panel');
-	Route::middleware(['auth'])->get('/app/pulse', AppPulseController::class)
-		->name('app.pulse');
+    Route::middleware(['auth'])->get('/app/pulse', AppPulseController::class)
+        ->name('app.pulse');
 });
 /*
 |--------------------------------------------------------------------------
@@ -288,8 +285,8 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::patch('bookings/{booking}/arrival', [BookingController::class, 'markArrival'])->name('bookings.mark-arrival');
         Route::resource('bookings', BookingController::class)->except(['show']);
 
-		Route::get('work-shifts/staffing', [WorkShiftController::class, 'staffing'])
-			->name('work-shifts.staffing');
+        Route::get('work-shifts/staffing', [WorkShiftController::class, 'staffing'])
+            ->name('work-shifts.staffing');
         Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
         Route::get('work-shifts/create', [WorkShiftController::class, 'create'])->name('work-shifts.create');
         Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');
@@ -368,40 +365,48 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::post('settings/reports/locations', [ReportSettingsController::class, 'storeLocation'])->name('settings.reports.locations.store');
         Route::put('settings/reports/locations/{location}', [ReportSettingsController::class, 'updateLocation'])->name('settings.reports.locations.update');
         Route::delete('settings/reports/locations/{location}', [ReportSettingsController::class, 'destroyLocation'])->name('settings.reports.locations.destroy');
-		Route::get('work-shifts/person', [WorkShiftController::class, 'person'])
-			->name('work-shifts.person');
+        Route::get('work-shifts/person', [WorkShiftController::class, 'person'])
+            ->name('work-shifts.person');
 
-		Route::post('work-shifts/person', [WorkShiftController::class, 'storePerson'])
-			->name('work-shifts.person.store');
-			
-		Route::get('system-health', [SystemHealthController::class, 'index'])
-			->name('system-health.index');
-		Route::get('system-logs', [SystemLogController::class, 'index'])
-			->name('system-logs.index');
-		Route::get('login-events', [LoginEventController::class, 'index'])
-			->name('login-events.index');
-		Route::get('security-overview', [SecurityOverviewController::class, 'index'])
-			->name('security-overview.index');
-		Route::get('backup-check', [BackupCheckController::class, 'index'])
-			->name('backup-check.index');
+        Route::post('work-shifts/person', [WorkShiftController::class, 'storePerson'])
+            ->name('work-shifts.person.store');
 
-		Route::post('backup-check', [BackupCheckController::class, 'update'])
-			->name('backup-check.update');
-		Route::get('/time/export/entries-csv', [AdminTimeCsvExportController::class, 'entries'])
-			->name('time.export.entries-csv');
+        Route::get('system-health', [SystemHealthController::class, 'index'])
+            ->name('system-health.index');
+        Route::get('system-logs', [SystemLogController::class, 'index'])
+            ->name('system-logs.index');
+        Route::get('login-events', [LoginEventController::class, 'index'])
+            ->name('login-events.index');
+        Route::get('security-overview', [SecurityOverviewController::class, 'index'])
+            ->name('security-overview.index');
+        Route::get('backup-check', [BackupCheckController::class, 'index'])
+            ->name('backup-check.index');
 
-		Route::get('/time/export/summary-csv', [AdminTimeCsvExportController::class, 'summary'])
-			->name('time.export.summary-csv');
-		Route::get('/time/payroll-pdf/all', [AdminPayrollPdfController::class, 'all'])
-			->name('time.payroll-pdf.all');
-		Route::get('/time/control-panel', [AdminTimeControlPanelController::class, 'index'])
-			->name('time.control-panel');
-		Route::get('/time/payroll-pdf/{user}', [AdminPayrollPdfController::class, 'person'])
-			->name('time.payroll-pdf.person');	
-		Route::get('/time', [AdminTimeEntryController::class, 'index'])
+        Route::post('backup-check', [BackupCheckController::class, 'update'])
+            ->name('backup-check.update');
+
+        Route::get('/time/payroll-locks', [AdminLockedPayrollPeriodController::class, 'index'])
+            ->name('time.payroll-locks.index');
+        Route::post('/time/payroll-locks', [AdminLockedPayrollPeriodController::class, 'store'])
+            ->name('time.payroll-locks.store');
+        Route::delete('/time/payroll-locks/{lockedPayrollPeriod}', [AdminLockedPayrollPeriodController::class, 'destroy'])
+            ->name('time.payroll-locks.destroy');
+
+        Route::get('/time/export/entries-csv', [AdminTimeCsvExportController::class, 'entries'])
+            ->name('time.export.entries-csv');
+
+        Route::get('/time/export/summary-csv', [AdminTimeCsvExportController::class, 'summary'])
+            ->name('time.export.summary-csv');
+        Route::get('/time/payroll-pdf/all', [AdminPayrollPdfController::class, 'all'])
+            ->name('time.payroll-pdf.all');
+        Route::get('/time/control-panel', [AdminTimeControlPanelController::class, 'index'])
+            ->name('time.control-panel');
+        Route::get('/time/payroll-pdf/{user}', [AdminPayrollPdfController::class, 'person'])
+            ->name('time.payroll-pdf.person');
+        Route::get('/time', [AdminTimeEntryController::class, 'index'])
             ->name('time.index');
-		Route::get('/time/export', [AdminTimeExportController::class, 'export'])
-			->name('time.export');	
+        Route::get('/time/export', [AdminTimeExportController::class, 'export'])
+            ->name('time.export');
         Route::get('/time/{timeEntry}', [AdminTimeEntryController::class, 'show'])
             ->name('time.show');
 
@@ -410,7 +415,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
 
         Route::patch('/time/{timeEntry}/correct', [AdminTimeEntryController::class, 'correct'])
             ->name('time.correct');
-		
+
     });
 
 /*
@@ -438,8 +443,8 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
 
         Route::get('guides/availability', [GuideAvailabilityController::class, 'index'])->name('guides.availability');
 
-		Route::get('work-shifts/staffing', [WorkShiftController::class, 'staffing'])
-			->name('work-shifts.staffing');
+        Route::get('work-shifts/staffing', [WorkShiftController::class, 'staffing'])
+            ->name('work-shifts.staffing');
         Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
         Route::get('work-shifts/create', [WorkShiftController::class, 'create'])->name('work-shifts.create');
         Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');
@@ -475,15 +480,15 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
 
         Route::get('statistics', [StatisticsController::class, 'index'])->name('statistics.index');
         Route::get('statistics/live', [StatisticsController::class, 'live'])->name('statistics.live');
-		Route::get('work-shifts/person', [WorkShiftController::class, 'person'])
-			->name('work-shifts.person');
+        Route::get('work-shifts/person', [WorkShiftController::class, 'person'])
+            ->name('work-shifts.person');
 
-		Route::post('work-shifts/person', [WorkShiftController::class, 'storePerson'])
-			->name('work-shifts.person.store');
-		Route::get('system-health', [SystemHealthController::class, 'index'])
-			->name('system-health.index');
-		Route::get('system-logs', [SystemLogController::class, 'index'])
-			->name('system-logs.index');			
+        Route::post('work-shifts/person', [WorkShiftController::class, 'storePerson'])
+            ->name('work-shifts.person.store');
+        Route::get('system-health', [SystemHealthController::class, 'index'])
+            ->name('system-health.index');
+        Route::get('system-logs', [SystemLogController::class, 'index'])
+            ->name('system-logs.index');
     });
 
 /*
@@ -563,8 +568,8 @@ Route::middleware(['restaurant.statistics.access'])
 | Tid, stämpeklocka
 |--------------------------------------------------------------------------
 */
-	
-	Route::middleware(['auth'])->group(function () {
+
+Route::middleware(['auth'])->group(function () {
     Route::get('/time', [TimeEntryController::class, 'index'])->name('time.index');
     Route::post('/time/clock-in', [TimeClockController::class, 'clockIn'])->name('time.clock-in');
     Route::post('/time/clock-out', [TimeClockController::class, 'clockOut'])->name('time.clock-out');
@@ -572,4 +577,4 @@ Route::middleware(['restaurant.statistics.access'])
     Route::patch('/time/{timeEntry}', [TimeEntryController::class, 'update'])->name('time.update');
     Route::patch('/time/{timeEntry}/submit', [TimeEntryController::class, 'submit'])->name('time.submit');
 });
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

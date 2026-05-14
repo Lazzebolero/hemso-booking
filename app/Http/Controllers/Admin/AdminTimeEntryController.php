@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PayrollPeriodFilterRequest;
 use App\Models\TimeEntry;
 use App\Models\TimeEntryAudit;
 use App\Models\User;
@@ -15,9 +16,9 @@ use Illuminate\View\View;
 
 class AdminTimeEntryController extends Controller
 {
-    public function index(Request $request): View
+    public function index(PayrollPeriodFilterRequest $request): View
     {
-        $period = PayrollPeriodService::resolveFromRequest($request->all());
+        $period = PayrollPeriodService::resolveFromRequest($request->payrollPeriodQuery());
 
         $query = TimeEntry::query()
             ->with(['user', 'audits'])

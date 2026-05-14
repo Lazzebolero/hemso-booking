@@ -8,8 +8,8 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
 class TimeEntriesPeriodExport implements WithMultipleSheets
@@ -18,15 +18,18 @@ class TimeEntriesPeriodExport implements WithMultipleSheets
 
     public function __construct(
         private readonly Carbon $from,
-        private readonly Carbon $to
-    ) {
-    }
+        private readonly Carbon $to,
+        private readonly ?int $userId = null,
+        private readonly ?string $status = null,
+    ) {}
 
     public function sheets(): array
     {
         $entries = TimeEntry::query()
             ->with('user')
             ->whereBetween('work_date', [$this->from->toDateString(), $this->to->toDateString()])
+            ->when($this->userId !== null, fn ($q) => $q->where('user_id', $this->userId))
+            ->when($this->status !== null && $this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->orderBy('user_id')
             ->orderBy('work_date')
             ->orderBy('start_at')
@@ -39,11 +42,9 @@ class TimeEntriesPeriodExport implements WithMultipleSheets
     }
 }
 
-class TimeEntriesDetailSheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class TimeEntriesDetailSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
-    public function __construct(private readonly Collection $entries)
-    {
-    }
+    public function __construct(private readonly Collection $entries) {}
 
     public function title(): string
     {
@@ -91,11 +92,9 @@ class TimeEntriesDetailSheet implements FromCollection, WithHeadings, WithTitle,
     }
 }
 
-class TimeEntriesSummarySheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class TimeEntriesSummarySheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
-    public function __construct(private readonly Collection $entries)
-    {
-    }
+    public function __construct(private readonly Collection $entries) {}
 
     public function title(): string
     {
