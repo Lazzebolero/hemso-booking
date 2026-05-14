@@ -934,12 +934,22 @@
             $visitorDogsListRouteName = $activeRole === \App\Support\Roles::HOST && Route::has('host.visitor-dogs.index')
                 ? 'host.visitor-dogs.index'
                 : 'admin.visitor-dogs.index';
+            $visitorDogsGalleryRouteName = $activeRole === \App\Support\Roles::HOST && Route::has('host.visitor-dogs.gallery')
+                ? 'host.visitor-dogs.gallery'
+                : 'admin.visitor-dogs.gallery';
         @endphp
-        <a class="side-link {{ request()->routeIs('admin.visitor-dogs.*') || request()->routeIs('host.visitor-dogs.*') ? 'active-link' : '' }}"
+        <a class="side-link {{ request()->routeIs('admin.visitor-dogs.index', 'admin.visitor-dogs.show', 'host.visitor-dogs.index', 'host.visitor-dogs.show') ? 'active-link' : '' }}"
            href="{{ route($visitorDogsListRouteName) }}">
             <i class="bi bi-list-ul"></i>
             <span>Besökshundar</span>
         </a>
+        @if(Route::has('admin.visitor-dogs.gallery') || Route::has('host.visitor-dogs.gallery'))
+            <a class="side-link {{ request()->routeIs('admin.visitor-dogs.gallery', 'host.visitor-dogs.gallery') ? 'active-link' : '' }}"
+               href="{{ route($visitorDogsGalleryRouteName) }}">
+                <i class="bi bi-images"></i>
+                <span>Hundbilder</span>
+            </a>
+        @endif
     @endif
     @if($activeRole === \App\Support\Roles::HOST && Route::has('staff.dashboard'))
         <a class="side-link {{ request()->routeIs('staff.*') ? 'active-link' : '' }}"
@@ -1455,10 +1465,19 @@
 
         @if($hostStaffShell && Route::has('host.visitor-dogs.index'))
             <a href="{{ route('host.visitor-dogs.index') }}"
-               class="restaurant-mobile-btn {{ request()->routeIs('host.visitor-dogs.*') ? 'active' : '' }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('host.visitor-dogs.index', 'host.visitor-dogs.show') ? 'active' : '' }}"
                title="Besökshundar"
                aria-label="Besökshundar">
                 <i class="bi bi-list-ul"></i>
+            </a>
+        @endif
+
+        @if($hostStaffShell && Route::has('host.visitor-dogs.gallery'))
+            <a href="{{ route('host.visitor-dogs.gallery') }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('host.visitor-dogs.gallery') ? 'active' : '' }}"
+               title="Hundbilder"
+               aria-label="Hundbilder">
+                <i class="bi bi-images"></i>
             </a>
         @endif
 

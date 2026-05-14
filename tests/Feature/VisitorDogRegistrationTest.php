@@ -137,13 +137,56 @@ class VisitorDogRegistrationTest extends TestCase
             ->withSession(['active_role' => Roles::ADMIN])
             ->get(route('admin.visitor-dogs.index'))
             ->assertOk()
-            ->assertSee('List-test-hund', false);
+            ->assertSee('List-test-hund', false)
+            ->assertSee('Hundbilder', false);
 
         $this->actingAs($admin)
             ->withSession(['active_role' => Roles::ADMIN])
             ->get(route('admin.visitor-dogs.show', $dog))
             ->assertOk()
             ->assertSee('List-test-hund', false);
+    }
+
+    public function test_admin_visitor_dogs_gallery_lists_only_dogs_with_photo_in_range(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $registrar = User::factory()->create();
+        $registrar->assignRoles([$guideRole]);
+
+        VisitorDog::factory()->create([
+            'dog_name' => 'Galleri med foto',
+            'visit_date' => '2026-06-01',
+            'photo_path' => 'visitor_dogs/2026/06/x.jpg',
+            'registered_by' => $registrar->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        VisitorDog::factory()->create([
+            'dog_name' => 'Galleri utan foto',
+            'visit_date' => '2026-06-01',
+            'photo_path' => null,
+            'registered_by' => $registrar->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->assignRoles([$adminRole]);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.visitor-dogs.gallery', [
+                'from_date' => '2026-06-01',
+                'to_date' => '2026-06-01',
+            ]))
+            ->assertOk()
+            ->assertSee('Galleri med foto', false)
+            ->assertDontSee('Galleri utan foto', false);
     }
 
     public function test_admin_visitor_dog_photo_route_streams_file(): void
@@ -258,6 +301,14 @@ class VisitorDogRegistrationTest extends TestCase
             ->get(route('host.visitor-dogs.show', $dog))
             ->assertOk()
             ->assertSee('Värd-list-hund', false);
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->get(route('host.visitor-dogs.gallery', [
+                'from_date' => now()->toDateString(),
+                'to_date' => now()->toDateString(),
+            ]))
+            ->assertOk();
     }
 
     public function test_host_can_delete_visitor_dog(): void

@@ -4,13 +4,17 @@
 @php
     $vPrefix = $visitorDogsRoutePrefix ?? 'admin';
 @endphp
-<div class="page-header">
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
     <div>
         <h2 class="page-title">Besökshundar</h2>
         <div class="page-subtitle">
             Standard: dagens registreringar. Välj datumintervall för historik.
         </div>
     </div>
+    <a href="{{ route($vPrefix . '.visitor-dogs.gallery', request()->only(['from_date', 'to_date'])) }}"
+       class="btn btn-outline-primary">
+        <i class="bi bi-images me-1"></i>Hundbilder
+    </a>
 </div>
 
 <div class="page-card mb-4">
