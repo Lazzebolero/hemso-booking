@@ -71,24 +71,24 @@
     @if($dogs->isEmpty())
         <p class="text-muted mb-0">Inga hundbilder i valt intervall.</p>
     @else
-        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-6 g-3">
+        <div class="visitor-dog-gallery-grid mx-auto">
             @foreach($dogs as $dog)
-                <div class="col">
-                    <button type="button"
-                            class="visitor-dog-gallery-tile btn border-0 p-0 text-start bg-transparent w-100"
-                            @click="openAt({{ $loop->index }})">
-                        <div class="ratio ratio-1x1 rounded-3 overflow-hidden border shadow-sm">
-                            <img src="{{ route($vPrefix . '.visitor-dogs.photo', $dog) }}"
-                                 alt="{{ $dog->dog_name }}"
-                                 class="visitor-dog-gallery-tile-img"
-                                 loading="lazy"
-                                 width="400"
-                                 height="400">
-                        </div>
-                        <div class="small fw-semibold text-truncate mt-2">{{ $dog->dog_name }}</div>
-                        <div class="small-muted text-truncate">{{ $dog->visit_date?->format('Y-m-d') }}</div>
-                    </button>
-                </div>
+                <button type="button"
+                        class="visitor-dog-gallery-tile btn border-0 p-0 text-start bg-transparent w-100"
+                        @click="openAt({{ $loop->index }})">
+                    <div class="visitor-dog-gallery-thumb rounded-2 overflow-hidden border shadow-sm">
+                        <img src="{{ route($vPrefix . '.visitor-dogs.photo', $dog) }}"
+                             alt="{{ $dog->dog_name }}"
+                             class="visitor-dog-gallery-tile-img"
+                             loading="lazy"
+                             width="240"
+                             height="180">
+                    </div>
+                    <div class="visitor-dog-gallery-caption mt-1">
+                        <div class="visitor-dog-gallery-name text-truncate">{{ $dog->dog_name }}</div>
+                        <div class="visitor-dog-gallery-date text-truncate">{{ $dog->visit_date?->format('Y-m-d') }}</div>
+                    </div>
+                </button>
             @endforeach
         </div>
 
@@ -151,20 +151,54 @@
 [x-cloak] {
     display: none !important;
 }
+.visitor-dog-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0.65rem;
+    max-width: 20rem;
+}
+@media (min-width: 400px) {
+    .visitor-dog-gallery-grid {
+        max-width: 24rem;
+    }
+}
+@media (min-width: 576px) {
+    .visitor-dog-gallery-grid {
+        max-width: 28rem;
+    }
+}
+.visitor-dog-gallery-thumb {
+    aspect-ratio: 4 / 3;
+    position: relative;
+    background: var(--surface-muted, #f1f5f9);
+}
 .visitor-dog-gallery-tile:focus-visible {
     outline: 2px solid var(--bs-primary, #0d6efd);
-    outline-offset: 4px;
-    border-radius: 0.5rem;
+    outline-offset: 2px;
+    border-radius: 0.35rem;
 }
 .visitor-dog-gallery-tile-img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
 }
+.visitor-dog-gallery-name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--bs-body-color, #212529);
+}
+.visitor-dog-gallery-date {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: var(--bs-secondary-color, #6c757d);
+}
 .visitor-dog-lightbox-img {
     max-width: 100%;
-    max-height: min(72vh, 900px);
+    max-height: min(68vh, 820px);
     width: auto;
     height: auto;
     object-fit: contain;
