@@ -90,6 +90,7 @@ class User extends Authenticatable
 
         return $this->roles
             ->pluck('slug')
+            ->filter(fn ($slug) => is_string($slug) && $slug !== '')
             ->values()
             ->all();
     }
