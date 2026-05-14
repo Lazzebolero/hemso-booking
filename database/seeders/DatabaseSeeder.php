@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Role;
 use App\Models\Tour;
+use App\Models\TourType;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Database\Seeder;
@@ -54,13 +55,17 @@ class DatabaseSeeder extends Seeder
             $roles[Roles::GUIDE],
         ]);
 
-        // 4. Testtour
+        // 4. Testtour (kräver standard-turtyp)
+        $defaultTourTypeId = TourType::query()->where('is_default', true)->value('id')
+            ?? TourType::query()->value('id');
+
         Tour::firstOrCreate(
             [
                 'title' => 'Standardvisning 10:00',
                 'tour_date' => now()->addDay()->toDateString(),
             ],
             [
+                'tour_type_id' => $defaultTourTypeId,
                 'description' => 'Exempeltur',
                 'start_time' => '10:00',
                 'end_time' => '11:30',
