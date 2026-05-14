@@ -283,6 +283,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::get('visitor-dogs', [AdminVisitorDogController::class, 'index'])->name('visitor-dogs.index');
         Route::get('visitor-dogs/{visitorDog}/photo', [AdminVisitorDogController::class, 'photo'])->name('visitor-dogs.photo');
         Route::get('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'show'])->name('visitor-dogs.show');
+        Route::delete('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'destroy'])->name('visitor-dogs.destroy');
 
         Route::get('tours/batch-create', [TourBatchController::class, 'create'])->name('tours.batch-create');
         Route::post('tours/batch-create', [TourBatchController::class, 'store'])->name('tours.batch-store');
@@ -460,6 +461,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
         Route::get('visitor-dogs', [AdminVisitorDogController::class, 'index'])->name('visitor-dogs.index');
         Route::get('visitor-dogs/{visitorDog}/photo', [AdminVisitorDogController::class, 'photo'])->name('visitor-dogs.photo');
         Route::get('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'show'])->name('visitor-dogs.show');
+        Route::delete('visitor-dogs/{visitorDog}', [AdminVisitorDogController::class, 'destroy'])->name('visitor-dogs.destroy');
 
         Route::get('tours/batch-create', [TourBatchController::class, 'create'])->name('tours.batch-create');
         Route::post('tours/batch-create', [TourBatchController::class, 'store'])->name('tours.batch-store');

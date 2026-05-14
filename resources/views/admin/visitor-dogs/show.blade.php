@@ -14,10 +14,22 @@
             @endif
         </div>
     </div>
-    <div class="page-actions">
+    <div class="page-actions d-flex flex-wrap gap-2 align-items-center">
         <a href="{{ route($vPrefix . '.visitor-dogs.index', ['from_date' => $dog->visit_date?->format('Y-m-d'), 'to_date' => $dog->visit_date?->format('Y-m-d')]) }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Till listan
         </a>
+        <form method="POST"
+              action="{{ route($vPrefix . '.visitor-dogs.destroy', $dog) }}"
+              class="d-inline"
+              onsubmit="return confirm('Ta bort denna hundregistrering? Eventuell bild raderas också.')">
+            @csrf
+            @method('DELETE')
+            <input type="hidden" name="from_date" value="{{ $dog->visit_date?->format('Y-m-d') }}">
+            <input type="hidden" name="to_date" value="{{ $dog->visit_date?->format('Y-m-d') }}">
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-trash me-1"></i>Ta bort
+            </button>
+        </form>
     </div>
 </div>
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\VisitorDog;
 use App\Support\Roles;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -80,6 +81,26 @@ class VisitorDogController extends Controller
         }
 
         return response()->file($absolutePath);
+    }
+
+    public function destroy(VisitorDog $visitorDog): RedirectResponse
+    {
+        $prefix = $this->visitorDogsRoutePrefix();
+
+        if ($visitorDog->photo_path !== null && $visitorDog->photo_path !== '' && Storage::disk('public')->exists($visitorDog->photo_path)) {
+            Storage::disk('public')->delete($visitorDog->photo_path);
+        }
+
+        $visitorDog->delete();
+
+        $query = array_filter([
+            'from_date' => request()->input('from_date'),
+            'to_date' => request()->input('to_date'),
+        ], static fn ($v): bool => is_string($v) && $v !== '');
+
+        return redirect()
+            ->route($prefix.'.visitor-dogs.index', $query)
+            ->with('success', 'Registreringen har tagits bort.');
     }
 
     private function visitorDogsRoutePrefix(): string

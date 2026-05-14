@@ -180,6 +180,51 @@ class VisitorDogRegistrationTest extends TestCase
             ->assertOk();
     }
 
+    public function test_admin_can_delete_visitor_dog_and_removes_photo_file(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        Storage::fake('public');
+
+        $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $registrar = User::factory()->create();
+        $registrar->assignRoles([$guideRole]);
+
+        $path = 'visitor_dogs/2026/05/del-me.jpg';
+        Storage::disk('public')->put($path, 'binary');
+
+        $dog = VisitorDog::factory()->create([
+            'dog_name' => 'Raderas',
+            'visit_date' => '2026-05-10',
+            'photo_path' => $path,
+            'registered_by' => $registrar->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->assignRoles([$adminRole]);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->from(route('admin.visitor-dogs.index', ['from_date' => '2026-05-10', 'to_date' => '2026-05-10']))
+            ->delete(route('admin.visitor-dogs.destroy', $dog), [
+                'from_date' => '2026-05-10',
+                'to_date' => '2026-05-10',
+            ])
+            ->assertRedirect(route('admin.visitor-dogs.index', [
+                'from_date' => '2026-05-10',
+                'to_date' => '2026-05-10',
+            ]))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('visitor_dogs', ['id' => $dog->id]);
+        Storage::disk('public')->assertMissing($path);
+    }
+
     public function test_host_can_view_visitor_dogs_list_and_detail(): void
     {
         if (! Schema::hasTable('visitor_dogs')) {
@@ -213,6 +258,42 @@ class VisitorDogRegistrationTest extends TestCase
             ->get(route('host.visitor-dogs.show', $dog))
             ->assertOk()
             ->assertSee('Värd-list-hund', false);
+    }
+
+    public function test_host_can_delete_visitor_dog(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $registrar = User::factory()->create();
+        $registrar->assignRoles([$guideRole]);
+
+        $dog = VisitorDog::factory()->create([
+            'dog_name' => 'Värd-radera',
+            'visit_date' => '2026-05-11',
+            'registered_by' => $registrar->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $host = User::factory()->create();
+        $host->assignRoles([$hostRole]);
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->delete(route('host.visitor-dogs.destroy', $dog), [
+                'from_date' => '2026-05-11',
+                'to_date' => '2026-05-11',
+            ])
+            ->assertRedirect(route('host.visitor-dogs.index', [
+                'from_date' => '2026-05-11',
+                'to_date' => '2026-05-11',
+            ]));
+
+        $this->assertDatabaseMissing('visitor_dogs', ['id' => $dog->id]);
     }
 
     public function test_store_validates_required_dog_name(): void
