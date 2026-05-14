@@ -45,11 +45,9 @@
         openAt(i) {
             this.idx = i;
             this.open = true;
-            document.body.classList.add('overflow-hidden');
         },
         close() {
             this.open = false;
-            document.body.classList.remove('overflow-hidden');
         },
         prev() {
             if (this.items.length === 0) {
@@ -63,7 +61,15 @@
             }
             this.idx = (this.idx + 1) % this.items.length;
         },
+        destroy() {
+            document.documentElement.classList.remove('visitor-dog-gallery-scroll-lock');
+            document.body.classList.remove('visitor-dog-gallery-scroll-lock');
+        },
      }"
+     x-init="$watch('open', (value) => {
+        document.documentElement.classList.toggle('visitor-dog-gallery-scroll-lock', value);
+        document.body.classList.toggle('visitor-dog-gallery-scroll-lock', value);
+     })"
      @keydown.window="if (!open) { return; }
         if ($event.key === 'Escape') { close(); }
         else if ($event.key === 'ArrowLeft') { prev(); $event.preventDefault(); }
@@ -138,7 +144,8 @@
                     <div class="small text-white-50 text-truncate" x-show="items.length" x-text="items[idx]?.breed ? ('Ras: ' + items[idx].breed) : ''"></div>
                     <a :href="items[idx]?.show"
                        class="btn btn-sm btn-outline-light"
-                       x-show="items.length">
+                       x-show="items.length"
+                       @click="close()">
                         Öppna detaljer
                     </a>
                 </div>
@@ -151,20 +158,24 @@
 [x-cloak] {
     display: none !important;
 }
+html.visitor-dog-gallery-scroll-lock,
+body.visitor-dog-gallery-scroll-lock {
+    overflow: hidden !important;
+}
 .visitor-dog-gallery-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem 0.65rem;
-    max-width: 20rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem 0.6rem;
+    max-width: 30rem;
 }
 @media (min-width: 400px) {
     .visitor-dog-gallery-grid {
-        max-width: 24rem;
+        max-width: 36rem;
     }
 }
 @media (min-width: 576px) {
     .visitor-dog-gallery-grid {
-        max-width: 28rem;
+        max-width: 42rem;
     }
 }
 .visitor-dog-gallery-tile.btn {
