@@ -69,6 +69,19 @@ Extra vid behov:
 - [ ] Admin → Systemhälsa: inga röda fel
 - [ ] Cron/scheduler: heartbeat uppdaterad (se systemhälsa)
 
+## Bakgrundsjobb (kö)
+
+Om `QUEUE_CONNECTION=database` i `.env`:
+
+```bash
+php artisan migrate --force   # skapar jobs + failed_jobs om de saknas
+php artisan queue:work --stop-when-empty   # manuell körning
+```
+
+I produktion ska en process köra `php artisan queue:work` kontinuerligt (supervisor/systemd) eller via er hosting-panel.
+
+Kontrollera status under **Admin → Systemhälsa** (kortet Jobbkö).
+
 ## Övervakning (minimum efter go-live)
 
 - Extern ping mot `https://er-domän.se/up` (förväntat HTTP 200)

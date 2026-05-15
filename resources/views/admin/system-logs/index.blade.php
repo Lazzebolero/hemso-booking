@@ -33,8 +33,8 @@
     </div>
 
     <div class="page-actions">
-        @if(Route::has($prefix . '.system-health.index'))
-            <a href="{{ route($prefix . '.system-health.index') }}" class="btn btn-outline-secondary">
+        @if(Route::has('admin.system-health.index'))
+            <a href="{{ route('admin.system-health.index') }}" class="btn btn-outline-secondary">
                 Systemhälsa
             </a>
         @endif

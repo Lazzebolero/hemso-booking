@@ -7,7 +7,6 @@ use App\Http\Controllers\Admin\QuickBookingController;
 use App\Http\Controllers\Admin\RestaurantBoardController;
 use App\Http\Controllers\Admin\SpecialTourController;
 use App\Http\Controllers\Admin\StatisticsController;
-use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\SystemLogController;
 use App\Http\Controllers\Admin\TourBatchController;
 use App\Http\Controllers\Admin\TourController;
@@ -67,8 +66,6 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:host'])
         Route::get('statistics', [StatisticsController::class, 'index'])->name('statistics.index');
         Route::get('statistics/live', [StatisticsController::class, 'live'])->name('statistics.live');
 
-        Route::get('system-health', [SystemHealthController::class, 'index'])
-            ->name('system-health.index');
         Route::get('system-logs', [SystemLogController::class, 'index'])
             ->name('system-logs.index');
     });

@@ -11,7 +11,7 @@ class DeploySmokeRunnerTest extends TestCase
 {
     public function test_runner_reports_database_ok_when_tables_exist(): void
     {
-        $checks = (new DeploySmokeRunner)->run();
+        $checks = app(DeploySmokeRunner::class)->run();
 
         $database = collect($checks)->firstWhere('name', 'Databas');
 
@@ -24,7 +24,7 @@ class DeploySmokeRunnerTest extends TestCase
     {
         Config::set('app.key', '');
 
-        $checks = (new DeploySmokeRunner)->run();
+        $checks = app(DeploySmokeRunner::class)->run();
 
         $appKey = collect($checks)->firstWhere('name', 'APP_KEY');
 
@@ -37,7 +37,7 @@ class DeploySmokeRunnerTest extends TestCase
         $this->app['env'] = 'local';
         Config::set('app.debug', true);
 
-        $checks = (new DeploySmokeRunner)->run();
+        $checks = app(DeploySmokeRunner::class)->run();
 
         $environment = collect($checks)->firstWhere('name', 'Miljö');
 
@@ -50,7 +50,7 @@ class DeploySmokeRunnerTest extends TestCase
         $this->app['env'] = 'staging';
         Config::set('app.debug', true);
 
-        $checks = (new DeploySmokeRunner)->run();
+        $checks = app(DeploySmokeRunner::class)->run();
 
         $environment = collect($checks)->firstWhere('name', 'Miljö');
 

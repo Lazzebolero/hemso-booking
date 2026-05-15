@@ -1147,9 +1147,9 @@
         <span>Säkerhetsöversikt</span>
     </a>
 @endif
-						@if(Route::has($adminHostPrefix . '.system-health.index'))
-    <a class="side-link {{ request()->routeIs('admin.system-health.index') || request()->routeIs('host.system-health.index') ? 'active-link' : '' }}"
-       href="{{ route($adminHostPrefix . '.system-health.index') }}">
+						@if($activeRole === 'admin' && Route::has('admin.system-health.index'))
+    <a class="side-link {{ request()->routeIs('admin.system-health.index') ? 'active-link' : '' }}"
+       href="{{ route('admin.system-health.index') }}">
         <i class="bi bi-heart-pulse"></i>
         <span>Systemhälsa</span>
     </a>
