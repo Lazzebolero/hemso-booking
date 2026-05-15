@@ -9,7 +9,8 @@ Använd denna lista vid varje deploy till staging eller produktion. Kör röktes
 - [ ] Miljövariabler uppdaterade (`.env` på servern):
   - `APP_ENV=production` (eller `staging`)
   - `APP_DEBUG=false`
-  - `APP_URL` satt till rätt domän
+  - `APP_URL` satt till rätt domän (t.ex. `https://er-domän.se` — **inte** `http://localhost`)
+  - Efter ändring av `.env`: `php artisan config:clear` (eller `config:cache` med korrekt URL)
   - Databas, mail, `FILESYSTEM_DISK` (hundbilder)
 - [ ] Backup av databas och `storage/app` (besökshundsbilder)
 

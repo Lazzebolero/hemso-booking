@@ -26,13 +26,13 @@
         icon="bi-heart-pulse"
     >
         <x-slot:actions>
-            <form method="POST" action="{{ route('admin.system-health.test-mail') }}" class="d-inline">
+            <form method="POST" action="{{ route('admin.system-health.test-mail', absolute: false) }}" class="d-inline">
                 @csrf
                 <button type="submit" class="btn btn-outline-primary">
                     <i class="bi bi-envelope-check me-1"></i>Skicka testmail
                 </button>
             </form>
-            <a href="{{ route('admin.system-health.index') }}" class="btn btn-outline-primary">
+            <a href="{{ route('admin.system-health.index', absolute: false) }}" class="btn btn-outline-primary">
                 <i class="bi bi-arrow-clockwise me-1"></i>Uppdatera
             </a>
             @if(Route::has('admin.system-logs.index'))
@@ -116,13 +116,13 @@
             </p>
             <p class="small-muted mb-0">
                 Inloggad admin:
-                <a href="{{ route('admin.system-health.status-json') }}" target="_blank" rel="noopener">status.json</a>
+                <a href="{{ route('admin.system-health.status-json', absolute: false) }}" target="_blank" rel="noopener">status.json</a>
             </p>
         @else
             <p class="small-muted mb-0">
                 Sätt <code>SYSTEM_HEALTH_MONITOR_TOKEN</code> i <code>.env</code> för att aktivera
                 <code>/health/monitor</code>. Inloggad admin kan öppna
-                <a href="{{ route('admin.system-health.status-json') }}" target="_blank" rel="noopener">status.json</a>.
+                <a href="{{ route('admin.system-health.status-json', absolute: false) }}" target="_blank" rel="noopener">status.json</a>.
             </p>
         @endif
     </section>

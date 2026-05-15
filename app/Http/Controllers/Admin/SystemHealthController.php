@@ -14,7 +14,7 @@ use Illuminate\View\View;
 
 class SystemHealthController extends Controller
 {
-    public function index(SystemHealthChecker $checker, SystemHealthRecorder $recorder): View
+    public function index(Request $request, SystemHealthChecker $checker, SystemHealthRecorder $recorder): View
     {
         $payload = $this->buildPayload($checker);
 
@@ -26,7 +26,7 @@ class SystemHealthController extends Controller
             'checkedAt' => now(),
             'history' => $recorder->recent(15),
             'monitorConfigured' => (string) config('services.system_health.monitor_token') !== '',
-            'monitorUrl' => route('health.monitor'),
+            'monitorUrl' => $request->getSchemeAndHttpHost().route('health.monitor', absolute: false),
         ]);
     }
 
@@ -35,9 +35,7 @@ class SystemHealthController extends Controller
         $user = $request->user();
 
         if (! $user?->email) {
-            return redirect()
-                ->route('admin.system-health.index')
-                ->with('warning', 'Ditt konto saknar e-postadress.');
+            return back()->with('warning', 'Ditt konto saknar e-postadress.');
         }
 
         try {
@@ -48,14 +46,10 @@ class SystemHealthController extends Controller
         } catch (\Throwable $exception) {
             report($exception);
 
-            return redirect()
-                ->route('admin.system-health.index')
-                ->with('warning', 'Testmail kunde inte skickas: '.$exception->getMessage());
+            return back()->with('warning', 'Testmail kunde inte skickas: '.$exception->getMessage());
         }
 
-        return redirect()
-            ->route('admin.system-health.index')
-            ->with('success', 'Testmail skickades till '.$user->email.'.');
+        return back()->with('success', 'Testmail skickades till '.$user->email.'.');
     }
 
     public function statusJson(SystemHealthChecker $checker): JsonResponse

@@ -40,6 +40,7 @@ class SystemHealthPhase3Test extends TestCase
 
         $this->actingAs($user)
             ->withSession(['active_role' => Roles::ADMIN])
+            ->from(route('admin.system-health.index'))
             ->post(route('admin.system-health.test-mail'))
             ->assertRedirect(route('admin.system-health.index'))
             ->assertSessionHas('success');
