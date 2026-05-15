@@ -270,19 +270,27 @@ class SystemHealthChecker
         ];
 
         if ($pendingCount > 0) {
-            $preview = implode(', ', array_slice($pending, 0, 3));
-            if ($pendingCount > 3) {
-                $preview .= ' …';
-            }
-
-            $items['Exempel'] = $preview;
+            $pendingLabels = array_map(
+                fn (string $migration): string => $this->formatMigrationLabel($migration),
+                $pending
+            );
 
             return $this->rich(
                 'migrations',
                 'error',
                 'Migrationer',
-                "{$pendingCount} väntande migration(er). Kör php artisan migrate --force.",
-                $items
+                "{$pendingCount} migration(er) finns i koden men är inte registrerade i tabellen migrations. "
+                .'Det betyder inte att alla tabeller saknas — kör migrate på servern efter git pull.',
+                groups: [
+                    ['title' => 'Översikt', 'items' => $items],
+                    [
+                        'title' => 'Saknade migrationer (kör dessa)',
+                        'items' => array_combine(
+                            array_map(strval(...), range(1, count($pendingLabels))),
+                            $pendingLabels
+                        ),
+                    ],
+                ],
             );
         }
 
@@ -840,6 +848,11 @@ class SystemHealthChecker
             'items' => $items,
             'groups' => $groups,
         ];
+    }
+
+    private function formatMigrationLabel(string $migration): string
+    {
+        return str_replace('_', ' ', $migration);
     }
 
     private function formatBytes(int $bytes): string

@@ -88,6 +88,25 @@ Kontrollera status under **Admin → Systemhälsa** (kortet Jobbkö).
 - Loggnivå `LOG_LEVEL=warning` eller `error` i produktion
 - Admin → Systemhälsa vid incidenter
 
+### JSON-status (fas 3)
+
+Sätt en stark slumpmässig token i `.env`:
+
+```env
+SYSTEM_HEALTH_MONITOR_TOKEN=din-långa-hemliga-token
+```
+
+Extern övervakning (utan inloggning):
+
+```http
+GET https://er-domän.se/health/monitor
+Authorization: Bearer din-långa-hemliga-token
+```
+
+Svar: `overall_status` (`ok` / `warning` / `error`), `checks`, `summary`.
+
+Inloggad admin kan även öppna `/admin/system-health/status.json`.
+
 ## Rollback
 
 - Återställ föregående release/tag

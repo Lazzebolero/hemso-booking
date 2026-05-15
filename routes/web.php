@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__.'/pwa.php';
+require __DIR__.'/monitor.php';
 require __DIR__.'/core.php';
 require __DIR__.'/public-booking.php';
 require __DIR__.'/messaging.php';

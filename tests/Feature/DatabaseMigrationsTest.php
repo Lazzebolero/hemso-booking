@@ -34,6 +34,7 @@ class DatabaseMigrationsTest extends TestCase
             'staff_documents',
             'activity_logs',
             'login_events',
+            'system_health_snapshots',
             'jobs',
             'failed_jobs',
             'tour_types',

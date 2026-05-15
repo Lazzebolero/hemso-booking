@@ -301,6 +301,7 @@
     font-weight: 800;
     color: #0f172a;
     word-break: break-word;
+    white-space: pre-wrap;
 }
 
 .health-detail-table tbody tr:nth-child(even) {
@@ -362,6 +363,23 @@
     background: #fef2f2;
     color: #b91c1c;
     border: 1px solid #fecaca;
+}
+
+.health-badge-inline {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.5rem;
+}
+
+.health-history-ok td:first-child {
+    border-left: 3px solid #22c55e;
+}
+
+.health-history-warning td:first-child {
+    border-left: 3px solid #f59e0b;
+}
+
+.health-history-error td:first-child {
+    border-left: 3px solid #ef4444;
 }
 
 @media (max-width: 900px) {

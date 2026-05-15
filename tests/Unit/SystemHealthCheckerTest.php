@@ -21,6 +21,14 @@ class SystemHealthCheckerTest extends TestCase
         $this->assertSame('Miljö & version', $check['groups'][1]['title']);
     }
 
+    public function test_migrations_check_exposes_groups_for_details(): void
+    {
+        $check = app(SystemHealthChecker::class)->dashboardChecks()['migrations'];
+
+        $this->assertArrayHasKey('groups', $check);
+        $this->assertNotEmpty($check['groups']);
+    }
+
     public function test_queue_check_is_ok_for_sync_driver(): void
     {
         Config::set('queue.default', 'sync');

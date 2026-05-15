@@ -173,6 +173,10 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
 
         Route::get('system-health', [SystemHealthController::class, 'index'])
             ->name('system-health.index');
+        Route::post('system-health/test-mail', [SystemHealthController::class, 'sendTestMail'])
+            ->name('system-health.test-mail');
+        Route::get('system-health/status.json', [SystemHealthController::class, 'statusJson'])
+            ->name('system-health.status-json');
         Route::get('system-logs', [SystemLogController::class, 'index'])
             ->name('system-logs.index');
         Route::get('login-events', [LoginEventController::class, 'index'])
