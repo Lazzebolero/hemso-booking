@@ -1010,11 +1010,19 @@
                 </a>
             @endif
 
+            @if($activeRole === \App\Support\Roles::HOST && Route::has('visitor-dogs.index'))
+                <a class="side-link {{ request()->routeIs('visitor-dogs.index', 'visitor-dogs.show', 'visitor-dogs.edit') ? 'active-link' : '' }}"
+                   href="{{ route('visitor-dogs.index') }}">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Mina besökshundar</span>
+                </a>
+            @endif
+
             @if($activeRole === \App\Support\Roles::HOST && Route::has('visitor-dogs.create'))
                 <a class="side-link {{ request()->routeIs('visitor-dogs.create') ? 'active-link' : '' }}"
                    href="{{ route('visitor-dogs.create') }}">
                     <i class="bi bi-heart-pulse"></i>
-                    <span>Besökshund</span>
+                    <span>Registrera hund</span>
                 </a>
             @endif
 
@@ -1481,11 +1489,20 @@
             </a>
         @endif
 
+        @if($hostStaffShell && Route::has('visitor-dogs.index'))
+            <a href="{{ route('visitor-dogs.index') }}"
+               class="restaurant-mobile-btn {{ request()->routeIs('visitor-dogs.index', 'visitor-dogs.show', 'visitor-dogs.edit') ? 'active' : '' }}"
+               title="Mina hundar"
+               aria-label="Mina hundar">
+                <i class="bi bi-list-ul"></i>
+            </a>
+        @endif
+
         @if($hostStaffShell && Route::has('visitor-dogs.create'))
             <a href="{{ route('visitor-dogs.create') }}"
                class="restaurant-mobile-btn {{ request()->routeIs('visitor-dogs.create') ? 'active' : '' }}"
-               title="Besökshund"
-               aria-label="Besökshund">
+               title="Registrera hund"
+               aria-label="Registrera hund">
                 <i class="bi bi-heart-pulse"></i>
             </a>
         @endif

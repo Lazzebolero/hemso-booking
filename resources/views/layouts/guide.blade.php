@@ -1032,11 +1032,20 @@
                     </a>
                 @endif
 
+                @if(Route::has('visitor-dogs.index'))
+                    <a href="{{ route('visitor-dogs.index') }}"
+                       class="guide-mobile-action {{ request()->routeIs('visitor-dogs.index', 'visitor-dogs.show', 'visitor-dogs.edit') ? 'guide-mobile-action-active' : '' }}"
+                       title="Mina hundar"
+                       aria-label="Mina hundar">
+                        <i class="bi bi-list-ul"></i>
+                    </a>
+                @endif
+
                 @if(Route::has('visitor-dogs.create'))
                     <a href="{{ route('visitor-dogs.create') }}"
-                       class="guide-mobile-action {{ request()->routeIs('visitor-dogs.*') ? 'guide-mobile-action-active' : '' }}"
-                       title="Besökshund"
-                       aria-label="Besökshund">
+                       class="guide-mobile-action {{ request()->routeIs('visitor-dogs.create') ? 'guide-mobile-action-active' : '' }}"
+                       title="Registrera hund"
+                       aria-label="Registrera hund">
                         <i class="bi bi-heart-pulse"></i>
                     </a>
                 @endif

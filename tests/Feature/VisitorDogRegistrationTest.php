@@ -235,6 +235,56 @@ class VisitorDogRegistrationTest extends TestCase
         $this->assertSame('Värd-uppdaterad', $dog->fresh()->dog_name);
     }
 
+    public function test_guide_can_list_and_edit_own_visitor_dogs(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+        $user = User::factory()->create();
+        $user->assignRoles([$guideRole]);
+
+        $own = VisitorDog::factory()->create([
+            'dog_name' => 'Min guide-hund',
+            'visit_date' => now()->toDateString(),
+            'registered_by' => $user->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $otherUser = User::factory()->create();
+        $otherUser->assignRoles([$guideRole]);
+
+        $other = VisitorDog::factory()->create([
+            'dog_name' => 'Annans hund',
+            'visit_date' => now()->toDateString(),
+            'registered_by' => $otherUser->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->get(route('visitor-dogs.index'))
+            ->assertOk()
+            ->assertSee('Min guide-hund', false)
+            ->assertDontSee('Annans hund', false);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->get(route('visitor-dogs.show', $other))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->put(route('visitor-dogs.update', $own), [
+                'dog_name' => 'Uppdaterad guide-hund',
+                'visit_date' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('visitor-dogs.show', $own));
+
+        $this->assertSame('Uppdaterad guide-hund', $own->fresh()->dog_name);
+    }
+
     public function test_guide_cannot_edit_visitor_dog_as_admin(): void
     {
         if (! Schema::hasTable('visitor_dogs')) {
