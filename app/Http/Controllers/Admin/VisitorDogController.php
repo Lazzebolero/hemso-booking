@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateVisitorDogRequest;
 use App\Models\VisitorDog;
 use App\Support\Roles;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -70,6 +72,55 @@ class VisitorDogController extends Controller
             'dog' => $visitorDog,
             'visitorDogsRoutePrefix' => $this->visitorDogsRoutePrefix(),
         ]);
+    }
+
+    public function edit(VisitorDog $visitorDog): View
+    {
+        return view('admin.visitor-dogs.edit', [
+            'dog' => $visitorDog,
+            'visitorDogsRoutePrefix' => $this->visitorDogsRoutePrefix(),
+        ]);
+    }
+
+    public function update(UpdateVisitorDogRequest $request, VisitorDog $visitorDog): RedirectResponse
+    {
+        $validated = $request->validated();
+        $prefix = $this->visitorDogsRoutePrefix();
+
+        $photoPath = $visitorDog->photo_path;
+
+        if ($request->boolean('remove_photo') && $photoPath !== null && $photoPath !== '') {
+            if (Storage::disk('public')->exists($photoPath)) {
+                Storage::disk('public')->delete($photoPath);
+            }
+            $photoPath = null;
+        }
+
+        $uploaded = $request->file('photo');
+        if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
+            if ($photoPath !== null && $photoPath !== '' && Storage::disk('public')->exists($photoPath)) {
+                Storage::disk('public')->delete($photoPath);
+            }
+
+            $stored = $uploaded->store(
+                'visitor_dogs/'.now()->format('Y/m'),
+                'public'
+            );
+            $photoPath = $stored !== false ? $stored : $photoPath;
+        }
+
+        $visitorDog->update([
+            'dog_name' => $validated['dog_name'],
+            'breed' => $validated['breed'] ?? null,
+            'owner_phone' => $validated['owner_phone'] ?? null,
+            'visit_date' => $validated['visit_date'],
+            'tour_start_time' => $validated['tour_start_time'] ?? null,
+            'photo_path' => $photoPath,
+        ]);
+
+        return redirect()
+            ->route($prefix.'.visitor-dogs.show', $visitorDog)
+            ->with('success', 'Registreringen är uppdaterad.');
     }
 
     /**

@@ -87,6 +87,7 @@
                         </td>
                         <td class="text-nowrap">
                             <a href="{{ route($vPrefix . '.visitor-dogs.show', $dog) }}" class="btn btn-sm btn-outline-primary">Visa</a>
+                            <a href="{{ route($vPrefix . '.visitor-dogs.edit', $dog) }}" class="btn btn-sm btn-outline-secondary">Redigera</a>
                             <form method="POST"
                                   action="{{ route($vPrefix . '.visitor-dogs.destroy', $dog) }}"
                                   class="d-inline"

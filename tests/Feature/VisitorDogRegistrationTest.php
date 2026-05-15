@@ -147,6 +147,116 @@ class VisitorDogRegistrationTest extends TestCase
             ->assertSee('List-test-hund', false);
     }
 
+    public function test_admin_can_edit_and_update_visitor_dog(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $registrar = User::factory()->create();
+        $registrar->assignRoles([$guideRole]);
+
+        $dog = VisitorDog::factory()->create([
+            'dog_name' => 'Före redigering',
+            'breed' => 'Tax',
+            'visit_date' => '2026-07-01',
+            'registered_by' => $registrar->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->assignRoles([$adminRole]);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.visitor-dogs.edit', $dog))
+            ->assertOk()
+            ->assertSee('Före redigering', false)
+            ->assertSee('Spara ändringar', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->put(route('admin.visitor-dogs.update', $dog), [
+                'dog_name' => 'Efter redigering',
+                'breed' => 'Schäfer',
+                'owner_phone' => '0701112233',
+                'visit_date' => '2026-07-02',
+                'tour_start_time' => '11:00',
+            ])
+            ->assertRedirect(route('admin.visitor-dogs.show', $dog))
+            ->assertSessionHas('success');
+
+        $dog->refresh();
+        $this->assertSame('Efter redigering', $dog->dog_name);
+        $this->assertSame('Schäfer', $dog->breed);
+        $this->assertSame('0701112233', $dog->owner_phone);
+        $this->assertSame('2026-07-02', $dog->visit_date?->format('Y-m-d'));
+        $this->assertStringStartsWith('11:00', (string) $dog->tour_start_time);
+    }
+
+    public function test_host_can_edit_visitor_dog(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $registrar = User::factory()->create();
+        $registrar->assignRoles([$guideRole]);
+
+        $dog = VisitorDog::factory()->create([
+            'dog_name' => 'Värd-redigera',
+            'visit_date' => now()->toDateString(),
+            'registered_by' => $registrar->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $host = User::factory()->create();
+        $host->assignRoles([$hostRole]);
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->get(route('host.visitor-dogs.edit', $dog))
+            ->assertOk();
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->put(route('host.visitor-dogs.update', $dog), [
+                'dog_name' => 'Värd-uppdaterad',
+                'visit_date' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('host.visitor-dogs.show', $dog));
+
+        $this->assertSame('Värd-uppdaterad', $dog->fresh()->dog_name);
+    }
+
+    public function test_guide_cannot_edit_visitor_dog_as_admin(): void
+    {
+        if (! Schema::hasTable('visitor_dogs')) {
+            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
+        }
+
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $user = User::factory()->create();
+        $user->assignRoles([$guideRole]);
+
+        $dog = VisitorDog::factory()->create([
+            'registered_by' => $user->id,
+            'registered_as_role' => Roles::GUIDE,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->get(route('admin.visitor-dogs.edit', $dog))
+            ->assertForbidden();
+    }
+
     public function test_admin_visitor_dogs_gallery_lists_only_dogs_with_photo_in_range(): void
     {
         if (! Schema::hasTable('visitor_dogs')) {

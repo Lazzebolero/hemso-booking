@@ -15,6 +15,9 @@
         </div>
     </div>
     <div class="page-actions d-flex flex-wrap gap-2 align-items-center">
+        <a href="{{ route($vPrefix . '.visitor-dogs.edit', $dog) }}" class="btn btn-primary">
+            <i class="bi bi-pencil me-1"></i>Redigera
+        </a>
         <a href="{{ route($vPrefix . '.visitor-dogs.index', ['from_date' => $dog->visit_date?->format('Y-m-d'), 'to_date' => $dog->visit_date?->format('Y-m-d')]) }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Till listan
         </a>
