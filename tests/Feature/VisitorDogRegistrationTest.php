@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\VisitorDog;
 use App\Support\Roles;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -15,10 +14,6 @@ class VisitorDogRegistrationTest extends TestCase
 {
     public function test_host_can_open_visitor_dog_create_form(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
         $user = User::factory()->create();
         $user->assignRoles([$hostRole]);
@@ -32,10 +27,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_guide_can_open_form_and_register_dog(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         Storage::fake('public');
 
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
@@ -68,10 +59,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_host_can_register_dog_with_photo(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         Storage::fake('public');
 
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
@@ -97,10 +84,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_restaurant_role_cannot_access_visitor_dog_form(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $restaurantRole = Role::query()->where('slug', Roles::RESTAURANT)->firstOrFail();
         $user = User::factory()->create();
         $user->assignRoles([$restaurantRole]);
@@ -113,10 +96,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_admin_can_list_and_show_visitor_dogs(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -149,10 +128,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_admin_can_edit_and_update_visitor_dog(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -199,10 +174,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_host_can_edit_visitor_dog(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -237,10 +208,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_guide_can_list_and_edit_own_visitor_dogs(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
         $user = User::factory()->create();
         $user->assignRoles([$guideRole]);
@@ -287,10 +254,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_guide_cannot_edit_visitor_dog_as_admin(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
         $user = User::factory()->create();
@@ -309,10 +272,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_admin_visitor_dogs_gallery_lists_only_dogs_with_photo_in_range(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -351,10 +310,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_admin_visitor_dog_photo_route_streams_file(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         Storage::fake('public');
 
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
@@ -385,10 +340,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_admin_can_delete_visitor_dog_and_removes_photo_file(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         Storage::fake('public');
 
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
@@ -430,10 +381,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_host_can_view_visitor_dogs_list_and_detail(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -473,10 +420,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_host_can_delete_visitor_dog(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -509,10 +452,6 @@ class VisitorDogRegistrationTest extends TestCase
 
     public function test_store_validates_required_dog_name(): void
     {
-        if (! Schema::hasTable('visitor_dogs')) {
-            $this->markTestSkipped('visitor_dogs-tabellen saknas.');
-        }
-
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
         $user = User::factory()->create();
         $user->assignRoles([$guideRole]);

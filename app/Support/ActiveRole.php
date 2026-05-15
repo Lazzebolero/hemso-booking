@@ -20,6 +20,24 @@ class ActiveRole
         };
     }
 
+    public static function routeName(string $suffix): string
+    {
+        if (self::slug() === Roles::RESTAURANT) {
+            return match ($suffix) {
+                'restaurant-board' => 'restaurant.dashboard',
+                'restaurant-board.kiosk' => 'restaurant.kiosk',
+                default => 'restaurant.'.$suffix,
+            };
+        }
+
+        return self::routePrefix().'.'.$suffix;
+    }
+
+    public static function visitorDogsRoutePrefix(): string
+    {
+        return self::slug() === Roles::HOST ? 'host' : 'admin';
+    }
+
     public static function isAdmin(): bool
     {
         return self::slug() === Roles::ADMIN;

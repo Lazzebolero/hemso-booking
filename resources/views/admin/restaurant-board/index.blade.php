@@ -14,7 +14,7 @@
     </div>
 
     <div class="page-actions">
-        <a href="{{ route($prefix . '.restaurant-board.kiosk') }}" target="_blank" class="btn btn-primary">
+        <a href="{{ route(\App\Support\ActiveRole::routeName('restaurant-board.kiosk')) }}" target="_blank" class="btn btn-primary">
             <i class="bi bi-box-arrow-up-right me-2"></i>Öppna helskärm
         </a>
     </div>

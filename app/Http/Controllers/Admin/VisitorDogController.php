@@ -4,13 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateVisitorDogRequest;
+use App\Models\ActivityLog;
 use App\Models\VisitorDog;
-use App\Support\Roles;
+use App\Support\ActiveRole;
+use App\Support\VisitorDogActivityLogger;
+use App\Support\VisitorDogSupport;
 use App\Support\VisitorDogUpdater;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -18,7 +19,9 @@ class VisitorDogController extends Controller
 {
     public function index(Request $request): View
     {
-        [$from, $to] = $this->visitorDogDateRangeFromRequest($request);
+        $this->authorize('viewAny', VisitorDog::class);
+
+        [$from, $to] = VisitorDogSupport::dateRangeFromRequest($request);
 
         $dogs = VisitorDog::query()
             ->with('registrar:id,name')
@@ -34,15 +37,14 @@ class VisitorDogController extends Controller
             'dogs' => $dogs,
             'fromDate' => $from->toDateString(),
             'toDate' => $to->toDateString(),
-            'visitorDogsRoutePrefix' => $this->visitorDogsRoutePrefix(),
         ]);
     }
 
     public function gallery(Request $request): View
     {
-        [$from, $to] = $this->visitorDogDateRangeFromRequest($request);
+        $this->authorize('viewAny', VisitorDog::class);
 
-        $prefix = $this->visitorDogsRoutePrefix();
+        [$from, $to] = VisitorDogSupport::dateRangeFromRequest($request);
 
         $dogs = VisitorDog::query()
             ->with('registrar:id,name')
@@ -60,106 +62,75 @@ class VisitorDogController extends Controller
             'dogs' => $dogs,
             'fromDate' => $from->toDateString(),
             'toDate' => $to->toDateString(),
-            'visitorDogsRoutePrefix' => $prefix,
         ]);
     }
 
-    public function show(VisitorDog $visitorDog): View
+    public function show(Request $request, VisitorDog $visitorDog): View
     {
+        $this->authorize('view', $visitorDog);
+
         $visitorDog->load('registrar:id,name,email');
+
+        $activityLogs = ActivityLog::query()
+            ->with('user:id,name')
+            ->where('entity_type', VisitorDogActivityLogger::ENTITY_TYPE)
+            ->where('entity_id', $visitorDog->id)
+            ->latest()
+            ->limit(15)
+            ->get();
 
         return view('admin.visitor-dogs.show', [
             'dog' => $visitorDog,
-            'visitorDogsRoutePrefix' => $this->visitorDogsRoutePrefix(),
+            'activityLogs' => $activityLogs,
+            'backNav' => VisitorDogSupport::backNavigation($request, ActiveRole::visitorDogsRoutePrefix()),
+            'navQuery' => VisitorDogSupport::preserveNavigationQuery($request),
         ]);
     }
 
-    public function edit(VisitorDog $visitorDog): View
+    public function edit(Request $request, VisitorDog $visitorDog): View
     {
+        $this->authorize('update', $visitorDog);
+
         return view('admin.visitor-dogs.edit', [
             'dog' => $visitorDog,
-            'visitorDogsRoutePrefix' => $this->visitorDogsRoutePrefix(),
+            'backNav' => VisitorDogSupport::backNavigation($request, ActiveRole::visitorDogsRoutePrefix()),
+            'navQuery' => VisitorDogSupport::preserveNavigationQuery($request),
         ]);
     }
 
     public function update(UpdateVisitorDogRequest $request, VisitorDog $visitorDog): RedirectResponse
     {
-        $prefix = $this->visitorDogsRoutePrefix();
+        $this->authorize('update', $visitorDog);
 
         VisitorDogUpdater::apply($request, $visitorDog);
 
         return redirect()
-            ->route($prefix.'.visitor-dogs.show', $visitorDog)
+            ->route(
+                ActiveRole::visitorDogsRoutePrefix().'.visitor-dogs.show',
+                array_merge(['visitorDog' => $visitorDog], VisitorDogSupport::preserveNavigationQuery($request)),
+            )
             ->with('success', 'Registreringen är uppdaterad.');
     }
 
-    /**
-     * Strömma bild från disk (samma idé som felrapport-bilaga — fungerar utan public/storage-symlink).
-     */
     public function photo(VisitorDog $visitorDog): BinaryFileResponse
     {
-        if (empty($visitorDog->photo_path)) {
-            abort(404);
-        }
+        $this->authorize('view', $visitorDog);
 
-        if (! Storage::disk('public')->exists($visitorDog->photo_path)) {
-            abort(404);
-        }
-
-        $absolutePath = Storage::disk('public')->path($visitorDog->photo_path);
-
-        if (! is_file($absolutePath)) {
-            abort(404);
-        }
-
-        return response()->file($absolutePath);
+        return VisitorDogSupport::streamPhoto($visitorDog);
     }
 
-    public function destroy(VisitorDog $visitorDog): RedirectResponse
+    public function destroy(Request $request, VisitorDog $visitorDog): RedirectResponse
     {
-        $prefix = $this->visitorDogsRoutePrefix();
+        $this->authorize('delete', $visitorDog);
 
+        VisitorDogActivityLogger::logDeleted($visitorDog);
         VisitorDogUpdater::deletePhotoFile($visitorDog);
-
         $visitorDog->delete();
 
-        $query = array_filter([
-            'from_date' => request()->input('from_date'),
-            'to_date' => request()->input('to_date'),
-        ], static fn ($v): bool => is_string($v) && $v !== '');
+        $backNav = VisitorDogSupport::backNavigation($request, ActiveRole::visitorDogsRoutePrefix());
 
         return redirect()
-            ->route($prefix.'.visitor-dogs.index', $query)
+            ->to($backNav['url'])
             ->with('success', 'Registreringen har tagits bort.');
-    }
-
-    /**
-     * @return array{0: Carbon, 1: Carbon}
-     */
-    private function visitorDogDateRangeFromRequest(Request $request): array
-    {
-        $request->validate([
-            'from_date' => ['nullable', 'date'],
-            'to_date' => ['nullable', 'date'],
-        ]);
-
-        $from = $request->filled('from_date')
-            ? Carbon::parse($request->string('from_date'))->startOfDay()
-            : now()->startOfDay();
-
-        $to = $request->filled('to_date')
-            ? Carbon::parse($request->string('to_date'))->startOfDay()
-            : now()->startOfDay();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to, $from];
-        }
-
-        return [$from, $to];
-    }
-
-    private function visitorDogsRoutePrefix(): string
-    {
-        return session('active_role') === Roles::HOST ? 'host' : 'admin';
     }
 }

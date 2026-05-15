@@ -13,32 +13,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 @include('partials.pwa')
     <style>
+        @include('partials.brand.design-tokens')
+
         :root {
-            --brand-bg: #0f172a;
-            --brand-bg-soft: #1e293b;
-            --brand-line: #dbe3ee;
-            --brand-line-soft: #e8eef5;
-            --brand-accent: #2563eb;
-            --brand-accent-soft: rgba(37, 99, 235, 0.10);
-            --brand-success: #059669;
-            --brand-warning: #d97706;
-            --brand-danger: #dc2626;
-
-            --surface: #ffffff;
-            --surface-soft: #f8fafc;
-            --surface-muted: #f1f5f9;
-
-            --text-main: #0f172a;
-            --text-soft: #64748b;
-            --text-faint: #94a3b8;
-
-            --shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.06);
-            --shadow-card: 0 4px 16px rgba(15, 23, 42, 0.05);
-
-            --radius-xl: 20px;
-            --radius-lg: 14px;
-            --radius-md: 10px;
-
             --content-max: 1600px;
         }
 
@@ -866,7 +843,6 @@
         request()->routeIs('staff.*')
         || request()->routeIs('messages.*')
         || request()->routeIs('group-chats.*')
-        || request()->routeIs('time.*')
         || request()->routeIs('visitor-dogs.*')
     );
 
@@ -929,41 +905,11 @@
                         <span>Dashboard</span>
                     </a>
                 @endif
-    @if(in_array($activeRole, ['admin', 'host'], true) && (Route::has('admin.visitor-dogs.index') || Route::has('host.visitor-dogs.index')))
-        @php
-            $visitorDogsListRouteName = $activeRole === \App\Support\Roles::HOST && Route::has('host.visitor-dogs.index')
-                ? 'host.visitor-dogs.index'
-                : 'admin.visitor-dogs.index';
-            $visitorDogsGalleryRouteName = $activeRole === \App\Support\Roles::HOST && Route::has('host.visitor-dogs.gallery')
-                ? 'host.visitor-dogs.gallery'
-                : 'admin.visitor-dogs.gallery';
-        @endphp
-        <a class="side-link {{ request()->routeIs('admin.visitor-dogs.index', 'admin.visitor-dogs.show', 'host.visitor-dogs.index', 'host.visitor-dogs.show') ? 'active-link' : '' }}"
-           href="{{ route($visitorDogsListRouteName) }}">
-            <i class="bi bi-list-ul"></i>
+    @if(in_array($activeRole, ['admin', 'host'], true) && Route::has($adminHostPrefix . '.visitor-dogs.index'))
+        <a class="side-link {{ request()->routeIs($adminHostPrefix . '.visitor-dogs.*') ? 'active-link' : '' }}"
+           href="{{ route($adminHostPrefix . '.visitor-dogs.index') }}">
+            <i class="bi bi-heart-pulse"></i>
             <span>Besökshundar</span>
-        </a>
-        @if(Route::has('admin.visitor-dogs.gallery') || Route::has('host.visitor-dogs.gallery'))
-            <a class="side-link {{ request()->routeIs('admin.visitor-dogs.gallery', 'host.visitor-dogs.gallery') ? 'active-link' : '' }}"
-               href="{{ route($visitorDogsGalleryRouteName) }}">
-                <i class="bi bi-images"></i>
-                <span>Hundbilder</span>
-            </a>
-        @endif
-    @endif
-    @if($activeRole === \App\Support\Roles::HOST && Route::has('staff.dashboard'))
-        <a class="side-link {{ request()->routeIs('staff.*') ? 'active-link' : '' }}"
-           href="{{ route('staff.dashboard') }}"
-           title="Samma mobilanpassade vy som för restaurangpersonal: pass, schema, dokument och meddelanden.">
-            <i class="bi bi-phone"></i>
-            <span>Mobil personalvy</span>
-        </a>
-    @endif
-    @if($activeRole === \App\Support\Roles::HOST && Route::has('host.entry'))
-        <a class="side-link {{ request()->routeIs('host.entry') ? 'active-link' : '' }}"
-           href="{{ route('host.entry') }}">
-            <i class="bi bi-grid-3x3-gap"></i>
-            <span>Byt arbetsyta</span>
         </a>
     @endif
     @if(in_array($activeRole, ['admin', 'host'], true))
@@ -1007,22 +953,6 @@
                    href="{{ route('quick-tours.create') }}">
                     <i class="bi bi-rocket-takeoff"></i>
                     <span>Snabbtur</span>
-                </a>
-            @endif
-
-            @if($activeRole === \App\Support\Roles::HOST && Route::has('visitor-dogs.index'))
-                <a class="side-link {{ request()->routeIs('visitor-dogs.index', 'visitor-dogs.show', 'visitor-dogs.edit') ? 'active-link' : '' }}"
-                   href="{{ route('visitor-dogs.index') }}">
-                    <i class="bi bi-list-ul"></i>
-                    <span>Mina besökshundar</span>
-                </a>
-            @endif
-
-            @if($activeRole === \App\Support\Roles::HOST && Route::has('visitor-dogs.create'))
-                <a class="side-link {{ request()->routeIs('visitor-dogs.create') ? 'active-link' : '' }}"
-                   href="{{ route('visitor-dogs.create') }}">
-                    <i class="bi bi-heart-pulse"></i>
-                    <span>Registrera hund</span>
                 </a>
             @endif
 
@@ -1468,42 +1398,6 @@
                title="Byt arbetsyta"
                aria-label="Byt arbetsyta">
                 <i class="bi bi-grid-3x3-gap"></i>
-            </a>
-        @endif
-
-        @if($hostStaffShell && Route::has('host.visitor-dogs.index'))
-            <a href="{{ route('host.visitor-dogs.index') }}"
-               class="restaurant-mobile-btn {{ request()->routeIs('host.visitor-dogs.index', 'host.visitor-dogs.show') ? 'active' : '' }}"
-               title="Besökshundar"
-               aria-label="Besökshundar">
-                <i class="bi bi-list-ul"></i>
-            </a>
-        @endif
-
-        @if($hostStaffShell && Route::has('host.visitor-dogs.gallery'))
-            <a href="{{ route('host.visitor-dogs.gallery') }}"
-               class="restaurant-mobile-btn {{ request()->routeIs('host.visitor-dogs.gallery') ? 'active' : '' }}"
-               title="Hundbilder"
-               aria-label="Hundbilder">
-                <i class="bi bi-images"></i>
-            </a>
-        @endif
-
-        @if($hostStaffShell && Route::has('visitor-dogs.index'))
-            <a href="{{ route('visitor-dogs.index') }}"
-               class="restaurant-mobile-btn {{ request()->routeIs('visitor-dogs.index', 'visitor-dogs.show', 'visitor-dogs.edit') ? 'active' : '' }}"
-               title="Mina hundar"
-               aria-label="Mina hundar">
-                <i class="bi bi-list-ul"></i>
-            </a>
-        @endif
-
-        @if($hostStaffShell && Route::has('visitor-dogs.create'))
-            <a href="{{ route('visitor-dogs.create') }}"
-               class="restaurant-mobile-btn {{ request()->routeIs('visitor-dogs.create') ? 'active' : '' }}"
-               title="Registrera hund"
-               aria-label="Registrera hund">
-                <i class="bi bi-heart-pulse"></i>
             </a>
         @endif
 

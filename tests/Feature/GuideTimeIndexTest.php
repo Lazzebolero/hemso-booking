@@ -6,17 +6,12 @@ use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Support\Roles;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class GuideTimeIndexTest extends TestCase
 {
     public function test_guide_can_open_time_index(): void
     {
-        if (! Schema::hasTable('time_entries')) {
-            $this->markTestSkipped('time_entries-tabellen saknas.');
-        }
-
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
         $user = User::factory()->create();
         $user->assignRoles([$guideRole]);

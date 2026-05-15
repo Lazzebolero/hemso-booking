@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Models\User;
+use App\Support\Roles;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -11,11 +13,14 @@ class OfflineQueueTimeClockTest extends TestCase
 {
     public function test_clock_in_accepts_recent_client_timestamp(): void
     {
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
         $user = User::factory()->create();
+        $user->assignRoles([$guideRole]);
 
         $occurredAt = Carbon::now()->subMinutes(2);
 
         $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
             ->post(route('time.clock-in'), [
                 'client_occurred_at' => $occurredAt->toISOString(),
                 'client_tz' => 'Europe/Stockholm',
@@ -39,4 +44,3 @@ class OfflineQueueTimeClockTest extends TestCase
         );
     }
 }
-

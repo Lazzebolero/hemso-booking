@@ -18,6 +18,8 @@ class AdminTimeEntryController extends Controller
 {
     public function index(PayrollPeriodFilterRequest $request): View
     {
+        $this->authorize('viewAny', TimeEntry::class);
+
         $period = PayrollPeriodService::resolveFromRequest($request->payrollPeriodQuery());
 
         $query = TimeEntry::query()
@@ -88,6 +90,8 @@ class AdminTimeEntryController extends Controller
 
     public function show(TimeEntry $timeEntry): View
     {
+        $this->authorize('view', $timeEntry);
+
         $timeEntry->load([
             'user',
             'audits.changedBy',
@@ -103,6 +107,8 @@ class AdminTimeEntryController extends Controller
 
     public function approve(Request $request, TimeEntry $timeEntry): RedirectResponse
     {
+        $this->authorize('approve', $timeEntry);
+
         TimeEntryAudit::create([
             'time_entry_id' => $timeEntry->id,
             'changed_by' => $request->user()->id,
@@ -122,6 +128,8 @@ class AdminTimeEntryController extends Controller
 
     public function correct(Request $request, TimeEntry $timeEntry): RedirectResponse
     {
+        $this->authorize('correct', $timeEntry);
+
         $validated = $request->validate([
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],

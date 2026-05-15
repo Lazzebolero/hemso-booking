@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreVisitorDogRequest;
 use App\Http\Requests\UpdateVisitorDogRequest;
 use App\Models\VisitorDog;
 use App\Support\Roles;
+use App\Support\VisitorDogActivityLogger;
+use App\Support\VisitorDogSupport;
 use App\Support\VisitorDogUpdater;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\File;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -19,22 +18,9 @@ class VisitorDogController extends Controller
 {
     public function index(Request $request): View
     {
-        $request->validate([
-            'from_date' => ['nullable', 'date'],
-            'to_date' => ['nullable', 'date'],
-        ]);
+        $this->authorize('viewAny', VisitorDog::class);
 
-        $from = $request->filled('from_date')
-            ? Carbon::parse($request->string('from_date'))->startOfDay()
-            : now()->startOfDay();
-
-        $to = $request->filled('to_date')
-            ? Carbon::parse($request->string('to_date'))->startOfDay()
-            : now()->startOfDay();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to, $from];
-        }
+        [$from, $to] = VisitorDogSupport::dateRangeFromRequest($request);
 
         $dogs = VisitorDog::query()
             ->where('registered_by', $request->user()->id)
@@ -55,6 +41,8 @@ class VisitorDogController extends Controller
 
     public function create(): View
     {
+        $this->authorize('create', VisitorDog::class);
+
         return $this->viewForRole(
             session('active_role') === Roles::GUIDE
                 ? 'visitor-dogs.guide-form'
@@ -63,50 +51,27 @@ class VisitorDogController extends Controller
         );
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreVisitorDogRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'dog_name' => ['required', 'string', 'max:120'],
-            'breed' => ['nullable', 'string', 'max:120'],
-            'owner_phone' => ['nullable', 'string', 'max:40'],
-            'visit_date' => ['required', 'date'],
-            'tour_start_time' => ['nullable', 'date_format:H:i'],
-            'photo' => [
-                'nullable',
-                File::types(['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'])
-                    ->max(10240),
-            ],
-        ], [
-            'dog_name.required' => 'Ange hundens namn.',
-            'visit_date.required' => 'Ange datum.',
-            'photo.max' => 'Bilden får vara högst 10 MB.',
-        ]);
-
-        $photoPath = null;
-        $uploaded = $request->file('photo');
-        if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
-            $stored = $uploaded->store(
-                'visitor_dogs/'.now()->format('Y/m'),
-                'public'
-            );
-            $photoPath = $stored !== false ? $stored : null;
-        }
+        $validated = $request->validated();
 
         $activeRole = session('active_role');
         if (! is_string($activeRole) || ! in_array($activeRole, [Roles::GUIDE, Roles::HOST], true)) {
             abort(403);
         }
 
-        VisitorDog::query()->create([
+        $dog = VisitorDog::query()->create([
             'dog_name' => $validated['dog_name'],
             'breed' => $validated['breed'] ?? null,
             'owner_phone' => $validated['owner_phone'] ?? null,
             'visit_date' => $validated['visit_date'],
             'tour_start_time' => $validated['tour_start_time'] ?? null,
-            'photo_path' => $photoPath,
+            'photo_path' => VisitorDogSupport::storeUploadedPhoto($request->file('photo')),
             'registered_by' => $request->user()->id,
             'registered_as_role' => $activeRole,
         ]);
+
+        VisitorDogActivityLogger::logCreated($dog);
 
         return redirect()
             ->route('visitor-dogs.create')
@@ -115,25 +80,29 @@ class VisitorDogController extends Controller
 
     public function show(Request $request, VisitorDog $visitorDog): View
     {
-        $this->authorizeOwnRegistration($request, $visitorDog);
+        $this->authorize('view', $visitorDog);
 
         return $this->viewForRole('visitor-dogs.show', [
             'dog' => $visitorDog,
+            'backNav' => VisitorDogSupport::backNavigation($request),
+            'navQuery' => VisitorDogSupport::preserveNavigationQuery($request),
         ]);
     }
 
     public function edit(Request $request, VisitorDog $visitorDog): View
     {
-        $this->authorizeOwnRegistration($request, $visitorDog);
+        $this->authorize('update', $visitorDog);
 
         return $this->viewForRole('visitor-dogs.edit', [
             'dog' => $visitorDog,
+            'backNav' => VisitorDogSupport::backNavigation($request),
+            'navQuery' => VisitorDogSupport::preserveNavigationQuery($request),
         ]);
     }
 
     public function update(UpdateVisitorDogRequest $request, VisitorDog $visitorDog): RedirectResponse
     {
-        $this->authorizeOwnRegistration($request, $visitorDog);
+        $this->authorize('update', $visitorDog);
 
         VisitorDogUpdater::apply($request, $visitorDog);
 
@@ -144,25 +113,23 @@ class VisitorDogController extends Controller
 
     public function photo(Request $request, VisitorDog $visitorDog): BinaryFileResponse
     {
-        $this->authorizeOwnRegistration($request, $visitorDog);
+        $this->authorize('view', $visitorDog);
 
-        return $this->streamPhoto($visitorDog);
+        return VisitorDogSupport::streamPhoto($visitorDog);
     }
 
     public function destroy(Request $request, VisitorDog $visitorDog): RedirectResponse
     {
-        $this->authorizeOwnRegistration($request, $visitorDog);
+        $this->authorize('delete', $visitorDog);
 
+        VisitorDogActivityLogger::logDeleted($visitorDog);
         VisitorDogUpdater::deletePhotoFile($visitorDog);
         $visitorDog->delete();
 
-        $query = array_filter([
-            'from_date' => $request->input('from_date'),
-            'to_date' => $request->input('to_date'),
-        ], static fn ($v): bool => is_string($v) && $v !== '');
+        $backNav = VisitorDogSupport::backNavigation($request);
 
         return redirect()
-            ->route('visitor-dogs.index', $query)
+            ->to($backNav['url'])
             ->with('success', 'Registreringen har tagits bort.');
     }
 
@@ -174,31 +141,5 @@ class VisitorDogController extends Controller
         $data['useGuideLayout'] = session('active_role') === Roles::GUIDE;
 
         return view($viewName, $data);
-    }
-
-    private function authorizeOwnRegistration(Request $request, VisitorDog $visitorDog): void
-    {
-        if ($visitorDog->registered_by !== $request->user()->id) {
-            abort(403);
-        }
-    }
-
-    private function streamPhoto(VisitorDog $visitorDog): BinaryFileResponse
-    {
-        if (empty($visitorDog->photo_path)) {
-            abort(404);
-        }
-
-        if (! Storage::disk('public')->exists($visitorDog->photo_path)) {
-            abort(404);
-        }
-
-        $absolutePath = Storage::disk('public')->path($visitorDog->photo_path);
-
-        if (! is_file($absolutePath)) {
-            abort(404);
-        }
-
-        return response()->file($absolutePath);
     }
 }

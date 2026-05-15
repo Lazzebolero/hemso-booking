@@ -12,6 +12,7 @@ class VisitorDogUpdater
     public static function apply(UpdateVisitorDogRequest $request, VisitorDog $visitorDog): void
     {
         $validated = $request->validated();
+        $oldValues = VisitorDogActivityLogger::snapshot($visitorDog);
 
         $photoPath = $visitorDog->photo_path;
 
@@ -28,11 +29,10 @@ class VisitorDogUpdater
                 Storage::disk('public')->delete($photoPath);
             }
 
-            $stored = $uploaded->store(
-                'visitor_dogs/'.now()->format('Y/m'),
-                'public'
-            );
-            $photoPath = $stored !== false ? $stored : $photoPath;
+            $stored = VisitorDogSupport::storeUploadedPhoto($uploaded);
+            if ($stored !== null) {
+                $photoPath = $stored;
+            }
         }
 
         $visitorDog->update([
@@ -43,6 +43,8 @@ class VisitorDogUpdater
             'tour_start_time' => $validated['tour_start_time'] ?? null,
             'photo_path' => $photoPath,
         ]);
+
+        VisitorDogActivityLogger::logUpdated($visitorDog, $oldValues);
     }
 
     public static function deletePhotoFile(VisitorDog $visitorDog): void

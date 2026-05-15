@@ -1,6 +1,4 @@
-@extends('layouts.guide')
-
-@section('content')
+@props(['entry'])
 <div class="page-header">
     <div>
         <div class="section-title mb-1">
@@ -133,17 +131,3 @@
     </div>
 </div>
 
-<style>
-    .guide-audit-row {
-        border-bottom: 1px solid rgba(15, 23, 42, .10);
-        padding-bottom: .75rem;
-        margin-bottom: .75rem;
-    }
-
-    .guide-audit-row:last-child {
-        border-bottom: 0;
-        padding-bottom: 0;
-        margin-bottom: 0;
-    }
-</style>
-@endsection

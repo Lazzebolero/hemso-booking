@@ -11,18 +11,12 @@ use App\Models\Role;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class FacilityReportAdminNotificationTest extends TestCase
 {
     public function test_sends_mail_to_each_active_admin_when_guide_creates_report(): void
     {
-        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
-            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
-        }
-
         Mail::fake();
 
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
@@ -107,10 +101,6 @@ class FacilityReportAdminNotificationTest extends TestCase
 
     public function test_does_not_send_new_facility_report_mail_to_host_role_only(): void
     {
-        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
-            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
-        }
-
         Mail::fake();
 
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
@@ -174,10 +164,6 @@ class FacilityReportAdminNotificationTest extends TestCase
 
     public function test_dashboard_shows_new_facility_reports_notice_until_reports_index_is_opened(): void
     {
-        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
-            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
-        }
-
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -249,10 +235,6 @@ class FacilityReportAdminNotificationTest extends TestCase
 
     public function test_host_dashboard_does_not_show_new_facility_reports_notice(): void
     {
-        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
-            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
-        }
-
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -308,10 +290,6 @@ class FacilityReportAdminNotificationTest extends TestCase
 
     public function test_dashboard_notice_returns_after_new_open_report_after_acknowledgment(): void
     {
-        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
-            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
-        }
-
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 
@@ -394,14 +372,6 @@ class FacilityReportAdminNotificationTest extends TestCase
 
     public function test_admin_sidebar_shows_nav_badge_on_bookings_page_when_new_reports_exist(): void
     {
-        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
-            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
-        }
-
-        if (! Route::has('admin.bookings.index')) {
-            $this->markTestSkipped('admin.bookings.index saknas.');
-        }
-
         $adminRole = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
 

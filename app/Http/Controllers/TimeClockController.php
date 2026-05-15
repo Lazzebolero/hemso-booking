@@ -40,6 +40,8 @@ class TimeClockController extends Controller
 
     public function clockIn(Request $request): RedirectResponse
     {
+        $this->authorize('clock', TimeEntry::class);
+
         $user = $request->user();
         $openEntry = TimeEntry::currentOpenForUser($user->id);
 
@@ -70,6 +72,8 @@ class TimeClockController extends Controller
 
     public function clockOut(Request $request): RedirectResponse
     {
+        $this->authorize('clock', TimeEntry::class);
+
         $user = $request->user();
         $openEntry = TimeEntry::currentOpenForUser($user->id);
 

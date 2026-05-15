@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -19,10 +18,6 @@ class GuideFacilityReportAttachmentTest extends TestCase
 {
     public function test_guide_can_submit_facility_report_with_optional_image(): void
     {
-        if (! Schema::hasTable('facility_reports') || ! Schema::hasTable('report_categories')) {
-            $this->markTestSkipped('Felrapport-tabeller saknas i testdatabasen.');
-        }
-
         Mail::fake();
         Storage::fake('public');
 

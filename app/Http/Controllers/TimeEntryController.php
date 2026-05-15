@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TimeEntry;
 use App\Models\TimeEntryAudit;
 use App\Services\PayrollLockService;
+use App\Support\Roles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,8 @@ class TimeEntryController extends Controller
 {
     public function index(Request $request): View
     {
+        $this->authorize('viewAny', TimeEntry::class);
+
         $filter = $request->query('filter', 'week');
         [$from, $to] = TimeEntry::filterPeriod($filter);
 
@@ -31,11 +34,9 @@ class TimeEntryController extends Controller
 
         $activeRole = session('active_role', $request->user()->role);
 
-        $view = $activeRole === 'guide'
-            ? 'guide.time.index'
-            : 'time.index';
+        $useGuideLayout = $activeRole === Roles::GUIDE;
 
-        return view($view, [
+        return view('time.index', [
             'entries' => $entries,
             'openEntry' => $openEntry,
             'openEntries' => $openEntries,
@@ -45,33 +46,29 @@ class TimeEntryController extends Controller
             'totalMinutes' => $totalMinutes,
             'totalFormatted' => sprintf('%dh %02dm', intdiv($totalMinutes, 60), $totalMinutes % 60),
             'activeRole' => $activeRole,
+            'useGuideLayout' => $useGuideLayout,
         ]);
     }
 
     public function edit(Request $request, TimeEntry $timeEntry): View
     {
-        abort_unless($timeEntry->user_id === $request->user()->id, 403);
-        abort_unless($timeEntry->isEditableByUser(), 403, 'Inskickade tider kan inte ändras i Fas 1.');
+        $this->authorize('update', $timeEntry);
         PayrollLockService::assertWorkDateUnlockedForUser($timeEntry->work_date->format('Y-m-d'));
 
         $timeEntry->load('audits.changedBy');
 
         $activeRole = session('active_role', $request->user()->role);
 
-        $view = $activeRole === 'guide'
-            ? 'guide.time.edit'
-            : 'time.edit';
-
-        return view($view, [
+        return view('time.edit', [
             'entry' => $timeEntry,
             'activeRole' => $activeRole,
+            'useGuideLayout' => $activeRole === Roles::GUIDE,
         ]);
     }
 
     public function update(Request $request, TimeEntry $timeEntry): RedirectResponse
     {
-        abort_unless($timeEntry->user_id === $request->user()->id, 403);
-        abort_unless($timeEntry->isEditableByUser(), 403, 'Inskickade tider kan inte ändras i Fas 1.');
+        $this->authorize('update', $timeEntry);
 
         $previousWorkDate = $timeEntry->work_date->format('Y-m-d');
 
@@ -108,7 +105,7 @@ class TimeEntryController extends Controller
 
     public function submit(Request $request, TimeEntry $timeEntry): RedirectResponse
     {
-        abort_unless($timeEntry->user_id === $request->user()->id, 403);
+        $this->authorize('submit', $timeEntry);
         abort_if($timeEntry->status === TimeEntry::STATUS_OPEN, 422, 'Du måste stämpla ut eller ange sluttid innan du skickar in tiden.');
         PayrollLockService::assertWorkDateUnlockedForUser($timeEntry->work_date->format('Y-m-d'));
 

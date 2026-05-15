@@ -6,17 +6,12 @@ use App\Models\Role;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class HostWorkShiftStaffingTest extends TestCase
 {
     public function test_host_can_open_staffing_and_sees_no_planning_actions(): void
     {
-        if (! Schema::hasTable('work_shifts')) {
-            $this->markTestSkipped('work_shifts-tabellen saknas.');
-        }
-
         $this->assertTrue(Route::has('host.work-shifts.staffing'));
 
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();

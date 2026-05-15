@@ -22,9 +22,18 @@ class AdminPayrollLockExportLogTest extends TestCase
         return $user;
     }
 
+    private function actingWorker(): User
+    {
+        $role = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+        $user = User::factory()->create();
+        $user->assignRoles([$role]);
+
+        return $user;
+    }
+
     public function test_user_submit_is_blocked_when_work_date_is_locked(): void
     {
-        $worker = User::factory()->create();
+        $worker = $this->actingWorker();
 
         LockedPayrollPeriod::factory()->create([
             'start_date' => '2024-04-01',
@@ -39,13 +48,14 @@ class AdminPayrollLockExportLogTest extends TestCase
         ]);
 
         $this->actingAs($worker)
+            ->withSession(['active_role' => Roles::GUIDE])
             ->patch(route('time.submit', $entry))
             ->assertForbidden();
     }
 
     public function test_user_clock_in_is_blocked_on_locked_work_date(): void
     {
-        $worker = User::factory()->create();
+        $worker = $this->actingWorker();
 
         LockedPayrollPeriod::factory()->create([
             'start_date' => Carbon::now()->subDay()->toDateString(),
@@ -53,6 +63,7 @@ class AdminPayrollLockExportLogTest extends TestCase
         ]);
 
         $this->actingAs($worker)
+            ->withSession(['active_role' => Roles::GUIDE])
             ->post(route('time.clock-in'))
             ->assertForbidden();
     }

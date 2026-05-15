@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\VisitorDog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\File;
 
@@ -9,7 +10,10 @@ class UpdateVisitorDogRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $visitorDog = $this->route('visitorDog');
+
+        return $visitorDog instanceof VisitorDog
+            && $this->user()?->can('update', $visitorDog) === true;
     }
 
     /**

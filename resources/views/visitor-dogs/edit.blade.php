@@ -1,23 +1,30 @@
 @extends($useGuideLayout ? 'layouts.guide' : 'layouts.app')
 
 @section('content')
-<div class="page-header mb-3">
-    <div>
-        <h2 class="page-title" @if($useGuideLayout) style="font-size: 1.15rem;" @endif>Redigera {{ $dog->dog_name }}</h2>
-        <p class="page-subtitle mb-0" @if($useGuideLayout) style="font-size: 0.88rem;" @endif>Uppdatera uppgifter eller byt bild.</p>
-    </div>
-</div>
+<div class="staff-page-stack">
+    <x-ui.page-header
+        :guide="$useGuideLayout"
+        :title="'Redigera '.$dog->dog_name"
+        subtitle="Uppdatera uppgifter eller byt bild."
+        icon="bi-pencil"
+    >
+        <x-slot:actions>
+            <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.show', $dog, $navQuery ?? []) }}" class="btn btn-outline-secondary{{ $useGuideLayout ? ' btn-sm' : '' }}">
+                <i class="bi bi-arrow-left me-1"></i>Tillbaka
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-@if($useGuideLayout)
-    <div class="guide-card">
-@else
-    <div class="page-card" style="max-width: 32rem;">
-@endif
-    @include('visitor-dogs._form', [
-        'dog' => $dog,
-        'formAction' => route('visitor-dogs.update', $dog),
-        'cancelUrl' => route('visitor-dogs.show', $dog),
-        'photoUrl' => $dog->photo_path ? route('visitor-dogs.photo', $dog) : null,
-    ])
+    @include('partials.ui.flash-messages', ['guide' => $useGuideLayout])
+
+    <div class="{{ $useGuideLayout ? 'guide-card' : 'page-card' }}" @if(! $useGuideLayout) style="max-width: 32rem;" @endif>
+        @include('visitor-dogs._form', [
+            'dog' => $dog,
+            'formAction' => route('visitor-dogs.update', $dog),
+            'cancelUrl' => \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.show', $dog, $navQuery ?? []),
+            'photoUrl' => $dog->photo_path ? route('visitor-dogs.photo', $dog) : null,
+            'navigationQuery' => $navQuery ?? [],
+        ])
+    </div>
 </div>
 @endsection
