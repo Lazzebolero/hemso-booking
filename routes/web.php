@@ -51,6 +51,7 @@ use App\Http\Controllers\Staff\StaffDashboardController;
 use App\Http\Controllers\Staff\StaffDocumentController as StaffStaffDocumentController;
 use App\Http\Controllers\Staff\StaffScheduleController;
 use App\Http\Controllers\TimeClockController;
+use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\VisitorDogController;
 use App\Support\ActiveRoleRedirect;
 use Illuminate\Support\Facades\File;
