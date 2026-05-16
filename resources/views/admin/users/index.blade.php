@@ -8,7 +8,10 @@
     </div>
 
     <div class="page-actions">
-        <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
+        <a href="{{ route('admin.users.export.contacts-csv', absolute: false) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-download me-2"></i>Exportera kontakter
+        </a>
+        <a href="{{ route('admin.users.create', absolute: false) }}" class="btn btn-primary">
             <i class="bi bi-person-plus me-2"></i>Ny användare
         </a>
     </div>
@@ -66,7 +69,7 @@
                         </td>
 
                         <td>
-                            <a href="{{ route('admin.users.edit', $user) }}"
+                            <a href="{{ route('admin.users.edit', $user, false) }}"
                                class="btn btn-sm btn-outline-secondary">
                                 Redigera
                             </a>

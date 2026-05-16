@@ -127,6 +127,8 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::get('system-messages/{systemMessage}/readers/export', [SystemMessageController::class, 'exportReaders'])->name('system-messages.readers.export');
         Route::resource('system-messages', SystemMessageController::class)->except(['show'])->names('system-messages');
 
+        Route::get('users/export/contacts-csv', [UserController::class, 'exportContactsCsv'])
+            ->name('users.export.contacts-csv');
         Route::resource('users', UserController::class);
         Route::resource('tour-types', TourTypeController::class);
 

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
@@ -23,6 +24,47 @@ class UserController extends Controller
         return view('admin.users.index', compact('users'));
     }
 
+    public function exportContactsCsv(): StreamedResponse
+    {
+        $filename = 'hemso-personal-kontakter-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function (): void {
+            $handle = fopen('php://output', 'wb');
+
+            if ($handle === false) {
+                return;
+            }
+
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['Name', 'E-mail Address', 'Phone', 'Categories', 'Notes']);
+
+            User::query()
+                ->with('roles')
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->orderBy('name')
+                ->each(function (User $user) use ($handle): void {
+                    $roleNames = $user->roles
+                        ->pluck('name')
+                        ->filter()
+                        ->values()
+                        ->implode(', ');
+
+                    fputcsv($handle, [
+                        $user->name,
+                        $user->email,
+                        $user->phone ?? '',
+                        $roleNames,
+                        ($user->is_active ? 'Aktiv' : 'Inaktiv').($roleNames !== '' ? '; Roller: '.$roleNames : ''),
+                    ]);
+                });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function create(): View
     {
         $roles = Role::query()
@@ -30,7 +72,7 @@ class UserController extends Controller
             ->get();
 
         return view('admin.users.form', [
-            'user' => new User(),
+            'user' => new User,
             'roles' => $roles,
         ]);
     }
@@ -45,7 +87,7 @@ class UserController extends Controller
             'phone' => $data['phone'] ?? null,
             'is_active' => (bool) ($data['is_active'] ?? true),
             'is_kiosk' => (bool) ($data['is_kiosk'] ?? false),
-            'kiosk_target' => !empty($data['is_kiosk']) ? ($data['kiosk_target'] ?? null) : null,
+            'kiosk_target' => ! empty($data['is_kiosk']) ? ($data['kiosk_target'] ?? null) : null,
             'password' => Hash::make($data['password']),
         ]);
 
@@ -112,10 +154,10 @@ class UserController extends Controller
             'phone' => $data['phone'] ?? null,
             'is_active' => (bool) ($data['is_active'] ?? true),
             'is_kiosk' => (bool) ($data['is_kiosk'] ?? false),
-            'kiosk_target' => !empty($data['is_kiosk']) ? ($data['kiosk_target'] ?? null) : null,
+            'kiosk_target' => ! empty($data['is_kiosk']) ? ($data['kiosk_target'] ?? null) : null,
         ]);
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $user->update([
                 'password' => Hash::make($data['password']),
             ]);
@@ -186,7 +228,7 @@ class UserController extends Controller
     {
         $emailRule = 'required|email|unique:users,email';
         if (! $isCreate && $user) {
-            $emailRule .= ',' . $user->id;
+            $emailRule .= ','.$user->id;
         }
 
         return $request->validate([

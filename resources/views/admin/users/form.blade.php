@@ -23,13 +23,13 @@
     </div>
 
     <div class="page-actions">
-        <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary">
+        <a href="{{ route('admin.users.index', absolute: false) }}" class="btn btn-outline-secondary">
             Tillbaka
         </a>
     </div>
 </div>
 
-<form method="POST" action="{{ $user->exists ? route('admin.users.update', $user) : route('admin.users.store') }}">
+<form method="POST" action="{{ $user->exists ? route('admin.users.update', $user, false) : route('admin.users.store', absolute: false) }}">
     @csrf
     @if($user->exists)
         @method('PUT')
