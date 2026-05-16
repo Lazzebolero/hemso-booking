@@ -900,14 +900,14 @@
     <nav class="side-nav">
 	@if(Route::has($adminHostPrefix . '.dashboard'))
                     <a class="side-link {{ request()->routeIs('admin.dashboard') || request()->routeIs('host.dashboard') ? 'active-link' : '' }}"
-                       href="{{ route($adminHostPrefix . '.dashboard') }}">
+                       href="{{ route($adminHostPrefix . '.dashboard', absolute: false) }}">
                         <i class="bi bi-speedometer2"></i>
                         <span>Dashboard</span>
                     </a>
                 @endif
     @if(in_array($activeRole, ['admin', 'host'], true) && Route::has($adminHostPrefix . '.visitor-dogs.index'))
         <a class="side-link {{ request()->routeIs($adminHostPrefix . '.visitor-dogs.*') ? 'active-link' : '' }}"
-           href="{{ route($adminHostPrefix . '.visitor-dogs.index') }}">
+           href="{{ route($adminHostPrefix . '.visitor-dogs.index', absolute: false) }}">
             <i class="bi bi-heart-pulse"></i>
             <span>Besökshundar</span>
         </a>
@@ -918,7 +918,7 @@
 
             @if(Route::has($adminHostPrefix . '.tours.index'))
                 <a class="side-link {{ request()->routeIs('admin.tours.*') || request()->routeIs('host.tours.*') ? 'active-link' : '' }}"
-                   href="{{ route($adminHostPrefix . '.tours.index') }}">
+                   href="{{ route($adminHostPrefix . '.tours.index', absolute: false) }}">
                     <i class="bi bi-signpost-split"></i>
                     <span>Turer</span>
                 </a>
@@ -926,7 +926,7 @@
 
             @if(Route::has($adminHostPrefix . '.bookings.index'))
                 <a class="side-link {{ request()->routeIs('admin.bookings.*') || request()->routeIs('host.bookings.*') ? 'active-link' : '' }}"
-                   href="{{ route($adminHostPrefix . '.bookings.index') }}">
+                   href="{{ route($adminHostPrefix . '.bookings.index', absolute: false) }}">
                     <i class="bi bi-journal-check"></i>
                     <span>Bokningar</span>
                 </a>
@@ -934,7 +934,7 @@
 
             @if(Route::has($adminHostPrefix . '.bookings.quick-create'))
                 <a class="side-link {{ request()->routeIs('admin.bookings.quick-create') || request()->routeIs('host.bookings.quick-create') ? 'active-link' : '' }}"
-                   href="{{ route($adminHostPrefix . '.bookings.quick-create') }}">
+                   href="{{ route($adminHostPrefix . '.bookings.quick-create', absolute: false) }}">
                     <i class="bi bi-lightning-charge"></i>
                     <span>Snabbbokning</span>
                 </a>
@@ -942,7 +942,7 @@
 
             @if(Route::has($adminHostPrefix . '.special-tours.index'))
                 <a class="side-link {{ request()->routeIs('admin.special-tours.*') || request()->routeIs('host.special-tours.*') ? 'active-link' : '' }}"
-                   href="{{ route($adminHostPrefix . '.special-tours.index') }}">
+                   href="{{ route($adminHostPrefix . '.special-tours.index', absolute: false) }}">
                     <i class="bi bi-stars"></i>
                     <span>Specialturer</span>
                 </a>
@@ -950,7 +950,7 @@
 
             @if(Route::has('quick-tours.create'))
                 <a class="side-link {{ request()->routeIs('quick-tours.*') ? 'active-link' : '' }}"
-                   href="{{ route('quick-tours.create') }}">
+                   href="{{ route('quick-tours.create', absolute: false) }}">
                     <i class="bi bi-rocket-takeoff"></i>
                     <span>Snabbtur</span>
                 </a>
@@ -958,7 +958,7 @@
 
             @if(Route::has($adminHostPrefix . '.tours.batch-create'))
                 <a class="side-link {{ request()->routeIs('admin.tours.batch-create') || request()->routeIs('host.tours.batch-create') ? 'active-link' : '' }}"
-                   href="{{ route($adminHostPrefix . '.tours.batch-create') }}">
+                   href="{{ route($adminHostPrefix . '.tours.batch-create', absolute: false) }}">
                     <i class="bi bi-calendar-plus"></i>
                     <span>Batch skapa turer</span>
                 </a>
@@ -968,7 +968,7 @@
   <div class="nav-section-title">Vilka jobbar</div>
 
         <a class="side-link {{ request()->routeIs('admin.work-shifts.staffing') || request()->routeIs('host.work-shifts.staffing') ? 'active-link' : '' }}"
-           href="{{ route($adminHostPrefix . '.work-shifts.staffing') }}">
+           href="{{ route($adminHostPrefix . '.work-shifts.staffing', absolute: false) }}">
             <i class="bi bi-people-fill"></i>
             <span>Dagens personal</span>
         </a>
@@ -981,7 +981,7 @@
 
     @if(Route::has($adminHostPrefix . '.work-shifts.index'))
         <a class="side-link {{ request()->routeIs('admin.work-shifts.index') || request()->routeIs('host.work-shifts.index') ? 'active-link' : '' }}"
-           href="{{ route($adminHostPrefix . '.work-shifts.index') }}">
+           href="{{ route($adminHostPrefix . '.work-shifts.index', absolute: false) }}">
             <i class="bi bi-calendar-day"></i>
             <span>Dagvy</span>
         </a>
@@ -989,7 +989,7 @@
 
     @if(Route::has($adminHostPrefix . '.work-shifts.person'))
         <a class="side-link {{ request()->routeIs('admin.work-shifts.person') || request()->routeIs('host.work-shifts.person') ? 'active-link' : '' }}"
-           href="{{ route($adminHostPrefix . '.work-shifts.person') }}">
+           href="{{ route($adminHostPrefix . '.work-shifts.person', absolute: false) }}">
             <i class="bi bi-person-lines-fill"></i>
             <span>Personvy</span>
         </a>
@@ -997,7 +997,7 @@
     @if($activeRole === 'admin')
 	@if(Route::has('admin.time.control-panel'))
     <a class="side-link {{ request()->routeIs('admin.time.control-panel') ? 'active-link' : '' }}"
-       href="{{ route('admin.time.control-panel') }}">
+       href="{{ route('admin.time.control-panel', absolute: false) }}">
         <i class="bi bi-clipboard-pulse"></i>
         <span>Tidkontroll</span>
     </a>
@@ -1005,7 +1005,7 @@
 
 @if(Route::has('admin.time.payroll-locks.index'))
     <a class="side-link {{ request()->routeIs('admin.time.payroll-locks.*') ? 'active-link' : '' }}"
-       href="{{ route('admin.time.payroll-locks.index') }}">
+       href="{{ route('admin.time.payroll-locks.index', absolute: false) }}">
         <i class="bi bi-lock"></i>
         <span>Lönelås</span>
     </a>
@@ -1013,7 +1013,7 @@
 
 @if(Route::has('admin.time.index'))
     <a class="side-link {{ request()->routeIs('admin.time.*') && !request()->routeIs('admin.time.control-panel') && !request()->routeIs('admin.time.payroll-locks.*') ? 'active-link' : '' }}"
-       href="{{ route('admin.time.index') }}">
+       href="{{ route('admin.time.index', absolute: false) }}">
         <i class="bi bi-clock-history"></i>
         <span>Tider/Lön</span>
     </a>
@@ -1027,7 +1027,7 @@
 
             @if($activeRole === 'admin' && Route::has('admin.statistics.index'))
                 <a class="side-link {{ request()->routeIs('admin.statistics.*') && !request()->routeIs('admin.statistics.guides*') ? 'active-link' : '' }}"
-                   href="{{ route('admin.statistics.index') }}">
+                   href="{{ route('admin.statistics.index', absolute: false) }}">
                     <i class="bi bi-bar-chart"></i>
                     <span>Statistik</span>
                 </a>
@@ -1035,7 +1035,7 @@
 
             @if($activeRole === 'admin' && Route::has('admin.statistics.guides'))
                 <a class="side-link {{ request()->routeIs('admin.statistics.guides*') ? 'active-link' : '' }}"
-                   href="{{ route('admin.statistics.guides') }}">
+                   href="{{ route('admin.statistics.guides', absolute: false) }}">
                     <i class="bi bi-person-lines-fill"></i>
                     <span>Guidestatistik</span>
                 </a>
@@ -1047,7 +1047,7 @@
 
             @if(Route::has($adminHostPrefix . '.restaurant-board'))
                 <a class="side-link {{ request()->routeIs('admin.restaurant-board*') || request()->routeIs('host.restaurant-board*') ? 'active-link' : '' }}"
-                   href="{{ route($adminHostPrefix . '.restaurant-board') }}">
+                   href="{{ route($adminHostPrefix . '.restaurant-board', absolute: false) }}">
                     <i class="bi bi-display"></i>
                     <span>Restaurangvy</span>
                 </a>
@@ -1055,7 +1055,7 @@
 
             @if(Route::has($adminHostPrefix . '.reports.index'))
                 <a class="side-link {{ request()->routeIs('admin.reports.*') || request()->routeIs('host.reports.*') ? 'active-link' : '' }}"
-                   href="{{ route($adminHostPrefix . '.reports.index') }}">
+                   href="{{ route($adminHostPrefix . '.reports.index', absolute: false) }}">
                     <i class="bi bi-exclamation-triangle"></i>
                     <span>Felrapporter</span>
                     @if(($newOpenFacilityReportsCount ?? 0) > 0)
@@ -1070,7 +1070,7 @@
 
             @if($activeRole === 'admin' && Route::has('admin.system-messages.index'))
                 <a class="side-link {{ request()->routeIs('admin.system-messages.*') ? 'active-link' : '' }}"
-                   href="{{ route('admin.system-messages.index') }}">
+                   href="{{ route('admin.system-messages.index', absolute: false) }}">
                     <i class="bi bi-bell"></i>
                     <span>Systemmeddelanden</span>
                 </a>
@@ -1078,7 +1078,7 @@
 
             @if($activeRole === 'admin' && Route::has('admin.activity-logs.index'))
                 <a class="side-link {{ request()->routeIs('admin.activity-logs.*') ? 'active-link' : '' }}"
-                   href="{{ route('admin.activity-logs.index') }}">
+                   href="{{ route('admin.activity-logs.index', absolute: false) }}">
                     <i class="bi bi-clock-history"></i>
                     <span>Logg</span>
                 </a>
@@ -1089,13 +1089,13 @@
             <div class="nav-section">
                 <div class="nav-section-title">Inställningar och administration</div>
 			<a class="side-link {{ request()->routeIs('admin.staff-documents.*') ? 'active-link' : '' }}"
-			href="{{ route('admin.staff-documents.index') }}">
+			href="{{ route('admin.staff-documents.index', absolute: false) }}">
 			<i class="bi bi-folder2-open"></i>
 			<span>Personaldokument</span>
 			</a>
                 @if(Route::has('admin.settings.index'))
                     <a class="side-link {{ request()->routeIs('admin.settings.index') ? 'active-link' : '' }}"
-                       href="{{ route('admin.settings.index') }}">
+                       href="{{ route('admin.settings.index', absolute: false) }}">
                         <i class="bi bi-gear"></i>
                         <span>Systeminställningar</span>
                     </a>
@@ -1103,7 +1103,7 @@
 
                 @if(Route::has('admin.settings.reports.index'))
                     <a class="side-link {{ request()->routeIs('admin.settings.reports.*') ? 'active-link' : '' }}"
-                       href="{{ route('admin.settings.reports.index') }}">
+                       href="{{ route('admin.settings.reports.index', absolute: false) }}">
                         <i class="bi bi-sliders"></i>
                         <span>Felrapportinställningar</span>
                     </a>
@@ -1111,7 +1111,7 @@
 
                 @if(Route::has('admin.users.index'))
                     <a class="side-link {{ request()->routeIs('admin.users.*') ? 'active-link' : '' }}"
-                       href="{{ route('admin.users.index') }}">
+                       href="{{ route('admin.users.index', absolute: false) }}">
                         <i class="bi bi-people"></i>
                         <span>Användare</span>
                     </a>
@@ -1119,7 +1119,7 @@
 
                 @if(Route::has('admin.tour-types.index'))
                     <a class="side-link {{ request()->routeIs('admin.tour-types.*') ? 'active-link' : '' }}"
-                       href="{{ route('admin.tour-types.index') }}">
+                       href="{{ route('admin.tour-types.index', absolute: false) }}">
                         <i class="bi bi-signpost-2"></i>
                         <span>Turtyper</span>
                     </a>
@@ -1127,7 +1127,7 @@
 
                 @if(Route::has('admin.languages.index'))
                     <a class="side-link {{ request()->routeIs('admin.languages.*') ? 'active-link' : '' }}"
-                       href="{{ route('admin.languages.index') }}">
+                       href="{{ route('admin.languages.index', absolute: false) }}">
                         <i class="bi bi-translate"></i>
                         <span>Språk</span>
                     </a>
@@ -1135,14 +1135,14 @@
 
                 @if(Route::has('admin.notification-templates.index'))
                     <a class="side-link {{ request()->routeIs('admin.notification-templates.*') ? 'active-link' : '' }}"
-                       href="{{ route('admin.notification-templates.index') }}">
+                       href="{{ route('admin.notification-templates.index', absolute: false) }}">
                         <i class="bi bi-envelope-paper"></i>
                         <span>Mailmallar</span>
                     </a>
                 @endif
 				@if(Route::has('admin.security-overview.index'))
     <a class="side-link {{ request()->routeIs('admin.security-overview.index') ? 'active-link' : '' }}"
-       href="{{ route('admin.security-overview.index') }}">
+       href="{{ route('admin.security-overview.index', absolute: false) }}">
         <i class="bi bi-shield-exclamation"></i>
         <span>Säkerhetsöversikt</span>
     </a>
@@ -1161,13 +1161,13 @@
     </a>
 	@if(Route::has('admin.login-events.index'))
     <a class="side-link {{ request()->routeIs('admin.login-events.index') ? 'active-link' : '' }}"
-       href="{{ route('admin.login-events.index') }}">
+       href="{{ route('admin.login-events.index', absolute: false) }}">
         <i class="bi bi-shield-lock"></i>
         <span>Inloggningslogg</span>
     </a>
 	@if(Route::has('admin.backup-check.index'))
     <a class="side-link {{ request()->routeIs('admin.backup-check.index') ? 'active-link' : '' }}"
-       href="{{ route('admin.backup-check.index') }}">
+       href="{{ route('admin.backup-check.index', absolute: false) }}">
         <i class="bi bi-cloud-check"></i>
         <span>Backup-kontroll</span>
     </a>
@@ -1186,7 +1186,7 @@
 
             @if(Route::has('guide.dashboard'))
                 <a class="side-link {{ request()->routeIs('guide.dashboard') ? 'active-link' : '' }}"
-                   href="{{ route('guide.dashboard') }}">
+                   href="{{ route('guide.dashboard', absolute: false) }}">
                     <i class="bi bi-speedometer2"></i>
                     <span>Guideöversikt</span>
                 </a>
@@ -1194,7 +1194,7 @@
 
             @if(Route::has('guide.reports.create'))
                 <a class="side-link {{ request()->routeIs('guide.reports.*') ? 'active-link' : '' }}"
-                   href="{{ route('guide.reports.create') }}">
+                   href="{{ route('guide.reports.create', absolute: false) }}">
                     <i class="bi bi-exclamation-triangle"></i>
                     <span>Ny felrapport</span>
                 </a>
@@ -1202,7 +1202,7 @@
 
             @if(Route::has('quick-tours.create'))
                 <a class="side-link {{ request()->routeIs('quick-tours.*') ? 'active-link' : '' }}"
-                   href="{{ route('quick-tours.create') }}">
+                   href="{{ route('quick-tours.create', absolute: false) }}">
                     <i class="bi bi-rocket-takeoff"></i>
                     <span>Snabbtur</span>
                 </a>
@@ -1216,7 +1216,7 @@
 
             @if(Route::has('restaurant.dashboard'))
                 <a class="side-link {{ request()->routeIs('restaurant.dashboard') ? 'active-link' : '' }}"
-                   href="{{ route('restaurant.dashboard') }}">
+                   href="{{ route('restaurant.dashboard', absolute: false) }}">
                     <i class="bi bi-display"></i>
                     <span>Översikt</span>
                 </a>
@@ -1224,7 +1224,7 @@
 
             @if(Route::has('restaurant.kiosk'))
                 <a class="side-link {{ request()->routeIs('restaurant.kiosk') ? 'active-link' : '' }}"
-                   href="{{ route('restaurant.kiosk') }}">
+                   href="{{ route('restaurant.kiosk', absolute: false) }}">
                     <i class="bi bi-tv"></i>
                     <span>Kioskläge</span>
                 </a>
@@ -1234,7 +1234,7 @@
 </nav>
 
             <div class="sidebar-footer">
-                <form method="POST" action="{{ route('logout') }}">
+                <form method="POST" action="{{ route('logout', absolute: false) }}">
                     @csrf
                     <button type="submit" class="logout-btn">
                         <i class="bi bi-box-arrow-right me-2"></i>Logga ut
@@ -1393,7 +1393,7 @@
 
     <div class="restaurant-mobile-nav">
         @if($hostStaffShell && Route::has('host.entry'))
-            <a href="{{ route('host.entry') }}"
+            <a href="{{ route('host.entry', absolute: false) }}"
                class="restaurant-mobile-btn {{ request()->routeIs('host.entry') ? 'active' : '' }}"
                title="Byt arbetsyta"
                aria-label="Byt arbetsyta">
@@ -1401,7 +1401,7 @@
             </a>
         @endif
 
-        <a href="{{ route('staff.dashboard') }}"
+        <a href="{{ route('staff.dashboard', absolute: false) }}"
            class="restaurant-mobile-btn {{ request()->routeIs('staff.*') ? 'active' : '' }}"
            title="Personalvy"
            aria-label="Personalvy">
@@ -1409,7 +1409,7 @@
         </a>
 
         @if(Route::has('staff.schedule'))
-            <a href="{{ route('staff.schedule') }}"
+            <a href="{{ route('staff.schedule', absolute: false) }}"
                class="restaurant-mobile-btn {{ request()->routeIs('staff.schedule') ? 'active' : '' }}"
                title="Mitt schema"
                aria-label="Mitt schema">
@@ -1418,7 +1418,7 @@
         @endif
 
         @if(Route::has('messages.index'))
-            <a href="{{ route('messages.index') }}"
+            <a href="{{ route('messages.index', absolute: false) }}"
                class="restaurant-mobile-btn {{ request()->routeIs('messages.*') || request()->routeIs('group-chats.*') ? 'active' : '' }}"
                title="Meddelanden"
                aria-label="Meddelanden">
@@ -1440,7 +1440,7 @@
         </a>
 
         @if(Route::has('time.clock-out') && ($openTimeEntryForHeader ?? null))
-            <form method="POST" action="{{ route('time.clock-out') }}" style="margin:0;" data-offline-queue>
+            <form method="POST" action="{{ route('time.clock-out', absolute: false) }}" style="margin:0;" data-offline-queue>
                 @csrf
                 <button type="submit"
                         class="restaurant-mobile-btn restaurant-mobile-btn-warning"
@@ -1450,7 +1450,7 @@
                 </button>
             </form>
         @elseif(Route::has('time.clock-in'))
-            <form method="POST" action="{{ route('time.clock-in') }}" style="margin:0;" data-offline-queue>
+            <form method="POST" action="{{ route('time.clock-in', absolute: false) }}" style="margin:0;" data-offline-queue>
                 @csrf
                 <button type="submit"
                         class="restaurant-mobile-btn restaurant-mobile-btn-success"
@@ -1462,7 +1462,7 @@
         @endif
 
         @if(Route::has('time.index'))
-            <a href="{{ route('time.index') }}"
+            <a href="{{ route('time.index', absolute: false) }}"
                class="restaurant-mobile-btn {{ request()->routeIs('time.*') ? 'active' : '' }}"
                title="Tidrapportering"
                aria-label="Tidrapportering">
@@ -1471,7 +1471,7 @@
         @endif
 
         @if(Route::has('staff.documents.index'))
-            <a href="{{ route('staff.documents.index') }}"
+            <a href="{{ route('staff.documents.index', absolute: false) }}"
                class="restaurant-mobile-btn {{ request()->routeIs('staff.documents.*') ? 'active' : '' }}"
                title="Dokument"
                aria-label="Dokument">
@@ -1479,7 +1479,7 @@
             </a>
         @endif
 
-        <form method="POST" action="{{ route('logout') }}" style="margin:0;">
+        <form method="POST" action="{{ route('logout', absolute: false) }}" style="margin:0;">
             @csrf
             <button type="submit"
                     class="restaurant-mobile-btn restaurant-mobile-btn-danger"
@@ -1507,42 +1507,42 @@
 
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             @if(Route::has($adminHostPrefix . '.dashboard') && auth()->check() && in_array($activeRole, ['admin', 'host'], true))
-        <a href="{{ route($adminHostPrefix . '.dashboard') }}"
+        <a href="{{ route($adminHostPrefix . '.dashboard', absolute: false) }}"
                                class="topbar-link-chip {{ request()->routeIs('admin.dashboard') || request()->routeIs('host.dashboard') ? 'topbar-link-chip-active' : '' }}">
                                 <i class="bi bi-speedometer2"></i>
                                 <span>Dashboard</span>
                             </a>
-		<a href="{{ route('time.index') }}"
+		<a href="{{ route('time.index', absolute: false) }}"
                                class="topbar-link-chip {{ request()->routeIs('time.*') ? 'topbar-link-chip-active' : '' }}">
                                 <i class="bi bi-clock-history"></i>
                                 <span>Tidrapportering</span>
                             </a>
     @elseif($activeRole === 'guide' && Route::has('guide.dashboard'))
-        <a href="{{ route('guide.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ route('guide.dashboard', absolute: false) }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-speedometer2 me-2"></i>Dashboard
-        </a><a href="{{ route('time.index') }}"
+        </a><a href="{{ route('time.index', absolute: false) }}"
                                class="topbar-link-chip {{ request()->routeIs('time.*') ? 'topbar-link-chip-active' : '' }}">
                                 <i class="bi bi-clock-history"></i>
                                 <span>Tidrapportering</span>
                             </a>
     @elseif($activeRole === 'restaurant' && Route::has('restaurant.dashboard'))
-        <a href="{{ route('restaurant.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ route('restaurant.dashboard', absolute: false) }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-speedometer2 me-2"></i>Dashboard
-        </a><a href="{{ route('time.index') }}"
+        </a><a href="{{ route('time.index', absolute: false) }}"
                                class="topbar-link-chip {{ request()->routeIs('time.*') ? 'topbar-link-chip-active' : '' }}">
                                 <i class="bi bi-clock-history"></i>
                                 <span>Tidrapportering</span>
                             </a>
     @endif
 @if(Route::has('staff.documents.index'))
-    <a href="{{ route('staff.documents.index') }}"
+    <a href="{{ route('staff.documents.index', absolute: false) }}"
        class="topbar-link-chip {{ request()->routeIs('staff.documents.*') ? 'topbar-link-chip-active' : '' }}">
         <i class="bi bi-folder2-open"></i>
         <span>Dokument</span>
     </a>
 @endif
                             @if(Route::has('messages.index') && auth()->check())
-                                <a href="{{ route('messages.index') }}"
+                                <a href="{{ route('messages.index', absolute: false) }}"
                                    class="topbar-link-chip {{ request()->routeIs('messages.*') || request()->routeIs('group-chats.*') ? 'topbar-link-chip-active' : '' }}">
                                     <i class="bi bi-chat-dots-fill"></i>
                                     <span>Meddelanden</span>
@@ -1552,7 +1552,7 @@
                                 </a>
                             @endif
 @if(Route::has('staff.schedule') && auth()->check())
-    <a href="{{ route('staff.schedule') }}"
+    <a href="{{ route('staff.schedule', absolute: false) }}"
        class="topbar-link-chip {{ request()->routeIs('staff.schedule') ? 'topbar-link-chip-active' : '' }}">
         <i class="bi bi-calendar-week"></i>
         <span>Mitt schema</span>
@@ -1627,21 +1627,21 @@
                                     <div class="toolbar-inline">
                                         @if($activeSystemMessages->isNotEmpty())
     <div id="system-messages-panel" class="flash-stack mb-3">
-                                            <form method="POST" action="{{ route('system-messages.read', $message) }}" data-offline-queue>
+                                            <form method="POST" action="{{ route('system-messages.read', $message, false) }}" data-offline-queue>
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary">Markera läst</button>
                                             </form>
                                         @endif
 
                                         @if($message->requires_ack && !$isAcked && Route::has('system-messages.acknowledge'))
-                                            <form method="POST" action="{{ route('system-messages.acknowledge', $message) }}" data-offline-queue>
+                                            <form method="POST" action="{{ route('system-messages.acknowledge', $message, false) }}" data-offline-queue>
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-primary">Kvittera</button>
                                             </form>
                                         @endif
 
                                         @if(Route::has('system-messages.dismiss'))
-                                            <form method="POST" action="{{ route('system-messages.dismiss', $message) }}" data-offline-queue>
+                                            <form method="POST" action="{{ route('system-messages.dismiss', $message, false) }}" data-offline-queue>
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary">Stäng</button>
                                             </form>
@@ -1666,7 +1666,7 @@
 
         async function refreshSystemMessagePanel() {
             try {
-                const response = await fetch('{{ route('system-messages.live-panel') }}', {
+                const response = await fetch('{{ route('system-messages.live-panel', absolute: false) }}', {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
@@ -1761,7 +1761,7 @@
     (function () {
         async function loadForcedPopups() {
             try {
-                const response = await fetch('{{ route('system-messages.force-popup-panel') }}', {
+                const response = await fetch('{{ route('system-messages.force-popup-panel', absolute: false) }}', {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
@@ -1883,7 +1883,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     async function refreshSystemMessagesPanel() {
         try {
-            const response = await fetch('{{ route('system-messages.live-panel') }}', {
+            const response = await fetch('{{ route('system-messages.live-panel', absolute: false) }}', {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',

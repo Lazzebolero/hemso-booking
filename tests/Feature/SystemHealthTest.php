@@ -29,6 +29,8 @@ class SystemHealthTest extends TestCase
             ->assertSee('deploy:smoke', false)
             ->assertSee('Uppdatera', false)
             ->assertSee('href="/admin/system-logs"', false)
+            ->assertDontSee('href="http://localhost/admin', false)
+            ->assertDontSee('action="http://localhost/logout"', false)
             ->assertSee('Miljö &amp; version', false)
             ->assertSee('health-card-summary', false)
             ->assertSee('health-detail-table', false);

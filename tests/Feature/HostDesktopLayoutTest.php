@@ -21,7 +21,7 @@ class HostDesktopLayoutTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Besökshundar', false)
-            ->assertSee(route('host.visitor-dogs.index'), false)
+            ->assertSee(route('host.visitor-dogs.index', absolute: false), false)
             ->assertDontSee('Mobil personalvy', false)
             ->assertDontSee('Byt arbetsyta', false)
             ->assertDontSee('Mina registreringar', false)
