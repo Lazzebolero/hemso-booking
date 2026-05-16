@@ -34,7 +34,7 @@
 
     <div class="page-actions">
         @if(Route::has('admin.system-health.index'))
-            <a href="{{ route('admin.system-health.index') }}" class="btn btn-outline-secondary">
+            <a href="{{ route('admin.system-health.index', absolute: false) }}" class="btn btn-outline-secondary">
                 Systemhälsa
             </a>
         @endif
@@ -74,7 +74,7 @@
 </div>
 
 <div class="page-card mb-4">
-    <form method="GET" action="{{ route($prefix . '.system-logs.index') }}" class="row g-3 align-items-end">
+    <form method="GET" action="{{ route($prefix . '.system-logs.index', absolute: false) }}" class="row g-3 align-items-end">
         <div class="col-md-4">
             <label class="form-label">Antal rader</label>
             <select name="lines" class="form-select">
@@ -92,11 +92,11 @@
                     Visa logg
                 </button>
 
-                <a href="{{ route($prefix . '.system-logs.index', ['lines' => $lines]) }}" class="btn btn-outline-secondary">
+                <a href="{{ route($prefix . '.system-logs.index', ['lines' => $lines], false) }}" class="btn btn-outline-secondary">
                     Uppdatera
                 </a>
 
-                <a href="{{ route($prefix . '.system-logs.index', ['lines' => $lines, 'auto_refresh' => $autoRefresh ? 0 : 1]) }}"
+                <a href="{{ route($prefix . '.system-logs.index', ['lines' => $lines, 'auto_refresh' => $autoRefresh ? 0 : 1], false) }}"
                    class="btn {{ $autoRefresh ? 'btn-success' : 'btn-outline-secondary' }}">
                     @if($autoRefresh)
                         Auto-refresh på

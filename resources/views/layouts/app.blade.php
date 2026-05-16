@@ -1149,13 +1149,13 @@
 @endif
 						@if($activeRole === 'admin' && Route::has('admin.system-health.index'))
     <a class="side-link {{ request()->routeIs('admin.system-health.index') ? 'active-link' : '' }}"
-       href="{{ route('admin.system-health.index') }}">
+       href="{{ route('admin.system-health.index', absolute: false) }}">
         <i class="bi bi-heart-pulse"></i>
         <span>Systemhälsa</span>
     </a>
 	@if(Route::has($adminHostPrefix . '.system-logs.index'))
     <a class="side-link {{ request()->routeIs('admin.system-logs.index') || request()->routeIs('host.system-logs.index') ? 'active-link' : '' }}"
-       href="{{ route($adminHostPrefix . '.system-logs.index') }}">
+       href="{{ route($adminHostPrefix . '.system-logs.index', absolute: false) }}">
         <i class="bi bi-file-earmark-text"></i>
         <span>Systemlogg</span>
     </a>

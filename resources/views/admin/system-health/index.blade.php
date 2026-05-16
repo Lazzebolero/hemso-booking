@@ -36,11 +36,11 @@
                 <i class="bi bi-arrow-clockwise me-1"></i>Uppdatera
             </a>
             @if(Route::has('admin.system-logs.index'))
-                <a href="{{ route('admin.system-logs.index') }}" class="btn btn-outline-secondary">
+                <a href="{{ route('admin.system-logs.index', absolute: false) }}" class="btn btn-outline-secondary">
                     <i class="bi bi-file-earmark-text me-1"></i>Systemlogg
                 </a>
             @endif
-            <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary">
+            <a href="{{ route('admin.dashboard', absolute: false) }}" class="btn btn-outline-secondary">
                 <i class="bi bi-speedometer2 me-1"></i>Dashboard
             </a>
         </x-slot:actions>
