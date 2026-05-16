@@ -87,6 +87,8 @@ class SystemHealthController extends Controller
                     'status' => $check['status'],
                     'title' => $check['title'],
                     'message' => $check['message'],
+                    'items' => $check['items'],
+                    'groups' => $check['groups'],
                 ],
                 $checks
             )),
