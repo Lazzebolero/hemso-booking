@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\SystemHealthDailyReportMail;
 use App\Mail\SystemHealthTestMail;
 use App\Models\Role;
 use App\Models\SystemHealthSnapshot;
@@ -90,5 +91,23 @@ class SystemHealthPhase3Test extends TestCase
 
         $this->getJson(route('health.monitor', ['token' => 'anything']))
             ->assertNotFound();
+    }
+
+    public function test_daily_system_health_report_command_sends_mail_and_records_snapshot(): void
+    {
+        Mail::fake();
+        config(['services.system_health.report_email' => 'admin@example.com']);
+
+        $before = SystemHealthSnapshot::query()->count();
+
+        $this->artisan('system-health:send-daily-report')
+            ->assertSuccessful();
+
+        Mail::assertSent(
+            SystemHealthDailyReportMail::class,
+            fn (SystemHealthDailyReportMail $mail): bool => $mail->hasTo('admin@example.com')
+        );
+
+        $this->assertSame($before + 1, SystemHealthSnapshot::query()->count());
     }
 }

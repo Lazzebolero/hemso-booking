@@ -48,6 +48,8 @@ return [
 
     'system_health' => [
         'monitor_token' => env('SYSTEM_HEALTH_MONITOR_TOKEN'),
+        'report_email' => env('SYSTEM_HEALTH_REPORT_EMAIL', env('SECURITY_ALERT_EMAIL', env('MAIL_FROM_ADDRESS'))),
+        'daily_report_time' => env('SYSTEM_HEALTH_DAILY_REPORT_TIME', '07:00'),
     ],
 
 ];
