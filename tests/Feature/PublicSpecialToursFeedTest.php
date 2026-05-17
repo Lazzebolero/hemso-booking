@@ -72,6 +72,7 @@ class PublicSpecialToursFeedTest extends TestCase
 
         $response->assertOk()
             ->assertHeader('Access-Control-Allow-Origin', '*')
+            ->assertHeader('Pragma', 'no-cache')
             ->assertJsonPath('meta.count', 1)
             ->assertJsonPath('data.0.title', 'Mörkertur i fästningen')
             ->assertJsonPath('data.0.tour_type', 'Mörkertur')
@@ -87,6 +88,9 @@ class PublicSpecialToursFeedTest extends TestCase
             ->assertJsonMissing(['title' => 'Privat specialtur'])
             ->assertJsonMissing(['title' => 'Gammal specialtur'])
             ->assertJsonMissing(['title' => 'Avbokad specialtur']);
+
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-cache', (string) $response->headers->get('Cache-Control'));
     }
 
     private function createHiddenSpecialTour(string $title, string $date, bool $isPublic, string $status): void
