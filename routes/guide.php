@@ -19,6 +19,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:guide'])
 
         Route::post('/tours/{tour}/start', [GuideDashboardController::class, 'startTour'])->name('tours.start');
         Route::post('/tours/{tour}/complete', [GuideDashboardController::class, 'completeTour'])->name('tours.complete');
+        Route::get('/tours/{tour}/photos/create', [GuideTourPhotoController::class, 'create'])->name('tours.photos.create');
         Route::post('/tours/{tour}/photos', [GuideTourPhotoController::class, 'store'])->name('tours.photos.store');
         Route::get('/tours/{tour}/photos/{tourPhoto}', [GuideTourPhotoController::class, 'show'])->name('tours.photos.show');
         Route::get('/tours/{tour}', [GuideDashboardController::class, 'showTour'])->name('tours.show');

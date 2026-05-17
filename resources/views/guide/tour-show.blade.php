@@ -269,69 +269,16 @@
             <div class="small-muted">Ladda upp bilder som hör till hela turen, till exempel företags- eller gruppbilder.</div>
         </div>
 
-        <span class="badge-soft badge-soft-secondary">
-            {{ $tour->photos->count() }} bilder
-        </span>
-    </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge-soft badge-soft-secondary">
+                {{ $tour->photos->count() }} bilder
+            </span>
 
-    <form method="POST" action="{{ route('guide.tours.photos.store', $tour, false) }}" enctype="multipart/form-data" class="tour-photo-upload" data-offline-ignore>
-        @csrf
-
-        <div class="tour-photo-upload-grid">
-            <label class="tour-photo-upload-field">
-                <span>Ta bild med kamera</span>
-                <input
-                    type="file"
-                    name="photo_camera"
-                    class="form-control"
-                    accept="image/*"
-                    capture="environment"
-                >
-            </label>
-
-            <label class="tour-photo-upload-field">
-                <span>Välj från bilder</span>
-                <input
-                    type="file"
-                    name="photo_library"
-                    class="form-control"
-                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
-                >
-            </label>
-
-            <label class="tour-photo-upload-field">
-                <span>Bildtext (valfritt)</span>
-                <input
-                    type="text"
-                    name="caption"
-                    class="form-control"
-                    maxlength="255"
-                    placeholder="Ex. Företagsgrupp vid kanonen"
-                >
-            </label>
-
-            <div class="tour-photo-upload-actions">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-camera me-2"></i>Ladda upp bild
-                </button>
-            </div>
+            <a href="{{ route('guide.tours.photos.create', $tour, false) }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-camera me-1"></i>Ladda upp bild
+            </a>
         </div>
-
-        @error('photo')
-            <div class="text-danger mt-2">{{ $message }}</div>
-        @enderror
-        @error('photo_camera')
-            <div class="text-danger mt-2">{{ $message }}</div>
-        @enderror
-        @error('photo_library')
-            <div class="text-danger mt-2">{{ $message }}</div>
-        @enderror
-        @error('caption')
-            <div class="text-danger mt-2">{{ $message }}</div>
-        @enderror
-
-        <div class="small-muted mt-2">Välj antingen kamera eller bildbibliotek innan du laddar upp.</div>
-    </form>
+    </div>
 
     @if($tour->photos->isNotEmpty())
         <div class="tour-photo-grid mt-3">
