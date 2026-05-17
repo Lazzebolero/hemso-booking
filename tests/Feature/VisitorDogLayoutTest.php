@@ -38,7 +38,7 @@ class VisitorDogLayoutTest extends TestCase
             ->assertSee('Mina besökshundar', false);
     }
 
-    public function test_guide_create_form_uses_guide_page_header(): void
+    public function test_guide_create_form_uses_legacy_camera_friendly_layout(): void
     {
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
         $user = User::factory()->create();
@@ -48,8 +48,9 @@ class VisitorDogLayoutTest extends TestCase
             ->withSession(['active_role' => Roles::GUIDE])
             ->get(route('visitor-dogs.create'))
             ->assertOk()
-            ->assertSee('staff-page-stack', false)
-            ->assertSee('section-title', false)
-            ->assertSee('Besökshund', false);
+            ->assertSee('guide-card', false)
+            ->assertSee('name="photo"', false)
+            ->assertSee('capture="environment"', false)
+            ->assertDontSee('staff-page-stack', false);
     }
 }
