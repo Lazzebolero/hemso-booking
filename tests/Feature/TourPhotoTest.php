@@ -70,8 +70,8 @@ class TourPhotoTest extends TestCase
             ->assertSee('name="photo_camera"', false)
             ->assertSee('name="photo_library"', false)
             ->assertSee('accept="image/*"', false)
-            ->assertSee('capture="environment"', false)
-            ->assertSee('Välj antingen kamera eller bildbibliotek', false);
+            ->assertDontSee('capture="environment"', false)
+            ->assertSee('Om kameran ger minnesfel', false);
     }
 
     public function test_guide_cannot_upload_photo_to_another_guides_tour(): void

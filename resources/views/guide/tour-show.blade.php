@@ -279,14 +279,14 @@
 
         <div class="tour-photo-upload-grid">
             <label class="tour-photo-upload-field">
-                <span>Ta bild med kamera</span>
+                <span>Ta eller välj bild</span>
                 <input
                     type="file"
                     name="photo_camera"
                     class="form-control"
                     accept="image/*"
-                    capture="environment"
                 >
+                <small class="small-muted">Om kameran ger minnesfel: ta bilden i kameraappen först och välj den sedan från bilder.</small>
             </label>
 
             <label class="tour-photo-upload-field">
@@ -331,7 +331,7 @@
         @enderror
 
         <div class="small-muted mt-2">
-            Välj antingen kamera eller bildbibliotek innan du laddar upp.
+            Välj en bild innan du laddar upp.
         </div>
     </form>
 

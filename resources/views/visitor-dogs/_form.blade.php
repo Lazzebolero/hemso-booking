@@ -64,10 +64,9 @@
         @endif
         <div class="row g-2">
             <div class="col-md-6">
-                <label for="photo_camera" class="form-label small mb-1">Ta bild med kamera</label>
+                <label for="photo_camera" class="form-label small mb-1">Ta eller välj bild</label>
                 <input type="file" name="photo_camera" id="photo_camera" class="form-control"
-                       accept="image/*"
-                       capture="environment">
+                       accept="image/*">
             </div>
             <div class="col-md-6">
                 <label for="photo_library" class="form-label small mb-1">Välj från bilder</label>
@@ -79,7 +78,7 @@
             @if($isEdit)
                 Valfritt. Ladda upp en ny bild för att ersätta den befintliga. Max 10 MB.
             @else
-                Valfritt. Max 10 MB. Välj kamera eller bildbibliotek.
+                Valfritt. Max 10 MB. Om kameran ger minnesfel: ta bilden i kameraappen först och välj den sedan från bilder.
             @endif
         </div>
     </div>
