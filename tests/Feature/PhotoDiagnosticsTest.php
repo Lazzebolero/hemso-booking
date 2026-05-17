@@ -19,9 +19,10 @@ class PhotoDiagnosticsTest extends TestCase
             ->withSession(['active_role' => Roles::ADMIN])
             ->get(route('admin.photo-diagnostics'))
             ->assertOk()
-            ->assertSee('Bilddiagnostik', false)
+            ->assertHeader('Content-Type', 'text/plain; charset=UTF-8')
+            ->assertSee('Photo diagnostics', false)
             ->assertSee('resources/views/visitor-dogs/_form.blade.php', false)
             ->assertSee('resources/views/guide/report-form.blade.php', false)
-            ->assertSee('capture=&quot;environment&quot;', false);
+            ->assertSee('capture="environment"', false);
     }
 }

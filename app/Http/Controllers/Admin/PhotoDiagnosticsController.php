@@ -3,23 +3,44 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Str;
-use Illuminate\View\View;
+use Illuminate\Http\Response;
 
 class PhotoDiagnosticsController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(): Response
     {
-        return view('admin.photo-diagnostics.index', [
-            'files' => $this->files(),
-            'opcache' => $this->opcache(),
-            'dogInput' => $this->extractSnippet(resource_path('views/visitor-dogs/_form.blade.php'), 'name="photo"'),
-            'reportInput' => $this->extractSnippet(resource_path('views/guide/report-form.blade.php'), 'name="attachment"'),
-        ]);
+        $lines = [
+            'Photo diagnostics',
+            'Generated: '.date('Y-m-d H:i:s'),
+            '',
+            'Files:',
+        ];
+
+        foreach ($this->files() as $file) {
+            $lines[] = sprintf(
+                '%s | %s | actual=%s | expected=%s | modified=%s',
+                $file['matches_expected'] ? 'OK' : 'DIFF',
+                $file['path'],
+                $file['actual_sha1'] ?? 'missing',
+                $file['expected_sha1'],
+                $file['modified_at'] ?? '-',
+            );
+        }
+
+        $lines[] = '';
+        $lines[] = 'Dog input:';
+        $lines[] = $this->extractSnippet(resource_path('views/visitor-dogs/_form.blade.php'), 'name="photo"');
+        $lines[] = '';
+        $lines[] = 'Report input:';
+        $lines[] = $this->extractSnippet(resource_path('views/guide/report-form.blade.php'), 'name="attachment"');
+
+        return response(implode("\n", $lines), 200)
+            ->header('Content-Type', 'text/plain; charset=UTF-8')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     /**
-     * @return array<int, array{path: string, absolute_path: string, exists: bool, expected_sha1: string, actual_sha1: ?string, matches_expected: bool, modified_at: ?string, opcache_cached: ?bool}>
+     * @return array<int, array{path: string, expected_sha1: string, actual_sha1: ?string, matches_expected: bool, modified_at: ?string}>
      */
     private function files(): array
     {
@@ -43,63 +64,23 @@ class PhotoDiagnosticsController extends Controller
             'routes/web.php' => '965f4c142404873a3b71033c2b5a27da9f9c91c6',
         ];
 
-        return collect($expectedHashes)
-            ->map(function (string $expectedSha1, string $relativePath): array {
-                $absolutePath = base_path($relativePath);
-                $exists = is_file($absolutePath);
-                $actualSha1 = $exists ? sha1_file($absolutePath) : null;
+        $files = [];
 
-                return [
-                    'path' => $relativePath,
-                    'absolute_path' => $absolutePath,
-                    'exists' => $exists,
-                    'expected_sha1' => $expectedSha1,
-                    'actual_sha1' => $actualSha1,
-                    'matches_expected' => $actualSha1 === $expectedSha1,
-                    'modified_at' => $exists ? date('Y-m-d H:i:s', (int) filemtime($absolutePath)) : null,
-                    'opcache_cached' => $exists ? $this->isOpcacheCached($absolutePath) : null,
-                ];
-            })
-            ->values()
-            ->all();
-    }
+        foreach ($expectedHashes as $relativePath => $expectedSha1) {
+            $absolutePath = base_path($relativePath);
+            $exists = is_file($absolutePath);
+            $actualSha1 = $exists ? sha1_file($absolutePath) : null;
 
-    /**
-     * @return array{available: bool, enabled: ?bool, validate_timestamps: ?bool, revalidate_freq: ?string, memory_consumption: ?array<string, mixed>}
-     */
-    private function opcache(): array
-    {
-        if (! function_exists('opcache_get_status')) {
-            return [
-                'available' => false,
-                'enabled' => null,
-                'validate_timestamps' => null,
-                'revalidate_freq' => null,
-                'memory_consumption' => null,
+            $files[] = [
+                'path' => $relativePath,
+                'expected_sha1' => $expectedSha1,
+                'actual_sha1' => $actualSha1,
+                'matches_expected' => $actualSha1 === $expectedSha1,
+                'modified_at' => $exists ? date('Y-m-d H:i:s', (int) filemtime($absolutePath)) : null,
             ];
         }
 
-        /** @var array<string, mixed>|false $status */
-        $status = opcache_get_status(false);
-
-        return [
-            'available' => true,
-            'enabled' => is_array($status) ? (bool) ($status['opcache_enabled'] ?? false) : null,
-            'validate_timestamps' => filter_var(ini_get('opcache.validate_timestamps'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE),
-            'revalidate_freq' => ini_get('opcache.revalidate_freq') ?: null,
-            'memory_consumption' => is_array($status) && isset($status['memory_usage']) && is_array($status['memory_usage'])
-                ? $status['memory_usage']
-                : null,
-        ];
-    }
-
-    private function isOpcacheCached(string $absolutePath): ?bool
-    {
-        if (! function_exists('opcache_is_script_cached')) {
-            return null;
-        }
-
-        return opcache_is_script_cached($absolutePath);
+        return $files;
     }
 
     private function extractSnippet(string $absolutePath, string $needle): string
@@ -113,16 +94,26 @@ class PhotoDiagnosticsController extends Controller
             return 'Could not read: '.$absolutePath;
         }
 
-        $matchIndex = collect($lines)->search(fn (string $line): bool => Str::contains($line, $needle));
-        if ($matchIndex === false) {
+        $matchIndex = null;
+        foreach ($lines as $index => $line) {
+            if (str_contains($line, $needle)) {
+                $matchIndex = $index;
+                break;
+            }
+        }
+
+        if ($matchIndex === null) {
             return 'Needle not found: '.$needle;
         }
 
-        $start = max(0, ((int) $matchIndex) - 4);
+        $start = max(0, $matchIndex - 4);
         $slice = array_slice($lines, $start, 10, true);
+        $snippet = [];
 
-        return collect($slice)
-            ->map(fn (string $line, int $index): string => str_pad((string) ($index + 1), 4, ' ', STR_PAD_LEFT).' | '.$line)
-            ->implode("\n");
+        foreach ($slice as $index => $line) {
+            $snippet[] = str_pad((string) ($index + 1), 4, ' ', STR_PAD_LEFT).' | '.$line;
+        }
+
+        return implode("\n", $snippet);
     }
 }
