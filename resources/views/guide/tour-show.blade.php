@@ -284,11 +284,10 @@
                     type="file"
                     name="photo"
                     class="form-control"
-                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
-                    capture="environment"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
                     required
                 >
-                <small class="small-muted">Öppnar kameran på de flesta mobiler. På vissa enheter visas även bildbiblioteket.</small>
+                <small class="small-muted">Ta bilden med kameraappen först och välj den sedan här. Direktkamera i webbläsaren kan ge minnesfel på vissa mobiler.</small>
             </label>
 
             <label class="tour-photo-upload-field">

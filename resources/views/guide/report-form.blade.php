@@ -90,9 +90,8 @@
                         name="attachment"
                         class="form-control"
                         accept="image/jpeg,image/png,image/gif,image/webp"
-                        capture="environment"
                     >
-                    <div class="form-text">JPG, PNG, GIF, WebP eller HEIC (iPhone). Högst 10 MB. På mobil kan du ta foto direkt.</div>
+                    <div class="form-text">JPG, PNG, GIF eller WebP. Högst 10 MB. Ta bilden med kameraappen först och välj den sedan här.</div>
                 </div>
 
                 <div class="col-12">

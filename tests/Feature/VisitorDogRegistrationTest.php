@@ -24,9 +24,12 @@ class VisitorDogRegistrationTest extends TestCase
             ->assertOk()
             ->assertSee('Besökshund', false)
             ->assertSee('name="photo"', false)
-            ->assertSee('capture="environment"', false)
+            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp"', false)
+            ->assertDontSee('capture="environment"', false)
+            ->assertDontSee('image/heic', false)
             ->assertDontSee('name="photo_camera"', false)
-            ->assertDontSee('name="photo_library"', false);
+            ->assertDontSee('name="photo_library"', false)
+            ->assertSee('Ta bilden med kameraappen först', false);
     }
 
     public function test_guide_can_open_form_and_register_dog(): void

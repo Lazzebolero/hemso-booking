@@ -68,10 +68,12 @@ class TourPhotoTest extends TestCase
             ->get(route('guide.tours.show', $tour))
             ->assertOk()
             ->assertSee('name="photo"', false)
-            ->assertSee('capture="environment"', false)
+            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp"', false)
+            ->assertDontSee('capture="environment"', false)
+            ->assertDontSee('image/heic', false)
             ->assertDontSee('name="photo_camera"', false)
             ->assertDontSee('name="photo_library"', false)
-            ->assertSee('Öppnar kameran på de flesta mobiler', false);
+            ->assertSee('Ta bilden med kameraappen först', false);
     }
 
     public function test_guide_cannot_upload_photo_to_another_guides_tour(): void
