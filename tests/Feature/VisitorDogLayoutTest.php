@@ -50,7 +50,8 @@ class VisitorDogLayoutTest extends TestCase
             ->assertOk()
             ->assertSee('<!DOCTYPE html>', false)
             ->assertSee('name="photo"', false)
-            ->assertSee('capture="environment"', false)
+            ->assertSee('accept="image/*,.heic,.heif"', false)
+            ->assertDontSee('capture="environment"', false)
             ->assertDontSee('staff-page-stack', false)
             ->assertDontSee('service-worker.js', false)
             ->assertDontSee('data-offline', false);

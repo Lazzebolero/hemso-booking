@@ -60,14 +60,12 @@
                 <label class="form-check-label" for="remove_photo">Ta bort nuvarande bild</label>
             </div>
         @endif
-        <input type="file" name="photo" id="photo" class="form-control"
-               accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
-               capture="environment">
+        <input type="file" name="photo" id="photo" class="form-control" accept="image/*,.heic,.heif">
         <div class="form-text">
             @if($isEdit)
                 Valfritt. Ladda upp en ny bild för att ersätta den befintliga. Max 10 MB.
             @else
-                Valfritt. Max 10 MB. På mobil kan du ta foto direkt (kamera), som vid felrapport.
+                Valfritt. Max 10 MB. På mobil kan du välja kamera eller befintlig bild.
             @endif
         </div>
     </div>
