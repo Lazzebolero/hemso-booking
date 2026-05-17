@@ -22,7 +22,12 @@ class VisitorDogRegistrationTest extends TestCase
             ->withSession(['active_role' => Roles::HOST])
             ->get(route('visitor-dogs.create'))
             ->assertOk()
-            ->assertSee('Besökshund', false);
+            ->assertSee('Besökshund', false)
+            ->assertSee('name="photo"', false)
+            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"', false)
+            ->assertSee('capture="environment"', false)
+            ->assertDontSee('name="photo_camera"', false)
+            ->assertDontSee('name="photo_library"', false);
     }
 
     public function test_guide_can_open_form_and_register_dog(): void
@@ -78,6 +83,29 @@ class VisitorDogRegistrationTest extends TestCase
 
         $dog = VisitorDog::query()->where('dog_name', 'Bella')->first();
         $this->assertNotNull($dog);
+        $this->assertNotNull($dog->photo_path);
+        Storage::disk('public')->assertExists($dog->photo_path);
+    }
+
+    public function test_host_registers_dog_photo_through_standard_photo_field(): void
+    {
+        Storage::fake('public');
+
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $user = User::factory()->create();
+        $user->assignRoles([$hostRole]);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::HOST])
+            ->post(route('visitor-dogs.store'), [
+                'dog_name' => 'Kamera',
+                'visit_date' => '2026-06-01',
+                'photo' => UploadedFile::fake()->image('kamera.jpg', 200, 200),
+            ])
+            ->assertRedirect(route('visitor-dogs.create'));
+
+        $dog = VisitorDog::query()->where('dog_name', 'Kamera')->firstOrFail();
+
         $this->assertNotNull($dog->photo_path);
         Storage::disk('public')->assertExists($dog->photo_path);
     }

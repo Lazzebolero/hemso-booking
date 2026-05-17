@@ -262,6 +262,100 @@
     </div>
 </div>
 
+<div class="page-card mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+        <div>
+            <div class="section-title mb-1">Bilder från turen</div>
+            <div class="small-muted">Ladda upp bilder som hör till hela turen, till exempel företags- eller gruppbilder.</div>
+        </div>
+
+        <span class="badge-soft badge-soft-secondary">
+            {{ $tour->photos->count() }} bilder
+        </span>
+    </div>
+
+    <form method="POST" action="{{ route('guide.tours.photos.store', $tour, false) }}" enctype="multipart/form-data" class="tour-photo-upload" data-offline-ignore>
+        @csrf
+
+        <div class="tour-photo-upload-grid">
+            <label class="tour-photo-upload-field">
+                <span>Ta bild med kamera</span>
+                <input
+                    type="file"
+                    name="photo_camera"
+                    class="form-control"
+                    accept="image/*"
+                    capture="environment"
+                >
+            </label>
+
+            <label class="tour-photo-upload-field">
+                <span>Välj från bilder</span>
+                <input
+                    type="file"
+                    name="photo_library"
+                    class="form-control"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+                >
+            </label>
+
+            <label class="tour-photo-upload-field">
+                <span>Bildtext (valfritt)</span>
+                <input
+                    type="text"
+                    name="caption"
+                    class="form-control"
+                    maxlength="255"
+                    placeholder="Ex. Företagsgrupp vid kanonen"
+                >
+            </label>
+
+            <div class="tour-photo-upload-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-camera me-2"></i>Ladda upp bild
+                </button>
+            </div>
+        </div>
+
+        @error('photo')
+            <div class="text-danger mt-2">{{ $message }}</div>
+        @enderror
+        @error('photo_camera')
+            <div class="text-danger mt-2">{{ $message }}</div>
+        @enderror
+        @error('photo_library')
+            <div class="text-danger mt-2">{{ $message }}</div>
+        @enderror
+        @error('caption')
+            <div class="text-danger mt-2">{{ $message }}</div>
+        @enderror
+
+        <div class="small-muted mt-2">Välj antingen kamera eller bildbibliotek innan du laddar upp.</div>
+    </form>
+
+    @if($tour->photos->isNotEmpty())
+        <div class="tour-photo-grid mt-3">
+            @foreach($tour->photos as $photo)
+                <article class="tour-photo-card">
+                    <a href="{{ route('guide.tours.photos.show', ['tour' => $tour, 'tourPhoto' => $photo], false) }}" target="_blank" rel="noopener">
+                        <img src="{{ route('guide.tours.photos.show', ['tour' => $tour, 'tourPhoto' => $photo], false) }}" alt="{{ $photo->caption ?: 'Turbild' }}">
+                    </a>
+
+                    <div class="tour-photo-body">
+                        @if($photo->caption)
+                            <div class="fw-semibold">{{ $photo->caption }}</div>
+                        @endif
+
+                        <div class="small-muted">
+                            Uppladdad {{ $photo->created_at?->format('Y-m-d H:i') }}
+                        </div>
+                    </div>
+                </article>
+            @endforeach
+        </div>
+    @endif
+</div>
+
 <div class="page-card booking-mobile-section">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
         <div>
@@ -686,7 +780,68 @@
     margin-bottom: 0.65rem;
 }
 
+.tour-photo-upload {
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    background: #f8fafc;
+    padding: 1rem;
+}
+
+.tour-photo-upload-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 0.85rem;
+    align-items: end;
+}
+
+.tour-photo-upload-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+}
+
+.tour-photo-upload-field span {
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+.tour-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.85rem;
+}
+
+.tour-photo-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.tour-photo-card img {
+    width: 100%;
+    height: 150px;
+    display: block;
+    object-fit: cover;
+    background: #f1f5f9;
+}
+
+.tour-photo-body {
+    padding: 0.75rem;
+}
+
 @media (max-width: 700px) {
+    .tour-photo-upload-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tour-photo-upload-actions .btn {
+        width: 100%;
+    }
+
     .booking-mobile-summary {
         grid-template-columns: 46px minmax(0, 1fr) 20px;
         gap: 0.7rem;
