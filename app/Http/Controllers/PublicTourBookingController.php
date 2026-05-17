@@ -7,14 +7,83 @@ use App\Models\Booking;
 use App\Models\Language;
 use App\Models\TourBookingPage;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Services\LogService;
 
 class PublicTourBookingController extends Controller
 {
+    public function upcomingSpecialTours(Request $request): JsonResponse
+    {
+        $tours = TourBookingPage::query()
+            ->with([
+                'tour' => function ($query): void {
+                    $query
+                        ->with('tourType')
+                        ->withSum([
+                            'bookings as booked_participants_count' => function ($query): void {
+                                $query
+                                    ->whereNotIn('status', ['cancelled'])
+                                    ->where('is_waitlist', false);
+                            },
+                        ], 'total_count');
+                },
+            ])
+            ->where('is_public', true)
+            ->whereHas('tour', function ($query): void {
+                $query
+                    ->whereDate('tour_date', '>=', now()->toDateString())
+                    ->whereNotIn('status', ['cancelled', 'completed']);
+            })
+            ->get()
+            ->filter(fn (TourBookingPage $bookingPage): bool => $bookingPage->tour !== null)
+            ->sortBy(fn (TourBookingPage $bookingPage): string => ($bookingPage->tour->tour_date?->format('Y-m-d') ?? '').' '.substr((string) $bookingPage->tour->start_time, 0, 5))
+            ->values()
+            ->map(function (TourBookingPage $bookingPage) use ($request): array {
+                $tour = $bookingPage->tour;
+                $bookedParticipants = (int) ($tour->booked_participants_count ?? 0);
+                $capacity = (int) $tour->max_participants;
+                $availableSpots = max(0, $capacity - $bookedParticipants);
+                $bookingPath = route('public.tour-booking.show', $bookingPage->slug, false);
+
+                return [
+                    'id' => $tour->id,
+                    'title' => $tour->title,
+                    'description' => $tour->description,
+                    'tour_type' => $tour->tourType?->name,
+                    'date' => $tour->tour_date?->format('Y-m-d'),
+                    'start_time' => substr((string) $tour->start_time, 0, 5),
+                    'end_time' => $tour->end_time ? substr((string) $tour->end_time, 0, 5) : null,
+                    'capacity' => $capacity,
+                    'booked_participants' => $bookedParticipants,
+                    'available_spots' => $availableSpots,
+                    'is_full' => $availableSpots <= 0,
+                    'page_title' => $bookingPage->page_title,
+                    'page_text' => $bookingPage->page_text,
+                    'prices' => [
+                        'adult' => (float) $bookingPage->adult_price,
+                        'youth' => (float) $bookingPage->youth_price,
+                        'child' => (float) $bookingPage->child_price,
+                    ],
+                    'booking_path' => $bookingPath,
+                    'booking_url' => $request->getSchemeAndHttpHost().$bookingPath,
+                    'updated_at' => $bookingPage->updated_at?->toIso8601String(),
+                ];
+            });
+
+        return response()
+            ->json([
+                'data' => $tours,
+                'meta' => [
+                    'count' => $tours->count(),
+                    'generated_at' => now()->toIso8601String(),
+                ],
+            ])
+            ->header('Access-Control-Allow-Origin', '*');
+    }
+
     public function show(string $slug)
     {
         $bookingPage = TourBookingPage::with([
@@ -28,7 +97,7 @@ class PublicTourBookingController extends Controller
 
         $tour = $bookingPage->tour;
 
-        abort_if(!$tour, 404);
+        abort_if(! $tour, 404);
 
         $isFull = $this->isTourFull((int) $tour->id, (int) $tour->max_participants);
 
@@ -48,7 +117,7 @@ class PublicTourBookingController extends Controller
 
         $tour = $bookingPage->tour;
 
-        abort_if(!$tour, 404);
+        abort_if(! $tour, 404);
 
         if ($tour->status === 'completed') {
             throw ValidationException::withMessages([
@@ -147,7 +216,7 @@ class PublicTourBookingController extends Controller
     private function generateBookingName(): string
     {
         do {
-            $candidate = 'BOK-' . now()->format('Ymd') . '-' . strtoupper(Str::random(8));
+            $candidate = 'BOK-'.now()->format('Ymd').'-'.strtoupper(Str::random(8));
         } while (Booking::where('booking_name', $candidate)->exists());
 
         return $candidate;
@@ -155,13 +224,13 @@ class PublicTourBookingController extends Controller
 
     private function sendSpecialConfirmationMail(Booking $booking, TourBookingPage $bookingPage): void
     {
-        if (!$booking->email) {
+        if (! $booking->email) {
             return;
         }
 
         $tour = $bookingPage->tour;
 
-        if (!$tour) {
+        if (! $tour) {
             return;
         }
 
@@ -185,7 +254,7 @@ class PublicTourBookingController extends Controller
     private function replaceVariables(string $text, Booking $booking, $tour): string
     {
         $tourDate = '';
-        if (!empty($tour->tour_date)) {
+        if (! empty($tour->tour_date)) {
             try {
                 $tourDate = Carbon::parse($tour->tour_date)->format('Y-m-d');
             } catch (\Throwable $e) {
@@ -193,7 +262,7 @@ class PublicTourBookingController extends Controller
             }
         }
 
-        $startTime = !empty($tour->start_time)
+        $startTime = ! empty($tour->start_time)
             ? substr((string) $tour->start_time, 0, 5)
             : '';
 

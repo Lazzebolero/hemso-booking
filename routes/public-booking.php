@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/public/special-tours.json', [PublicTourBookingController::class, 'upcomingSpecialTours'])
+    ->name('public.special-tours.index');
+
 Route::get('/tour-booking/{slug}', [PublicTourBookingController::class, 'show'])
     ->name('public.tour-booking.show');
 
