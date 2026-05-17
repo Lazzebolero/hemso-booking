@@ -38,7 +38,7 @@ class TourPhotoTest extends TestCase
         Storage::disk('public')->assertExists($photo->image_path);
     }
 
-    public function test_guide_upload_requires_standard_photo_field(): void
+    public function test_guide_can_upload_camera_photo_to_own_tour(): void
     {
         Storage::fake('public');
 
@@ -48,7 +48,7 @@ class TourPhotoTest extends TestCase
         $this->actingAs($guide)
             ->withSession(['active_role' => Roles::GUIDE])
             ->post(route('guide.tours.photos.store', $tour), [
-                'photo' => UploadedFile::fake()->image('kamera.jpg', 640, 480),
+                'photo_camera' => UploadedFile::fake()->image('kamera.jpg', 640, 480),
             ])
             ->assertRedirect(route('guide.tours.show', $tour));
 
@@ -67,12 +67,11 @@ class TourPhotoTest extends TestCase
             ->withSession(['active_role' => Roles::GUIDE])
             ->get(route('guide.tours.show', $tour))
             ->assertOk()
-            ->assertSee('name="photo"', false)
-            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"', false)
+            ->assertSee('name="photo_camera"', false)
+            ->assertSee('name="photo_library"', false)
+            ->assertSee('accept="image/*"', false)
             ->assertSee('capture="environment"', false)
-            ->assertDontSee('name="photo_camera"', false)
-            ->assertDontSee('name="photo_library"', false)
-            ->assertSee('Öppnar kameran på de flesta mobiler', false);
+            ->assertSee('Välj antingen kamera eller bildbibliotek', false);
     }
 
     public function test_guide_cannot_upload_photo_to_another_guides_tour(): void
