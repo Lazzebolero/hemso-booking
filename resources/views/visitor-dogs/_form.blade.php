@@ -17,6 +17,8 @@
         @method('PUT')
     @endif
 
+    @include('partials.visitor-dogs.navigation-hidden-fields', ['navigationQuery' => $navigationQuery ?? []])
+
     <div class="mb-3">
         <label for="dog_name" class="form-label fw-semibold">Hundens namn <span class="text-danger">*</span></label>
         <input type="text" name="dog_name" id="dog_name" class="form-control form-control-lg" required maxlength="120"
