@@ -38,7 +38,7 @@ class TourPhotoTest extends TestCase
         Storage::disk('public')->assertExists($photo->image_path);
     }
 
-    public function test_guide_can_upload_photo_from_dedicated_tour_photo_form(): void
+    public function test_guide_can_upload_photo_from_standalone_tour_photo_form(): void
     {
         Storage::fake('public');
 
@@ -58,7 +58,7 @@ class TourPhotoTest extends TestCase
         Storage::disk('public')->assertExists($photo->image_path);
     }
 
-    public function test_guide_tour_page_links_to_dedicated_photo_upload_form(): void
+    public function test_guide_tour_page_links_to_standalone_photo_upload_form(): void
     {
         $guide = $this->userWithRole(Roles::GUIDE);
         $tour = $this->tourForGuide($guide);
@@ -73,7 +73,7 @@ class TourPhotoTest extends TestCase
             ->assertDontSee('name="photo_library"', false);
     }
 
-    public function test_dedicated_tour_photo_form_renders_camera_upload_field(): void
+    public function test_standalone_tour_photo_form_renders_camera_upload_field_without_pwa_shell(): void
     {
         $guide = $this->userWithRole(Roles::GUIDE);
         $tour = $this->tourForGuide($guide);
@@ -83,9 +83,10 @@ class TourPhotoTest extends TestCase
             ->get(route('guide.tours.photos.create', $tour))
             ->assertOk()
             ->assertSee('name="photo"', false)
-            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"', false)
             ->assertSee('capture="environment"', false)
-            ->assertSee('På mobil kan du ta foto direkt', false);
+            ->assertSee('På mobil kan du ta foto direkt', false)
+            ->assertDontSee('service-worker.js', false)
+            ->assertDontSee('offline-queue.js', false);
     }
 
     public function test_guide_cannot_upload_photo_to_another_guides_tour(): void

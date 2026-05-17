@@ -19,7 +19,7 @@ class TourPhotoController extends Controller
     {
         $this->ensureGuideOwnsTour($tour);
 
-        $tour->load(['tourType']);
+        $tour->load('tourType');
 
         return view('guide.tour-photo-create', [
             'tour' => $tour,
