@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tour extends Model
 {
@@ -47,11 +46,6 @@ class Tour extends Model
     public function bookings()
     {
         return $this->hasMany(Booking::class);
-    }
-
-    public function photos(): HasMany
-    {
-        return $this->hasMany(TourPhoto::class)->latest();
     }
 
     public function getLanguageCodesAttribute(): array

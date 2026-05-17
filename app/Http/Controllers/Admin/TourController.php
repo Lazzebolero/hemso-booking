@@ -151,7 +151,6 @@ class TourController extends Controller
             'guide',
             'tourType',
             'bookings.languages',
-            'photos.uploader',
         ]);
 
         $bookingCount = $tour->bookings()

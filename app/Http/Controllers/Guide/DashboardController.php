@@ -87,7 +87,6 @@ class DashboardController extends Controller
             'guide',
             'tourType',
             'bookings.languages',
-            'photos.uploader',
         ]);
 
         $tour = $this->decorateTour($tour);
