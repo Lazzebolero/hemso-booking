@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\LoginEventController;
 use App\Http\Controllers\Admin\NotificationLogController;
 use App\Http\Controllers\Admin\NotificationTemplateController;
+use App\Http\Controllers\Admin\PhotoDiagnosticsController;
 use App\Http\Controllers\Admin\QuickBookingController;
 use App\Http\Controllers\Admin\ReportOptionController;
 use App\Http\Controllers\Admin\ReportSettingsController;
@@ -49,6 +50,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
     ->name('admin.')
     ->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/photo-diagnostics', PhotoDiagnosticsController::class)->name('photo-diagnostics');
 
         Route::get('visitor-dogs', [AdminVisitorDogController::class, 'index'])->name('visitor-dogs.index');
         Route::get('visitor-dogs/gallery', [AdminVisitorDogController::class, 'gallery'])->name('visitor-dogs.gallery');
