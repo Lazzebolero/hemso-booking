@@ -11,7 +11,7 @@
     }
 @endphp
 
-<form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="visitor-dog-form" data-offline-ignore>
+<form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="visitor-dog-form">
     @csrf
     @if($isEdit)
         @method('PUT')
