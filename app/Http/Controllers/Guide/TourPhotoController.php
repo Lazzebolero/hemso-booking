@@ -10,22 +10,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\File;
-use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class TourPhotoController extends Controller
 {
-    public function create(Tour $tour): View
-    {
-        $this->ensureGuideOwnsTour($tour);
-
-        $tour->load('tourType');
-
-        return view('guide.tour-photo-create', [
-            'tour' => $tour,
-        ]);
-    }
-
     public function store(Request $request, Tour $tour): RedirectResponse
     {
         $this->ensureGuideOwnsTour($tour);

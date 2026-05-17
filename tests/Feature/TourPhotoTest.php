@@ -38,7 +38,7 @@ class TourPhotoTest extends TestCase
         Storage::disk('public')->assertExists($photo->image_path);
     }
 
-    public function test_guide_can_upload_photo_from_standalone_tour_photo_form(): void
+    public function test_guide_can_upload_camera_photo_to_own_tour(): void
     {
         Storage::fake('public');
 
@@ -48,7 +48,7 @@ class TourPhotoTest extends TestCase
         $this->actingAs($guide)
             ->withSession(['active_role' => Roles::GUIDE])
             ->post(route('guide.tours.photos.store', $tour), [
-                'photo' => UploadedFile::fake()->image('kamera.jpg', 640, 480),
+                'photo_camera' => UploadedFile::fake()->image('kamera.jpg', 640, 480),
             ])
             ->assertRedirect(route('guide.tours.show', $tour));
 
@@ -58,7 +58,7 @@ class TourPhotoTest extends TestCase
         Storage::disk('public')->assertExists($photo->image_path);
     }
 
-    public function test_guide_tour_page_links_to_standalone_photo_upload_form(): void
+    public function test_guide_tour_page_renders_camera_upload_field(): void
     {
         $guide = $this->userWithRole(Roles::GUIDE);
         $tour = $this->tourForGuide($guide);
@@ -67,26 +67,11 @@ class TourPhotoTest extends TestCase
             ->withSession(['active_role' => Roles::GUIDE])
             ->get(route('guide.tours.show', $tour))
             ->assertOk()
-            ->assertSee('href="'.route('guide.tours.photos.create', $tour, false).'"', false)
-            ->assertSee('Ladda upp bild', false)
-            ->assertDontSee('name="photo_camera"', false)
-            ->assertDontSee('name="photo_library"', false);
-    }
-
-    public function test_standalone_tour_photo_form_renders_camera_upload_field_without_pwa_shell(): void
-    {
-        $guide = $this->userWithRole(Roles::GUIDE);
-        $tour = $this->tourForGuide($guide);
-
-        $this->actingAs($guide)
-            ->withSession(['active_role' => Roles::GUIDE])
-            ->get(route('guide.tours.photos.create', $tour))
-            ->assertOk()
-            ->assertSee('name="photo"', false)
+            ->assertSee('name="photo_camera"', false)
+            ->assertSee('name="photo_library"', false)
+            ->assertSee('accept="image/*"', false)
             ->assertSee('capture="environment"', false)
-            ->assertSee('På mobil kan du ta foto direkt', false)
-            ->assertDontSee('service-worker.js', false)
-            ->assertDontSee('offline-queue.js', false);
+            ->assertSee('Välj antingen kamera eller bildbibliotek', false);
     }
 
     public function test_guide_cannot_upload_photo_to_another_guides_tour(): void
