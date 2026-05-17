@@ -285,10 +285,9 @@
                     name="photo"
                     class="form-control"
                     accept="image/*"
-                    capture="environment"
                     required
                 >
-                <small class="small-muted">Öppnar kameran på de flesta mobiler. På vissa enheter visas även bildbiblioteket.</small>
+                <small class="small-muted">På mobil kan du välja kamera eller bildbibliotek. Välj gärna en mindre bild om mobilen varnar för minne.</small>
             </label>
 
             <label class="tour-photo-upload-field">
