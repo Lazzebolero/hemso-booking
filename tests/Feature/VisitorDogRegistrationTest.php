@@ -22,7 +22,8 @@ class VisitorDogRegistrationTest extends TestCase
             ->withSession(['active_role' => Roles::HOST])
             ->get(route('visitor-dogs.create'))
             ->assertOk()
-            ->assertSee('Besökshund', false);
+            ->assertSee('Besökshund', false)
+            ->assertSee('data-offline-ignore', false);
     }
 
     public function test_guide_can_open_form_and_register_dog(): void
