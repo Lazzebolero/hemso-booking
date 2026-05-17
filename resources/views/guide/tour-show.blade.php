@@ -284,9 +284,11 @@
                     type="file"
                     name="photo"
                     class="form-control"
-                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+                    accept="image/*"
+                    capture="environment"
                     required
                 >
+                <small class="small-muted">Öppnar kameran på de flesta mobiler. På vissa enheter visas även bildbiblioteket.</small>
             </label>
 
             <label class="tour-photo-upload-field">

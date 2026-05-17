@@ -38,6 +38,20 @@ class TourPhotoTest extends TestCase
         Storage::disk('public')->assertExists($photo->image_path);
     }
 
+    public function test_guide_tour_page_renders_camera_upload_field(): void
+    {
+        $guide = $this->userWithRole(Roles::GUIDE);
+        $tour = $this->tourForGuide($guide);
+
+        $this->actingAs($guide)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->get(route('guide.tours.show', $tour))
+            ->assertOk()
+            ->assertSee('name="photo"', false)
+            ->assertSee('accept="image/*"', false)
+            ->assertSee('capture="environment"', false);
+    }
+
     public function test_guide_cannot_upload_photo_to_another_guides_tour(): void
     {
         Storage::fake('public');
