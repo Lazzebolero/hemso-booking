@@ -279,15 +279,24 @@
 
         <div class="tour-photo-upload-grid">
             <label class="tour-photo-upload-field">
-                <span>Bild</span>
+                <span>Ta bild med kamera</span>
                 <input
                     type="file"
-                    name="photo"
+                    name="photo_camera"
                     class="form-control"
                     accept="image/*"
-                    required
+                    capture="environment"
                 >
-                <small class="small-muted">På mobil kan du välja kamera eller bildbibliotek. Välj gärna en mindre bild om mobilen varnar för minne.</small>
+            </label>
+
+            <label class="tour-photo-upload-field">
+                <span>Välj från bilder</span>
+                <input
+                    type="file"
+                    name="photo_library"
+                    class="form-control"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+                >
             </label>
 
             <label class="tour-photo-upload-field">
@@ -311,9 +320,19 @@
         @error('photo')
             <div class="text-danger mt-2">{{ $message }}</div>
         @enderror
+        @error('photo_camera')
+            <div class="text-danger mt-2">{{ $message }}</div>
+        @enderror
+        @error('photo_library')
+            <div class="text-danger mt-2">{{ $message }}</div>
+        @enderror
         @error('caption')
             <div class="text-danger mt-2">{{ $message }}</div>
         @enderror
+
+        <div class="small-muted mt-2">
+            Välj antingen kamera eller bildbibliotek innan du laddar upp.
+        </div>
     </form>
 
     @if($tour->photos->isNotEmpty())

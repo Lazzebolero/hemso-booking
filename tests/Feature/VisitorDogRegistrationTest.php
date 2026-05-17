@@ -82,6 +82,29 @@ class VisitorDogRegistrationTest extends TestCase
         Storage::disk('public')->assertExists($dog->photo_path);
     }
 
+    public function test_host_can_register_dog_with_camera_photo_field(): void
+    {
+        Storage::fake('public');
+
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $user = User::factory()->create();
+        $user->assignRoles([$hostRole]);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::HOST])
+            ->post(route('visitor-dogs.store'), [
+                'dog_name' => 'Kamera',
+                'visit_date' => '2026-06-01',
+                'photo_camera' => UploadedFile::fake()->image('kamera.jpg', 200, 200),
+            ])
+            ->assertRedirect(route('visitor-dogs.create'));
+
+        $dog = VisitorDog::query()->where('dog_name', 'Kamera')->firstOrFail();
+
+        $this->assertNotNull($dog->photo_path);
+        Storage::disk('public')->assertExists($dog->photo_path);
+    }
+
     public function test_restaurant_role_cannot_access_visitor_dog_form(): void
     {
         $restaurantRole = Role::query()->where('slug', Roles::RESTAURANT)->firstOrFail();

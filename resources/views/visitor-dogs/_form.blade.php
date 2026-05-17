@@ -62,13 +62,24 @@
                 <label class="form-check-label" for="remove_photo">Ta bort nuvarande bild</label>
             </div>
         @endif
-        <input type="file" name="photo" id="photo" class="form-control"
-               accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif">
+        <div class="row g-2">
+            <div class="col-md-6">
+                <label for="photo_camera" class="form-label small mb-1">Ta bild med kamera</label>
+                <input type="file" name="photo_camera" id="photo_camera" class="form-control"
+                       accept="image/*"
+                       capture="environment">
+            </div>
+            <div class="col-md-6">
+                <label for="photo_library" class="form-label small mb-1">Välj från bilder</label>
+                <input type="file" name="photo_library" id="photo_library" class="form-control"
+                       accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif">
+            </div>
+        </div>
         <div class="form-text">
             @if($isEdit)
                 Valfritt. Ladda upp en ny bild för att ersätta den befintliga. Max 10 MB.
             @else
-                Valfritt. Max 10 MB. På mobil kan du välja kamera eller bildbibliotek.
+                Valfritt. Max 10 MB. Välj kamera eller bildbibliotek.
             @endif
         </div>
     </div>

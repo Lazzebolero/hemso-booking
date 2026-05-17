@@ -32,6 +32,16 @@ class UpdateVisitorDogRequest extends FormRequest
                 File::types(['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'])
                     ->max(10240),
             ],
+            'photo_camera' => [
+                'nullable',
+                File::types(['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'])
+                    ->max(10240),
+            ],
+            'photo_library' => [
+                'nullable',
+                File::types(['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'])
+                    ->max(10240),
+            ],
             'remove_photo' => ['sometimes', 'boolean'],
         ];
     }
@@ -45,6 +55,8 @@ class UpdateVisitorDogRequest extends FormRequest
             'dog_name.required' => 'Ange hundens namn.',
             'visit_date.required' => 'Ange datum.',
             'photo.max' => 'Bilden får vara högst 10 MB.',
+            'photo_camera.max' => 'Bilden får vara högst 10 MB.',
+            'photo_library.max' => 'Bilden får vara högst 10 MB.',
         ];
     }
 }
