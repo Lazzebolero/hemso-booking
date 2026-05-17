@@ -23,9 +23,10 @@ class VisitorDogRegistrationTest extends TestCase
             ->get(route('visitor-dogs.create'))
             ->assertOk()
             ->assertSee('Besökshund', false)
-            ->assertSee('data-offline-ignore', false)
-            ->assertDontSee('capture="environment"', false)
-            ->assertSee('Om kameran ger minnesfel', false);
+            ->assertSee('name="photo"', false)
+            ->assertSee('capture="environment"', false)
+            ->assertDontSee('name="photo_camera"', false)
+            ->assertDontSee('name="photo_library"', false);
     }
 
     public function test_guide_can_open_form_and_register_dog(): void

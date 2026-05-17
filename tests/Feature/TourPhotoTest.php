@@ -67,11 +67,11 @@ class TourPhotoTest extends TestCase
             ->withSession(['active_role' => Roles::GUIDE])
             ->get(route('guide.tours.show', $tour))
             ->assertOk()
-            ->assertSee('name="photo_camera"', false)
-            ->assertSee('name="photo_library"', false)
-            ->assertSee('accept="image/*"', false)
-            ->assertDontSee('capture="environment"', false)
-            ->assertSee('Om kameran ger minnesfel', false);
+            ->assertSee('name="photo"', false)
+            ->assertSee('capture="environment"', false)
+            ->assertDontSee('name="photo_camera"', false)
+            ->assertDontSee('name="photo_library"', false)
+            ->assertSee('Öppnar kameran på de flesta mobiler', false);
     }
 
     public function test_guide_cannot_upload_photo_to_another_guides_tour(): void

@@ -11,7 +11,7 @@
     }
 @endphp
 
-<form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="visitor-dog-form" data-offline-ignore>
+<form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="visitor-dog-form">
     @csrf
     @if($isEdit)
         @method('PUT')
@@ -62,23 +62,14 @@
                 <label class="form-check-label" for="remove_photo">Ta bort nuvarande bild</label>
             </div>
         @endif
-        <div class="row g-2">
-            <div class="col-md-6">
-                <label for="photo_camera" class="form-label small mb-1">Ta eller välj bild</label>
-                <input type="file" name="photo_camera" id="photo_camera" class="form-control"
-                       accept="image/*">
-            </div>
-            <div class="col-md-6">
-                <label for="photo_library" class="form-label small mb-1">Välj från bilder</label>
-                <input type="file" name="photo_library" id="photo_library" class="form-control"
-                       accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif">
-            </div>
-        </div>
+        <input type="file" name="photo" id="photo" class="form-control"
+               accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+               capture="environment">
         <div class="form-text">
             @if($isEdit)
                 Valfritt. Ladda upp en ny bild för att ersätta den befintliga. Max 10 MB.
             @else
-                Valfritt. Max 10 MB. Om kameran ger minnesfel: ta bilden i kameraappen först och välj den sedan från bilder.
+                Valfritt. Max 10 MB. På mobil kan du ta foto direkt (kamera), som vid felrapport.
             @endif
         </div>
     </div>
