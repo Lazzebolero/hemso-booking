@@ -75,7 +75,9 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
-                navigator.serviceWorker.register(@json(asset('service-worker.js'))).catch(function () {});
+                navigator.serviceWorker.register(@json(asset('service-worker.js')), {
+                    updateViaCache: 'none'
+                }).catch(function () {});
             });
         }
     })();
