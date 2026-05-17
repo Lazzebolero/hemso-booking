@@ -81,10 +81,7 @@ class PublicTourBookingController extends Controller
                     'generated_at' => now()->toIso8601String(),
                 ],
             ])
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-            ->header('Pragma', 'no-cache')
-            ->header('Expires', '0');
+            ->header('Access-Control-Allow-Origin', '*');
     }
 
     public function show(string $slug)

@@ -85,7 +85,7 @@ class TourController extends Controller
 
         $defaultTourTypeId = TourType::where('is_default', true)->value('id');
 
-        $tour = new Tour;
+        $tour = new Tour();
         $tour->tour_date = now()->toDateString();
         $tour->max_participants = (int) setting('default_tour_capacity', 25);
         $tour->status = 'planned';
@@ -141,7 +141,7 @@ class TourController extends Controller
         );
 
         return redirect()
-            ->route($this->routePrefix().'.tours.index')
+            ->route($this->routePrefix() . '.tours.index')
             ->with('success', 'Tur skapad.');
     }
 
@@ -151,7 +151,6 @@ class TourController extends Controller
             'guide',
             'tourType',
             'bookings.languages',
-            'photos.uploader',
         ]);
 
         $bookingCount = $tour->bookings()
@@ -193,7 +192,7 @@ class TourController extends Controller
     {
         if ($tour->status === 'completed') {
             return redirect()
-                ->route($this->routePrefix().'.tours.show', $tour)
+                ->route($this->routePrefix() . '.tours.show', $tour)
                 ->withErrors(['tour' => 'En avslutad tur kan inte redigeras.']);
         }
 
@@ -218,7 +217,7 @@ class TourController extends Controller
     {
         if ($tour->status === 'completed') {
             return redirect()
-                ->route($this->routePrefix().'.tours.show', $tour)
+                ->route($this->routePrefix() . '.tours.show', $tour)
                 ->withErrors(['tour' => 'En avslutad tur kan inte ändras.']);
         }
 
@@ -273,7 +272,7 @@ class TourController extends Controller
         );
 
         return redirect()
-            ->route($this->routePrefix().'.tours.index')
+            ->route($this->routePrefix() . '.tours.index')
             ->with('success', 'Tur uppdaterad.');
     }
 
@@ -316,7 +315,7 @@ class TourController extends Controller
         );
 
         return redirect()
-            ->route($this->routePrefix().'.tours.index')
+            ->route($this->routePrefix() . '.tours.index')
             ->with('success', 'Tur borttagen.');
     }
 
@@ -409,7 +408,7 @@ class TourController extends Controller
     {
         $typeName = 'Tur';
 
-        if (! empty($data['tour_type_id'])) {
+        if (!empty($data['tour_type_id'])) {
             $type = TourType::find($data['tour_type_id']);
 
             if ($type) {
@@ -417,13 +416,13 @@ class TourController extends Controller
             }
         }
 
-        $date = ! empty($data['tour_date'])
+        $date = !empty($data['tour_date'])
             ? date('Y-m-d', strtotime($data['tour_date']))
             : now()->toDateString();
 
         $time = $data['start_time'] ?? '00:00';
 
-        return trim($typeName.' '.$date.' '.$time);
+        return trim($typeName . ' ' . $date . ' ' . $time);
     }
 
     private function syncShift(Tour $tour): void
@@ -434,7 +433,7 @@ class TourController extends Controller
             })
             ->delete();
 
-        if (! $tour->guide_id) {
+        if (!$tour->guide_id) {
             return;
         }
 
@@ -458,11 +457,11 @@ class TourController extends Controller
 
     private function resolveEndTime(?string $startTime, ?string $endTime = null, ?int $tourTypeId = null): ?string
     {
-        if (! $startTime) {
+        if (!$startTime) {
             return $endTime;
         }
 
-        if (! empty($endTime)) {
+        if (!empty($endTime)) {
             return $endTime;
         }
 

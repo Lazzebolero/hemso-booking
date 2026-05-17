@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tour extends Model
 {
@@ -28,12 +27,10 @@ class Tour extends Model
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
     ];
-
-    public function bookingPage()
-    {
-        return $this->hasOne(TourBookingPage::class);
-    }
-
+	public function bookingPage()
+{
+    return $this->hasOne(\App\Models\TourBookingPage::class);
+}
     public function guide()
     {
         return $this->belongsTo(User::class, 'guide_id');
@@ -48,31 +45,25 @@ class Tour extends Model
     {
         return $this->hasMany(Booking::class);
     }
+	public function getLanguageCodesAttribute(): array
+{
+    return $this->bookings()
+        ->with('languages')
+        ->get()
+        ->flatMap(fn ($booking) => $booking->languages->pluck('code'))
+        ->unique()
+        ->values()
+        ->all();
+}
 
-    public function photos(): HasMany
-    {
-        return $this->hasMany(TourPhoto::class)->latest();
-    }
-
-    public function getLanguageCodesAttribute(): array
-    {
-        return $this->bookings()
-            ->with('languages')
-            ->get()
-            ->flatMap(fn ($booking) => $booking->languages->pluck('code'))
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    public function getLanguageNamesAttribute(): array
-    {
-        return $this->bookings()
-            ->with('languages')
-            ->get()
-            ->flatMap(fn ($booking) => $booking->languages->pluck('name'))
-            ->unique()
-            ->values()
-            ->all();
-    }
+public function getLanguageNamesAttribute(): array
+{
+    return $this->bookings()
+        ->with('languages')
+        ->get()
+        ->flatMap(fn ($booking) => $booking->languages->pluck('name'))
+        ->unique()
+        ->values()
+        ->all();
+}
 }

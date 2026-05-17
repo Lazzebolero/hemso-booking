@@ -18,10 +18,10 @@ class DashboardController extends Controller
         $nowTime = now()->format('H:i:s');
 
         $todayTours = Tour::with([
-            'guide',
-            'tourType',
-            'bookings.languages',
-        ])
+                'guide',
+                'tourType',
+                'bookings.languages',
+            ])
             ->where('guide_id', $user->id)
             ->whereDate('tour_date', $today)
             ->whereNotIn('status', ['cancelled'])
@@ -30,10 +30,10 @@ class DashboardController extends Controller
             ->map(fn (Tour $tour) => $this->decorateTour($tour));
 
         $ongoingTour = Tour::with([
-            'guide',
-            'tourType',
-            'bookings.languages',
-        ])
+                'guide',
+                'tourType',
+                'bookings.languages',
+            ])
             ->where('guide_id', $user->id)
             ->where('status', 'started')
             ->orderByDesc('started_at')
@@ -46,17 +46,17 @@ class DashboardController extends Controller
         }
 
         $upcomingTours = Tour::with([
-            'guide',
-            'tourType',
-            'bookings.languages',
-        ])
+                'guide',
+                'tourType',
+                'bookings.languages',
+            ])
             ->where('guide_id', $user->id)
             ->where('status', 'planned')
             ->where(function ($query) use ($today, $nowTime) {
                 $query->whereDate('tour_date', '>', $today)
                     ->orWhere(function ($q) use ($today, $nowTime) {
                         $q->whereDate('tour_date', $today)
-                            ->whereTime('start_time', '>=', $nowTime);
+                          ->whereTime('start_time', '>=', $nowTime);
                     });
             })
             ->orderBy('tour_date')
@@ -87,7 +87,6 @@ class DashboardController extends Controller
             'guide',
             'tourType',
             'bookings.languages',
-            'photos.uploader',
         ]);
 
         $tour = $this->decorateTour($tour);

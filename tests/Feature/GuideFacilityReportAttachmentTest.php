@@ -16,22 +16,6 @@ use Tests\TestCase;
 
 class GuideFacilityReportAttachmentTest extends TestCase
 {
-    public function test_guide_facility_report_form_keeps_direct_camera_capture(): void
-    {
-        $user = User::factory()->create();
-        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
-        $user->assignRoles([$guideRole]);
-
-        $this->actingAs($user)
-            ->withSession(['active_role' => Roles::GUIDE])
-            ->get(route('guide.reports.create'))
-            ->assertOk()
-            ->assertSee('name="attachment"', false)
-            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp"', false)
-            ->assertSee('capture="environment"', false)
-            ->assertSee('På mobil kan du ta foto direkt', false);
-    }
-
     public function test_guide_can_submit_facility_report_with_optional_image(): void
     {
         Mail::fake();

@@ -31,7 +31,6 @@ use App\Http\Controllers\Admin\SystemLogController;
 use App\Http\Controllers\Admin\SystemMessageController;
 use App\Http\Controllers\Admin\TourBatchController;
 use App\Http\Controllers\Admin\TourController;
-use App\Http\Controllers\Admin\TourPhotoController;
 use App\Http\Controllers\Admin\TourTypeController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VisitorDogController as AdminVisitorDogController;
@@ -65,9 +64,6 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::post('tours/{tour}/start', [TourController::class, 'start'])->name('tours.start');
         Route::post('tours/{tour}/complete', [TourController::class, 'complete'])->name('tours.complete');
         Route::post('tours/{tour}/cancel', [TourController::class, 'cancel'])->name('tours.cancel');
-        Route::get('tours/{tour}/photos/{tourPhoto}', [TourPhotoController::class, 'show'])->name('tours.photos.show');
-        Route::get('tours/{tour}/photos/{tourPhoto}/download', [TourPhotoController::class, 'download'])->name('tours.photos.download');
-        Route::delete('tours/{tour}/photos/{tourPhoto}', [TourPhotoController::class, 'destroy'])->name('tours.photos.destroy');
 
         Route::resource('tours', TourController::class);
         Route::resource('special-tours', SpecialTourController::class)
