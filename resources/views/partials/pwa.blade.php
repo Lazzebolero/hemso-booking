@@ -75,7 +75,30 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
-                navigator.serviceWorker.register(@json(asset('service-worker.js'))).catch(function () {});
+                navigator.serviceWorker.getRegistrations()
+                    .then(function (registrations) {
+                        return Promise.all(registrations.map(function (registration) {
+                            return registration.unregister();
+                        }));
+                    })
+                    .then(function () {
+                        if (window.caches && caches.keys) {
+                            return caches.keys().then(function (keys) {
+                                return Promise.all(keys.map(function (key) {
+                                    return caches.delete(key);
+                                }));
+                            });
+                        }
+
+                        return null;
+                    })
+                    .then(function () {
+                        if (navigator.serviceWorker.controller && !sessionStorage.getItem('pwa-reset-reloaded')) {
+                            sessionStorage.setItem('pwa-reset-reloaded', '1');
+                            window.location.reload();
+                        }
+                    })
+                    .catch(function () {});
             });
         }
     })();

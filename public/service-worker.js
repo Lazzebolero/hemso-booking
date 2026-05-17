@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hemso-pwa-v11';
+const CACHE_NAME = 'hemso-pwa-reset-v1';
 
 /**
  * Laravel (and proxies) often set Vary on HTML. Default caches.match() then misses the
