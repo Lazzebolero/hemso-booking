@@ -24,6 +24,7 @@ class VisitorDogRegistrationTest extends TestCase
             ->assertOk()
             ->assertSee('Besökshund', false)
             ->assertSee('name="photo"', false)
+            ->assertSee('data-offline-ignore', false)
             ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"', false)
             ->assertSee('capture="environment"', false)
             ->assertDontSee('name="photo_camera"', false)
