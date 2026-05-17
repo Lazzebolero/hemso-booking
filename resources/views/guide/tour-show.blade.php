@@ -284,10 +284,11 @@
                     type="file"
                     name="photo"
                     class="form-control"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+                    capture="environment"
                     required
                 >
-                <small class="small-muted">Ta bilden med kameraappen först och välj den sedan här. Direktkamera i webbläsaren kan ge minnesfel på vissa mobiler.</small>
+                <small class="small-muted">Öppnar kameran på de flesta mobiler. På vissa enheter visas även bildbiblioteket.</small>
             </label>
 
             <label class="tour-photo-upload-field">
@@ -309,12 +310,6 @@
         </div>
 
         @error('photo')
-            <div class="text-danger mt-2">{{ $message }}</div>
-        @enderror
-        @error('photo_camera')
-            <div class="text-danger mt-2">{{ $message }}</div>
-        @enderror
-        @error('photo_library')
             <div class="text-danger mt-2">{{ $message }}</div>
         @enderror
         @error('caption')

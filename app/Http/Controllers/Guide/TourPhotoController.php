@@ -18,36 +18,19 @@ class TourPhotoController extends Controller
     {
         $this->ensureGuideOwnsTour($tour);
 
-        $imageRule = File::types(['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'])
-            ->max(10240);
-
         $request->validate([
             'photo' => [
-                'nullable',
-                $imageRule,
-            ],
-            'photo_camera' => [
-                'nullable',
-                'required_without_all:photo,photo_library',
-                $imageRule,
-            ],
-            'photo_library' => [
-                'nullable',
-                'required_without_all:photo,photo_camera',
-                $imageRule,
+                'required',
+                File::types(['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'])
+                    ->max(10240),
             ],
             'caption' => ['nullable', 'string', 'max:255'],
         ], [
-            'photo_camera.required_without_all' => 'Välj en bild att ladda upp.',
-            'photo_library.required_without_all' => 'Välj en bild att ladda upp.',
+            'photo.required' => 'Välj en bild att ladda upp.',
             'photo.max' => 'Bilden får vara högst 10 MB.',
-            'photo_camera.max' => 'Bilden får vara högst 10 MB.',
-            'photo_library.max' => 'Bilden får vara högst 10 MB.',
         ]);
 
-        $uploaded = $request->file('photo')
-            ?? $request->file('photo_camera')
-            ?? $request->file('photo_library');
+        $uploaded = $request->file('photo');
 
         if (! $uploaded instanceof UploadedFile || ! $uploaded->isValid()) {
             return back()->withErrors(['photo' => 'Bilden kunde inte laddas upp.']);

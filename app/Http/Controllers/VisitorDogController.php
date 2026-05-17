@@ -66,9 +66,7 @@ class VisitorDogController extends Controller
             'owner_phone' => $validated['owner_phone'] ?? null,
             'visit_date' => $validated['visit_date'],
             'tour_start_time' => $validated['tour_start_time'] ?? null,
-            'photo_path' => VisitorDogSupport::storeUploadedPhoto(
-                VisitorDogSupport::uploadedPhotoFromRequest($request)
-            ),
+            'photo_path' => VisitorDogSupport::storeUploadedPhoto($request->file('photo')),
             'registered_by' => $request->user()->id,
             'registered_as_role' => $activeRole,
         ]);

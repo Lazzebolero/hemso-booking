@@ -23,7 +23,7 @@ class VisitorDogUpdater
             $photoPath = null;
         }
 
-        $uploaded = VisitorDogSupport::uploadedPhotoFromRequest($request);
+        $uploaded = $request->file('photo');
         if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
             if ($photoPath !== null && $photoPath !== '' && Storage::disk('public')->exists($photoPath)) {
                 Storage::disk('public')->delete($photoPath);

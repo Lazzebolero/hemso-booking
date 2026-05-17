@@ -63,12 +63,13 @@
             </div>
         @endif
         <input type="file" name="photo" id="photo" class="form-control"
-               accept="image/jpeg,image/png,image/gif,image/webp">
+               accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+               capture="environment">
         <div class="form-text">
             @if($isEdit)
                 Valfritt. Ladda upp en ny bild för att ersätta den befintliga. Max 10 MB.
             @else
-                Valfritt. Max 10 MB. Ta bilden med kameraappen först och välj den sedan här.
+                Valfritt. Max 10 MB. På mobil kan du ta foto direkt (kamera), som vid felrapport.
             @endif
         </div>
     </div>

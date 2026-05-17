@@ -24,12 +24,10 @@ class VisitorDogRegistrationTest extends TestCase
             ->assertOk()
             ->assertSee('Besökshund', false)
             ->assertSee('name="photo"', false)
-            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp"', false)
-            ->assertDontSee('capture="environment"', false)
-            ->assertDontSee('image/heic', false)
+            ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"', false)
+            ->assertSee('capture="environment"', false)
             ->assertDontSee('name="photo_camera"', false)
-            ->assertDontSee('name="photo_library"', false)
-            ->assertSee('Ta bilden med kameraappen först', false);
+            ->assertDontSee('name="photo_library"', false);
     }
 
     public function test_guide_can_open_form_and_register_dog(): void
@@ -89,7 +87,7 @@ class VisitorDogRegistrationTest extends TestCase
         Storage::disk('public')->assertExists($dog->photo_path);
     }
 
-    public function test_host_can_register_dog_with_camera_photo_field(): void
+    public function test_host_registers_dog_photo_through_standard_photo_field(): void
     {
         Storage::fake('public');
 
@@ -102,7 +100,7 @@ class VisitorDogRegistrationTest extends TestCase
             ->post(route('visitor-dogs.store'), [
                 'dog_name' => 'Kamera',
                 'visit_date' => '2026-06-01',
-                'photo_camera' => UploadedFile::fake()->image('kamera.jpg', 200, 200),
+                'photo' => UploadedFile::fake()->image('kamera.jpg', 200, 200),
             ])
             ->assertRedirect(route('visitor-dogs.create'));
 

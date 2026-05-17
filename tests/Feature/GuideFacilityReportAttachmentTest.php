@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 class GuideFacilityReportAttachmentTest extends TestCase
 {
-    public function test_guide_facility_report_form_uses_stable_photo_picker(): void
+    public function test_guide_facility_report_form_keeps_direct_camera_capture(): void
     {
         $user = User::factory()->create();
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
@@ -28,8 +28,8 @@ class GuideFacilityReportAttachmentTest extends TestCase
             ->assertOk()
             ->assertSee('name="attachment"', false)
             ->assertSee('accept="image/jpeg,image/png,image/gif,image/webp"', false)
-            ->assertDontSee('capture="environment"', false)
-            ->assertSee('Ta bilden med kameraappen först', false);
+            ->assertSee('capture="environment"', false)
+            ->assertSee('På mobil kan du ta foto direkt', false);
     }
 
     public function test_guide_can_submit_facility_report_with_optional_image(): void

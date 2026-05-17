@@ -132,15 +132,6 @@ class VisitorDogSupport
         return $stored !== false ? $stored : null;
     }
 
-    public static function uploadedPhotoFromRequest(Request $request): ?UploadedFile
-    {
-        $uploaded = $request->file('photo')
-            ?? $request->file('photo_camera')
-            ?? $request->file('photo_library');
-
-        return $uploaded instanceof UploadedFile ? $uploaded : null;
-    }
-
     public static function streamPhoto(VisitorDog $visitorDog): BinaryFileResponse
     {
         if (empty($visitorDog->photo_path)) {
