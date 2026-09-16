@@ -2,7 +2,6 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="30">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restaurang statistik</title>
 
@@ -233,6 +232,158 @@
 
         .fw-semibold { font-weight: 700; }
 
+        .fw-bold { font-weight: 800; }
+
+        .d-flex { display: flex; }
+
+        .flex-wrap { flex-wrap: wrap; }
+
+        .align-items-center { align-items: center; }
+
+        .gap-1 { gap: 0.25rem; }
+
+        .small-muted {
+            color: var(--text-soft);
+            font-size: 0.88rem;
+        }
+
+        .badge-soft {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 6px 11px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .badge-soft-success {
+            background: rgba(5, 150, 105, 0.12);
+            color: #047857;
+        }
+
+        .badge-soft-warning {
+            background: rgba(217, 119, 6, 0.14);
+            color: #b45309;
+        }
+
+        .badge-soft-danger {
+            background: rgba(220, 38, 38, 0.12);
+            color: #b91c1c;
+        }
+
+        .badge-soft-secondary {
+            background: rgba(100, 116, 139, 0.12);
+            color: #334155;
+        }
+
+        .tour-meal-badge,
+        .tour-ferry-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 0.74rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .tour-meal-badge {
+            background: rgba(217, 119, 6, 0.14);
+            color: #b45309;
+        }
+
+        .tour-ferry-badge {
+            background: rgba(37, 99, 235, 0.12);
+            color: #1d4ed8;
+        }
+
+        .restaurant-upcoming-divider {
+            margin: 14px 0;
+            border-top: 1px solid var(--brand-line-soft);
+        }
+
+        .restaurant-upcoming-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .restaurant-upcoming-table thead th {
+            text-align: left;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-soft);
+            padding: 8px 6px;
+            border-bottom: 1px solid var(--brand-line-soft);
+            vertical-align: bottom;
+        }
+
+        .restaurant-upcoming-table tbody td {
+            padding: 10px 6px;
+            border-bottom: 1px solid #edf2f7;
+            vertical-align: top;
+            word-break: break-word;
+            font-size: 0.92rem;
+        }
+
+        .restaurant-upcoming-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .restaurant-occupancy-bar {
+            width: 100%;
+            max-width: 72px;
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: #e2e8f0;
+        }
+
+        .restaurant-occupancy-bar > div {
+            height: 100%;
+            border-radius: 999px;
+        }
+
+        .board-toggle-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .board-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--brand-line-soft);
+            background: #fff;
+            color: var(--text-soft);
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .board-toggle-btn.is-active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .board-upcoming-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
         .staff-panel .panel-title { margin-bottom: 10px; }
 
         .function-group {
@@ -315,7 +466,7 @@
             </div>
 
             <div class="board-top-right">
-                <div class="board-updated">Senast uppdaterad: {{ $nowLabel }}</div>
+                <div class="board-updated" id="board-updated">Senast uppdaterad: {{ $nowLabel }}</div>
 
                 <form method="POST" action="{{ route('restaurant-statistics.logout') }}" class="logout-form">
                     @csrf
@@ -324,157 +475,50 @@
             </div>
         </div>
 
-        <div class="board-stats">
-            <div class="board-stat">
-                <div class="board-stat-label">Pågående turer</div>
-                <div class="board-stat-value">{{ $ongoingTours->count() }}</div>
-            </div>
-
-            <div class="board-stat">
-                <div class="board-stat-label">Gäster på pågående turer</div>
-                <div class="board-stat-value">{{ $totalOngoingGuests }}</div>
-            </div>
-
-            <div class="board-stat">
-                <div class="board-stat-label">Män på tur</div>
-                <div class="board-stat-value">{{ $ongoingParticipantBreakdown['men'] ?? 0 }}</div>
-            </div>
-
-            <div class="board-stat">
-                <div class="board-stat-label">Kvinnor på tur</div>
-                <div class="board-stat-value">{{ $ongoingParticipantBreakdown['women'] ?? 0 }}</div>
-            </div>
-
-            <div class="board-stat">
-                <div class="board-stat-label">Ungdomar på tur</div>
-                <div class="board-stat-value">{{ $ongoingParticipantBreakdown['youth'] ?? 0 }}</div>
-            </div>
-
-            <div class="board-stat">
-                <div class="board-stat-label">Barn på tur</div>
-                <div class="board-stat-value">{{ $ongoingParticipantBreakdown['children'] ?? 0 }}</div>
-            </div>
-
-            <div class="board-stat">
-                <div class="board-stat-label">Gäster på kommande turer</div>
-                <div class="board-stat-value">{{ $totalUpcomingGuests }}</div>
-            </div>
-
-            <div class="board-stat">
-                <div class="board-stat-label">Besökare totalt idag</div>
-                <div class="board-stat-value">{{ $totalOngoingGuests + $totalUpcomingGuests }}</div>
-            </div>
-        </div>
-
-        <div class="board-layout">
-            <div class="board-grid">
-                <div class="panel">
-                    <h2 class="panel-title">Pågående turer</h2>
-
-                    @forelse($ongoingTours as $tour)
-                        <div class="tour-card">
-                            <div class="tour-row">
-                                <div>
-                                    <div class="tour-title">{{ $tour->title }}</div>
-                                    <div class="tour-meta">
-                                        @if(!empty($tour->started_at))
-                                            Turen startade {{ \Carbon\Carbon::parse($tour->started_at)->format('H:i') }}
-                                        @else
-                                            Start {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
-                                        @endif
-                                        • {{ $tour->guide?->name ?? 'Ej tilldelad' }}
-                                    </div>
-                                </div>
-
-                                <div class="badge">Pågående</div>
-                            </div>
-
-                            <div class="tour-metrics">
-                                <div class="metric">
-                                    <div class="metric-label">Bokade</div>
-                                    <div class="metric-value">{{ $tour->booked_people_count }}</div>
-                                </div>
-
-                                <div class="metric">
-                                    <div class="metric-label">Beräknas klar</div>
-                                    <div class="metric-value">{{ $tour->estimated_end_time }}</div>
-                                </div>
-
-                                <div class="metric">
-                                    <div class="metric-label">Tid kvar</div>
-                                    <div class="metric-value">{{ $tour->remaining_to_end }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="muted">Inga pågående turer just nu.</div>
-                    @endforelse
-                </div>
-
-                <div class="panel">
-                    <h2 class="panel-title">Kommande turer</h2>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width:90px;">Tid</th>
-                                <th>Tur</th>
-                                <th style="width:90px;">Antal</th>
-                                <th style="width:140px;">Beräknas ut</th>
-                                <th style="width:130px;">Startar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($upcomingTours as $tour)
-                                <tr>
-                                    <td class="fw-semibold">{{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}</td>
-                                    <td>
-                                        <div class="fw-semibold">{{ $tour->title }}</div>
-                                        <div class="muted">{{ $tour->guide?->name ?? 'Ej tilldelad' }}</div>
-                                    </td>
-                                    <td>{{ $tour->booked_people_count }}</td>
-                                    <td>{{ $tour->estimated_end_time }}</td>
-                                    <td>{{ $tour->time_until_start }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="muted">Inga kommande turer idag.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="panel staff-panel">
-                <h2 class="panel-title">Personal idag</h2>
-
-                @forelse($todayStaffByFunction as $functionKey => $shifts)
-                    <div class="function-group">
-                        <div class="function-title">
-                            {{ $restaurantFunctions[$functionKey] ?? ucfirst($functionKey) }}
-                        </div>
-
-                        @foreach($shifts as $shift)
-                            <div class="staff-item">
-                                <div class="staff-name">{{ $shift->user->name ?? 'Okänd' }}</div>
-                                <div class="muted">
-                                    {{ substr($shift->start_time, 0, 5) }}–{{ $shift->end_time ? substr($shift->end_time, 0, 5) : '--:--' }}
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @empty
-                    <div class="empty">Ingen restaurangpersonal schemalagd idag.</div>
-                @endforelse
-            </div>
+        <div id="board-live" data-poll-url="{{ $boardPollUrl ?? '' }}">
+            @includeIf('admin.restaurant-board.partials.kiosk-live')
         </div>
     </div>
 
     <script>
-        setTimeout(function () {
-            window.location.reload();
-        }, 30000);
+        (function () {
+            const root = document.getElementById('board-live');
+            const updated = document.getElementById('board-updated');
+
+            if (!root || !root.dataset.pollUrl) {
+                return;
+            }
+
+            async function poll() {
+                try {
+                    const response = await fetch(root.dataset.pollUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data = await response.json();
+
+                    if (updated && data.now_label) {
+                        updated.textContent = 'Senast uppdaterad: ' + data.now_label;
+                    }
+
+                    if (typeof data.html === 'string') {
+                        root.innerHTML = data.html;
+                    }
+                } catch (error) {
+                    // Keep the last rendered board if the poll fails.
+                }
+            }
+
+            window.setInterval(poll, 30000);
+        })();
     </script>
 </body>
 </html>

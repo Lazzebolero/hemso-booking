@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Listeners\LogAuthenticationEvent;
+use App\Listeners\RecordScheduledCommandFailure;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, LogAuthenticationEvent::class);
         Event::listen(Failed::class, LogAuthenticationEvent::class);
         Event::listen(Logout::class, LogAuthenticationEvent::class);
+        Event::listen(CommandFinished::class, RecordScheduledCommandFailure::class);
     }
 
     /**

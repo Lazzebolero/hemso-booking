@@ -6,57 +6,42 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\WorkShift;
 use App\Models\WorkShiftTemplate;
-use Illuminate\Http\RedirectResponse;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
-use Carbon\Carbon;
 
 class WorkShiftTemplateController extends Controller
 {
     public function index()
-{
-    $templates = \App\Models\WorkShiftTemplate::with('user')
-        ->orderBy('weekday')
-        ->orderBy('start_time')
-        ->get();
+    {
+        $templates = WorkShiftTemplate::with('user')
+            ->orderBy('weekday')
+            ->orderBy('start_time')
+            ->get();
 
-    $users = \App\Models\User::orderBy('name')->get();
+        $users = User::orderBy('name')->get();
 
-    // Roller (anpassade efter ditt system)
-    $shiftRoles = [
-        'guide' => 'Guide',
-        'host' => 'Värd',
-        'restaurant' => 'Restaurang',
-        'admin' => 'Admin',
-    ];
+        $shiftRoles = WorkShift::shiftRoles();
 
-    // Status
-    $statuses = [
-        'planned' => 'Planerad',
-        'confirmed' => 'Bekräftad',
-        'cancelled' => 'Inställd',
-    ];
+        // Status
+        $statuses = [
+            'planned' => 'Planerad',
+            'confirmed' => 'Bekräftad',
+            'cancelled' => 'Inställd',
+        ];
 
-    // Restaurangfunktioner (det du lade till tidigare)
-    $restaurantFunctions = [
-        'kock' => 'Kock',
-        'kallskank' => 'Kallskänk',
-        'kassa' => 'Kassa',
-        'disk' => 'Disk',
-        'glassbar' => 'Glassbar',
-        'servering' => 'Servering',
-    ];
+        // Restaurangfunktioner (det du lade till tidigare)
+        $restaurantFunctions = WorkShift::restaurantFunctions();
 
-    return view('admin.work-shift-templates.index', compact(
-        'templates',
-        'users',
-        'shiftRoles',
-        'statuses',
-        'restaurantFunctions'
-    ));
-}
+        return view('admin.work-shift-templates.index', compact(
+            'templates',
+            'users',
+            'shiftRoles',
+            'statuses',
+            'restaurantFunctions'
+        ));
+    }
 
     public function store(Request $request): RedirectResponse
     {
@@ -130,6 +115,7 @@ class WorkShiftTemplateController extends Controller
 
             if ($exists) {
                 $skipped++;
+
                 continue;
             }
 
@@ -159,7 +145,7 @@ class WorkShiftTemplateController extends Controller
             'weekday' => ['required', 'integer', 'min:1', 'max:7'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
-            'shift_role' => ['required', Rule::in(array_keys($this->shiftRoles()))],
+            'shift_role' => ['required', Rule::in(array_keys(WorkShift::shiftRoles()))],
             'shift_function' => ['nullable', 'string', 'max:50'],
             'status' => ['required', Rule::in(array_keys($this->statuses()))],
             'notes' => ['nullable', 'string'],
@@ -190,16 +176,6 @@ class WorkShiftTemplateController extends Controller
     private function ensureUserCanWorkAs(User $user, string $shiftRole): void
     {
         abort_unless($user->hasRole($shiftRole), 422, 'Användaren har inte denna roll.');
-    }
-
-    private function shiftRoles(): array
-    {
-        return [
-            'guide' => 'Guide',
-            'host' => 'Värd',
-            'restaurant' => 'Restaurang',
-            'admin' => 'Admin',
-        ];
     }
 
     private function statuses(): array

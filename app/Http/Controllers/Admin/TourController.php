@@ -8,23 +8,37 @@ use App\Models\GuideShift;
 use App\Models\Tour;
 use App\Models\TourType;
 use App\Models\User;
+use App\Services\DailyGuideOrderService;
+use App\Services\GuideLanguageMatchService;
 use App\Services\LogService;
+use App\Services\TourAutoCompleteService;
+use App\Services\TourCoGuideService;
+use App\Services\TourDeletionService;
+use App\Services\TourDurationSettingsService;
+use App\Services\TourEarlyStartService;
+use App\Services\TourWaitTimeService;
 use App\Support\ActiveRole;
 use App\Support\Roles;
-use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 class TourController extends Controller
 {
+    public function __construct(
+        private DailyGuideOrderService $dailyGuideOrderService,
+        private GuideLanguageMatchService $guideLanguageMatchService,
+        private TourCoGuideService $tourCoGuideService,
+        private TourWaitTimeService $tourWaitTimeService,
+    ) {}
+
     public function index(Request $request)
     {
         $scope = $request->get('scope', 'upcoming');
+        $waitWarningMinutes = $this->tourWaitTimeService->warningMinutes();
 
-        $query = Tour::with([
-            'guide',
-            'tourType',
-            'bookings.languages',
-        ]);
+        $query = Tour::with(app(TourCoGuideService::class)->tourDisplayRelations());
 
         if ($request->filled('q')) {
             $search = trim((string) $request->q);
@@ -33,6 +47,9 @@ class TourController extends Controller
                 $q->where('title', 'like', "%{$search}%")
                     ->orWhereHas('guide', function ($guideQuery) use ($search) {
                         $guideQuery->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('coGuides', function ($coGuideQuery) use ($search) {
+                        $coGuideQuery->where('name', 'like', "%{$search}%");
                     })
                     ->orWhereHas('tourType', function ($typeQuery) use ($search) {
                         $typeQuery->where('name', 'like', "%{$search}%");
@@ -73,29 +90,35 @@ class TourController extends Controller
             return $this->decorateTourBookingCounts($tour);
         });
 
-        return view('admin.tours.index', compact('tours', 'scope'));
+        if ($scope === 'archive') {
+            $this->tourWaitTimeService->attachGroupedByDate(
+                $tours->getCollection(),
+                $waitWarningMinutes,
+            );
+        }
+
+        return view('admin.tours.index', compact('tours', 'scope', 'waitWarningMinutes'));
     }
 
     public function create()
     {
-        $tourTypes = TourType::where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
+        $tourTypes = TourType::activeOrdered();
 
         $defaultTourTypeId = TourType::where('is_default', true)->value('id');
 
-        $tour = new Tour();
+        $tour = new Tour;
         $tour->tour_date = now()->toDateString();
         $tour->max_participants = (int) setting('default_tour_capacity', 25);
         $tour->status = 'planned';
         $tour->tour_type_id = $defaultTourTypeId;
 
         $guides = $this->guideUsersForDate($tour->tour_date);
+        $traineeCandidates = $this->tourCoGuideService->traineeCandidatesForDate($tour->tour_date);
 
         return view('admin.tours.create', [
             'tour' => $tour,
             'guides' => $guides,
+            'traineeCandidates' => $traineeCandidates,
             'tourTypes' => $tourTypes,
             'defaultTourTypeId' => $defaultTourTypeId,
         ]);
@@ -108,7 +131,8 @@ class TourController extends Controller
         $data['end_time'] = $this->resolveEndTime(
             $data['start_time'] ?? null,
             $data['end_time'] ?? null,
-            isset($data['tour_type_id']) ? (int) $data['tour_type_id'] : null
+            isset($data['tour_type_id']) ? (int) $data['tour_type_id'] : null,
+            $data['tour_date'] ?? null,
         );
 
         if (blank($data['title'] ?? null) && (bool) setting('auto_generate_tour_title', 1)) {
@@ -117,6 +141,7 @@ class TourController extends Controller
 
         if (($data['status'] ?? null) === 'started') {
             $data['started_at'] = now();
+            $data['baseline_end_time'] = app(TourAutoCompleteService::class)->captureBaselineEndTime($data['end_time'] ?? null);
         }
 
         if (($data['status'] ?? null) === 'completed') {
@@ -128,7 +153,13 @@ class TourController extends Controller
         $data['updated_by'] = auth()->id();
 
         $tour = Tour::create($data);
+        $tour->default_includes_meal = $this->resolveDefaultIncludesMeal($request);
+        $tour->exclude_from_booking_sequence = $request->boolean('exclude_from_booking_sequence');
+        $tour->exclude_from_schedule_statistics = $request->boolean('exclude_from_schedule_statistics');
+        $tour->save();
+        $tour->refresh();
 
+        $this->syncCoGuides($tour, $request);
         $this->syncShift($tour);
 
         LogService::log(
@@ -141,17 +172,28 @@ class TourController extends Controller
         );
 
         return redirect()
-            ->route($this->routePrefix() . '.tours.index')
+            ->route($this->routePrefix().'.tours.index')
             ->with('success', 'Tur skapad.');
     }
 
     public function show(Tour $tour)
     {
         $tour->load([
-            'guide',
+            'guide.guideLanguages',
             'tourType',
-            'bookings.languages',
+            'bookings' => fn ($query) => $query->with('languages')->orderBy('created_at')->orderBy('id'),
+            'photos.uploadedBy',
         ]);
+
+        if (Schema::hasTable('tour_guide')) {
+            $tour->load('coGuides');
+        } else {
+            $tour->setRelation('coGuides', collect());
+        }
+
+        $guideLanguageMismatch = $tour->guide
+            ? $this->guideLanguageMatchService->assessGuideForTour($tour->guide, $tour)
+            : null;
 
         $bookingCount = $tour->bookings()
             ->whereNotIn('status', ['cancelled'])
@@ -177,6 +219,13 @@ class TourController extends Controller
         $startedLog = $lifecycleLogs->firstWhere('action', 'started');
         $completedLog = $lifecycleLogs->firstWhere('action', 'completed');
 
+        $createdByUser = $tour->created_by
+            ? User::query()->find($tour->created_by)
+            : null;
+        $updatedByUser = $tour->updated_by
+            ? User::query()->find($tour->updated_by)
+            : null;
+
         return view('admin.tours.show', compact(
             'tour',
             'bookingCount',
@@ -184,30 +233,34 @@ class TourController extends Controller
             'availableSpots',
             'occupancyPercent',
             'startedLog',
-            'completedLog'
+            'completedLog',
+            'guideLanguageMismatch',
+            'createdByUser',
+            'updatedByUser',
         ));
     }
 
     public function edit(Tour $tour)
     {
-        if ($tour->status === 'completed') {
-            return redirect()
-                ->route($this->routePrefix() . '.tours.show', $tour)
-                ->withErrors(['tour' => 'En avslutad tur kan inte redigeras.']);
-        }
-
-        $tourTypes = TourType::where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
+        $tourTypes = TourType::activeOrdered();
 
         $defaultTourTypeId = TourType::where('is_default', true)->value('id');
 
         $guides = $this->guideUsersForDate($tour->tour_date);
+        $traineeCandidates = $this->tourCoGuideService->traineeCandidatesForDate($tour->tour_date);
+
+        if (Schema::hasTable('tour_guide')) {
+            $tour->load('coGuides');
+        } else {
+            $tour->setRelation('coGuides', collect());
+        }
+
+        $tour->refresh();
 
         return view('admin.tours.edit', [
             'tour' => $tour,
             'guides' => $guides,
+            'traineeCandidates' => $traineeCandidates,
             'tourTypes' => $tourTypes,
             'defaultTourTypeId' => $defaultTourTypeId,
         ]);
@@ -215,21 +268,18 @@ class TourController extends Controller
 
     public function update(Request $request, Tour $tour)
     {
-        if ($tour->status === 'completed') {
-            return redirect()
-                ->route($this->routePrefix() . '.tours.show', $tour)
-                ->withErrors(['tour' => 'En avslutad tur kan inte ändras.']);
-        }
-
         $old = $tour->toArray();
         $oldStatus = $tour->status;
+        $oldGuideId = $tour->guide_id;
+        $oldTourDate = $tour->tour_date?->toDateString();
 
         $data = $this->validated($request);
 
         $data['end_time'] = $this->resolveEndTime(
             $data['start_time'] ?? null,
             $data['end_time'] ?? null,
-            isset($data['tour_type_id']) ? (int) $data['tour_type_id'] : null
+            isset($data['tour_type_id']) ? (int) $data['tour_type_id'] : null,
+            $data['tour_date'] ?? $tour->tour_date?->toDateString(),
         );
 
         if (blank($data['title'] ?? null) && (bool) setting('auto_generate_tour_title', 1)) {
@@ -238,6 +288,7 @@ class TourController extends Controller
 
         if (($data['status'] ?? null) === 'started' && empty($tour->started_at)) {
             $data['started_at'] = now();
+            $data['baseline_end_time'] = app(TourAutoCompleteService::class)->captureBaselineEndTime($data['end_time'] ?? $tour->end_time);
         }
 
         if (($data['status'] ?? null) === 'completed' && empty($tour->ended_at)) {
@@ -260,20 +311,71 @@ class TourController extends Controller
 
         $tour->update($data);
 
+        $includesMeal = $this->resolveDefaultIncludesMeal($request);
+        $tour->default_includes_meal = $includesMeal;
+        $tour->exclude_from_booking_sequence = $request->boolean('exclude_from_booking_sequence');
+        $tour->exclude_from_schedule_statistics = $request->boolean('exclude_from_schedule_statistics');
+        $tour->save();
+
+        $this->syncCoGuides($tour, $request);
         $this->syncShift($tour);
+
+        $tour->refresh();
+
+        $guideChanged = (int) ($oldGuideId ?? 0) !== (int) ($tour->guide_id ?? 0);
+        $rippleResult = ['updated' => 0, 'skipped' => 0];
+
+        if (
+            $guideChanged
+            && $request->boolean('ripple_subsequent_guides')
+            && $oldTourDate === $tour->tour_date?->toDateString()
+        ) {
+            $rippleResult = $this->dailyGuideOrderService->rippleGuidesAfterTour(
+                $tour,
+                $tour->guide_id ? (int) $tour->guide_id : null,
+                auth()->id()
+            );
+
+            foreach ($rippleResult['tours'] as $updatedTour) {
+                $this->syncShift($updatedTour);
+            }
+        }
 
         LogService::log(
             'tour',
             $tour->id,
             'updated',
             $old,
-            $tour->fresh()->toArray(),
+            $tour->toArray(),
             'Uppdaterade tur'
         );
 
-        return redirect()
-            ->route($this->routePrefix() . '.tours.index')
-            ->with('success', 'Tur uppdaterad.');
+        $mealLabel = $tour->default_includes_meal ? 'Med mat' : 'Ej mat';
+        $successMessage = "Tur uppdaterad. Matstandard: {$mealLabel}.";
+
+        if ($guideChanged && $request->boolean('ripple_subsequent_guides')) {
+            if ($rippleResult['updated'] > 0) {
+                $successMessage .= " {$rippleResult['updated']} efterföljande tur(er) fick ny guide enligt dagens ordning.";
+            }
+
+            if ($rippleResult['skipped'] > 0) {
+                $successMessage .= " {$rippleResult['skipped']} pågående/avslutade tur(er) lämnades oförändrade.";
+            }
+        }
+
+        $redirect = redirect()
+            ->route($this->routePrefix().'.dashboard')
+            ->with('success', $successMessage);
+
+        if ($tour->guide) {
+            $mismatch = $this->guideLanguageMatchService->assessGuideForTour($tour->guide, $tour);
+
+            if ($mismatch['has_language_mismatch']) {
+                $redirect->with('warning', $mismatch['message']);
+            }
+        }
+
+        return $redirect;
     }
 
     public function cancel(Tour $tour)
@@ -297,29 +399,36 @@ class TourController extends Controller
         return back()->with('success', 'Turen har ställts in.');
     }
 
-    public function destroy(Tour $tour)
+    public function destroy(Tour $tour, TourDeletionService $tourDeletionService)
     {
+        abort_unless(session('active_role') === Roles::ADMIN, 403);
+
         $old = $tour->toArray();
 
-        GuideShift::where('tour_id', $tour->id)->delete();
-
-        $tour->delete();
+        $result = $tourDeletionService->delete($tour);
 
         LogService::log(
             'tour',
             $tour->id,
             'deleted',
             $old,
-            null,
-            'Tog bort tur'
+            [
+                'bookings_deleted' => $result['bookings_deleted'],
+                'photos_deleted' => $result['photos_deleted'],
+            ],
+            'Tog bort tur med tillhörande bokningar'
         );
 
+        $message = $result['bookings_deleted'] > 0
+            ? "Tur och {$result['bookings_deleted']} bokning(ar) borttagna."
+            : 'Tur borttagen.';
+
         return redirect()
-            ->route($this->routePrefix() . '.tours.index')
-            ->with('success', 'Tur borttagen.');
+            ->route('admin.tours.index', ['scope' => request('scope', 'upcoming')])
+            ->with('success', $message);
     }
 
-    public function start(Tour $tour)
+    public function start(Request $request, Tour $tour, TourEarlyStartService $earlyStartService)
     {
         if ($tour->status === 'completed') {
             return back()->withErrors([
@@ -327,9 +436,16 @@ class TourController extends Controller
             ]);
         }
 
+        if ($earlyStartService->requiresConfirmation($tour) && ! $request->boolean('confirm_early_start')) {
+            return back()->withErrors([
+                'tour' => $earlyStartService->validationErrorMessage($tour),
+            ]);
+        }
+
         $tour->update([
             'status' => 'started',
             'started_at' => now(),
+            'baseline_end_time' => app(TourAutoCompleteService::class)->captureBaselineEndTime($tour->end_time),
             'updated_by' => auth()->id(),
         ]);
 
@@ -342,7 +458,7 @@ class TourController extends Controller
                 'status' => 'started',
                 'started_at' => now(),
             ],
-            'Startade tur'
+            'Startade tur'.($request->boolean('confirm_early_start') ? ' (tidig start, bekräftad)' : '')
         );
 
         return back()->with('success', 'Tur startad.');
@@ -377,6 +493,73 @@ class TourController extends Controller
         return back()->with('success', 'Tur avslutad.');
     }
 
+    public function closeForBookings(Request $request, Tour $tour)
+    {
+        if (! in_array($tour->status, ['planned', 'started'], true)) {
+            return $this->closeBookingsRedirect($request)->withErrors([
+                'tour' => 'Endast planerade eller pågående turer kan stängas för bokning.',
+            ]);
+        }
+
+        if ($tour->closed_for_bookings) {
+            return $this->closeBookingsRedirect($request)->with('success', 'Turen är redan stängd för bokning.');
+        }
+
+        $tour->update([
+            'closed_for_bookings' => true,
+            'updated_by' => auth()->id(),
+        ]);
+
+        LogService::log(
+            'tour',
+            $tour->id,
+            'bookings_closed',
+            ['closed_for_bookings' => false],
+            ['closed_for_bookings' => true],
+            'Stängde tur för fler bokningar i bokningssekvensen'
+        );
+
+        return $this->closeBookingsRedirect($request)->with('success', 'Turen är stängd för fler bokningar.');
+    }
+
+    public function reopenForBookings(Request $request, Tour $tour)
+    {
+        if (! $tour->closed_for_bookings) {
+            return $this->closeBookingsRedirect($request)->with('success', 'Turen är redan öppen för bokning.');
+        }
+
+        if (! in_array($tour->status, ['planned', 'started'], true)) {
+            return $this->closeBookingsRedirect($request)->withErrors([
+                'tour' => 'Endast planerade eller pågående turer kan öppnas för bokning.',
+            ]);
+        }
+
+        $tour->update([
+            'closed_for_bookings' => false,
+            'updated_by' => auth()->id(),
+        ]);
+
+        LogService::log(
+            'tour',
+            $tour->id,
+            'bookings_reopened',
+            ['closed_for_bookings' => true],
+            ['closed_for_bookings' => false],
+            'Öppnade tur för bokning i bokningssekvensen'
+        );
+
+        return $this->closeBookingsRedirect($request)->with('success', 'Turen är öppen för bokning igen.');
+    }
+
+    private function closeBookingsRedirect(Request $request): RedirectResponse
+    {
+        if ($request->input('return_to') === 'quick-booking' && Route::has(ActiveRole::routePrefix().'.bookings.quick-create')) {
+            return redirect()->route(ActiveRole::routePrefix().'.bookings.quick-create');
+        }
+
+        return back();
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -390,6 +573,11 @@ class TourController extends Controller
             'guide_id' => ['nullable', 'exists:users,id'],
             'status' => ['required', 'in:planned,started,completed,cancelled'],
         ]);
+    }
+
+    private function resolveDefaultIncludesMeal(Request $request): bool
+    {
+        return (string) $request->input('default_includes_meal', '0') === '1';
     }
 
     private function decorateTourBookingCounts(Tour $tour): Tour
@@ -408,7 +596,7 @@ class TourController extends Controller
     {
         $typeName = 'Tur';
 
-        if (!empty($data['tour_type_id'])) {
+        if (! empty($data['tour_type_id'])) {
             $type = TourType::find($data['tour_type_id']);
 
             if ($type) {
@@ -416,13 +604,13 @@ class TourController extends Controller
             }
         }
 
-        $date = !empty($data['tour_date'])
+        $date = ! empty($data['tour_date'])
             ? date('Y-m-d', strtotime($data['tour_date']))
             : now()->toDateString();
 
         $time = $data['start_time'] ?? '00:00';
 
-        return trim($typeName . ' ' . $date . ' ' . $time);
+        return trim($typeName.' '.$date.' '.$time);
     }
 
     private function syncShift(Tour $tour): void
@@ -433,7 +621,7 @@ class TourController extends Controller
             })
             ->delete();
 
-        if (!$tour->guide_id) {
+        if (! $tour->guide_id) {
             return;
         }
 
@@ -455,34 +643,37 @@ class TourController extends Controller
         );
     }
 
-    private function resolveEndTime(?string $startTime, ?string $endTime = null, ?int $tourTypeId = null): ?string
+    private function resolveEndTime(?string $startTime, ?string $endTime = null, ?int $tourTypeId = null, ?string $tourDate = null): ?string
     {
-        if (!$startTime) {
+        if (! $startTime) {
             return $endTime;
         }
 
-        if (!empty($endTime)) {
+        if (! empty($endTime)) {
             return $endTime;
         }
 
-        $duration = $this->resolveDurationMinutes($tourTypeId);
-
-        return Carbon::createFromFormat('H:i', substr($startTime, 0, 5))
-            ->addMinutes($duration)
-            ->format('H:i');
+        return app(TourDurationSettingsService::class)
+            ->endTimeFromStartTime($startTime, $tourTypeId);
     }
 
-    private function resolveDurationMinutes(?int $tourTypeId = null): int
+    private function syncCoGuides(Tour $tour, Request $request): void
     {
-        if ($tourTypeId) {
-            $duration = TourType::where('id', $tourTypeId)->value('default_duration_minutes');
-
-            if ($duration) {
-                return (int) $duration;
-            }
+        if (! Schema::hasTable('tour_guide')) {
+            return;
         }
 
-        return 80;
+        $this->tourCoGuideService->validateCoGuideSelection(
+            $request,
+            $tour->guide_id ? (int) $tour->guide_id : null
+        );
+
+        $this->tourCoGuideService->sync(
+            $tour,
+            $request->input('assistant_guide_ids', []),
+            $request->input('trainee_guide_ids', []),
+            $request->input('co_guide_notes', [])
+        );
     }
 
     private function guideUsersForDate(?string $date)

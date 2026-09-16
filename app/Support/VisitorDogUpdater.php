@@ -11,6 +11,12 @@ class VisitorDogUpdater
 {
     public static function apply(UpdateVisitorDogRequest $request, VisitorDog $visitorDog): void
     {
+        if ($request->user()?->can('completePhoto', $visitorDog) === true) {
+            self::applyPhotoCompletion($request, $visitorDog);
+
+            return;
+        }
+
         $validated = $request->validated();
         $oldValues = VisitorDogActivityLogger::snapshot($visitorDog);
 
@@ -41,8 +47,43 @@ class VisitorDogUpdater
             'owner_phone' => $validated['owner_phone'] ?? null,
             'visit_date' => $validated['visit_date'],
             'tour_start_time' => $validated['tour_start_time'] ?? null,
+            'care_flags' => VisitorDogCareFlags::wasSubmitted($request)
+                ? VisitorDogCareFlags::normalize($validated['care_flags'] ?? null)
+                : VisitorDogCareFlags::normalize($visitorDog->care_flags),
             'photo_path' => $photoPath,
         ]);
+
+        VisitorDogActivityLogger::logUpdated($visitorDog, $oldValues);
+    }
+
+    public static function applyPhotoCompletion(UpdateVisitorDogRequest $request, VisitorDog $visitorDog): void
+    {
+        $oldValues = VisitorDogActivityLogger::snapshot($visitorDog);
+
+        $uploaded = $request->file('photo');
+        if (! $uploaded instanceof UploadedFile || ! $uploaded->isValid()) {
+            return;
+        }
+
+        if ($visitorDog->photo_path !== null && $visitorDog->photo_path !== '' && Storage::disk('public')->exists($visitorDog->photo_path)) {
+            Storage::disk('public')->delete($visitorDog->photo_path);
+        }
+
+        $stored = VisitorDogSupport::storeUploadedPhoto($uploaded);
+        if ($stored === null) {
+            return;
+        }
+
+        $updates = [
+            'photo_path' => $stored,
+        ];
+
+        if (VisitorDogCareFlags::wasSubmitted($request)) {
+            $validated = $request->validated();
+            $updates['care_flags'] = VisitorDogCareFlags::normalize($validated['care_flags'] ?? null);
+        }
+
+        $visitorDog->update($updates);
 
         VisitorDogActivityLogger::logUpdated($visitorDog, $oldValues);
     }

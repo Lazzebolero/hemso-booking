@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\SessionCookie;
 use Illuminate\Support\Str;
 
 return [
@@ -173,11 +174,11 @@ return [
     |
     */
 
-    'secure' => filter_var(
-        env('SESSION_SECURE_COOKIE', false),
-        FILTER_VALIDATE_BOOL,
-        FILTER_NULL_ON_FAILURE
-    ) ?? false,
+    'secure' => SessionCookie::shouldBeSecure(
+        env('SESSION_SECURE_COOKIE'),
+        (string) env('APP_ENV', 'production'),
+        env('APP_URL'),
+    ),
 
     /*
     |--------------------------------------------------------------------------

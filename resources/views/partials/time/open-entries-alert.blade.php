@@ -1,4 +1,4 @@
-@props(['openEntries', 'openEntry' => null, 'guide' => false])
+@props(['openEntries', 'openEntry' => null, 'guide' => false, 'qrStations' => []])
 
 @if($openEntries->isNotEmpty())
     @if($guide)
@@ -18,7 +18,15 @@
                         </div>
                     @endforeach
                 </div>
-                @if($openEntry)
+                @if($openEntry && count($qrStations) > 0 && Route::has('time.station'))
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach($qrStations as $station)
+                            <a href="{{ route('time.station', $station['key']) }}" class="btn btn-sm btn-danger">
+                                <i class="bi bi-qr-code-scan me-1"></i>Stämpla ut · {{ $station['label'] }}
+                            </a>
+                        @endforeach
+                    </div>
+                @elseif($openEntry)
                     <form method="POST" action="{{ route('time.clock-out') }}" data-offline-queue>
                         @csrf
                         <button type="submit" class="btn btn-sm btn-danger">Stämpla ut nu</button>
@@ -43,7 +51,15 @@
                         </div>
                     @endforeach
                 </div>
-                @if($openEntry)
+                @if($openEntry && count($qrStations) > 0 && Route::has('time.station'))
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach($qrStations as $station)
+                            <a href="{{ route('time.station', $station['key']) }}" class="btn btn-sm btn-danger">
+                                <i class="bi bi-qr-code-scan me-1"></i>Stämpla ut · {{ $station['label'] }}
+                            </a>
+                        @endforeach
+                    </div>
+                @elseif($openEntry)
                     <form method="POST" action="{{ route('time.clock-out') }}" data-offline-queue>
                         @csrf
                         <button type="submit" class="btn btn-sm btn-danger">Stämpla ut nu</button>

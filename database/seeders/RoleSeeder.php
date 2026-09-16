@@ -41,6 +41,21 @@ class RoleSeeder extends Seeder
                 'slug' => Roles::RESTAURANT,
                 'description' => 'Statistik och meddelanden',
             ],
+            [
+                'name' => 'Trainee / elev',
+                'slug' => Roles::ELEV,
+                'description' => 'Schema och bemanning utan inloggning i appen',
+            ],
+            [
+                'name' => 'Produktion admin',
+                'slug' => Roles::PRODUKTION_ADMIN,
+                'description' => 'TV-produktion: in/ut i berget och hantering av personer',
+            ],
+            [
+                'name' => 'Produktion personal',
+                'slug' => Roles::PRODUKTION_PERSONAL,
+                'description' => 'TV-produktion: in/ut i berget och gruppstämpel för deltagare',
+            ],
         ];
     }
 }

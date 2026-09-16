@@ -7,13 +7,16 @@ if (!function_exists('setting')) {
     {
         static $cache = [];
 
-        if (array_key_exists($key, $cache)) {
+        if (! app()->runningUnitTests() && array_key_exists($key, $cache)) {
             return $cache[$key];
         }
 
         $value = Setting::where('key', $key)->value('value');
-        $cache[$key] = $value ?? $default;
 
-        return $cache[$key];
+        if (! app()->runningUnitTests()) {
+            $cache[$key] = $value ?? $default;
+        }
+
+        return $value ?? $default;
     }
 }

@@ -7,24 +7,95 @@ use App\Models\ReportCategory;
 use App\Models\ReportLocation;
 use App\Models\ReportPriority;
 use App\Models\ReportStatus;
+use App\Services\FacilityReportNotificationService;
+use App\Services\OpeningDeviationNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ReportSettingsController extends Controller
 {
+    public function __construct(
+        private FacilityReportNotificationService $notifications,
+        private OpeningDeviationNotificationService $openingDeviationNotifications,
+    ) {}
+
     public function index()
     {
         $categories = ReportCategory::orderBy('sort_order')->orderBy('name')->get();
         $priorities = ReportPriority::orderBy('sort_order')->orderBy('name')->get();
         $statuses = ReportStatus::orderBy('sort_order')->orderBy('name')->get();
         $locations = ReportLocation::orderBy('sort_order')->orderBy('name')->get();
+        $notificationEmails = $this->notifications->configuredEmailsRaw();
+        $openingDeviationEmails = $this->openingDeviationNotifications->configuredEmailsRaw();
 
         return view('admin.settings.reports.index', compact(
             'categories',
             'priorities',
             'statuses',
-            'locations'
+            'locations',
+            'notificationEmails',
+            'openingDeviationEmails',
         ));
+    }
+
+    public function updateNotificationEmails(Request $request)
+    {
+        $data = $request->validate([
+            'notification_emails' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $raw = (string) ($data['notification_emails'] ?? '');
+        $parsed = $this->notifications->parseEmails($raw);
+        $tokens = collect(preg_split('/[\s,;]+/', $raw) ?: [])
+            ->map(fn ($email) => trim((string) $email))
+            ->filter()
+            ->values();
+
+        $invalid = $tokens
+            ->reject(fn (string $email) => filter_var(strtolower($email), FILTER_VALIDATE_EMAIL))
+            ->values();
+
+        if ($invalid->isNotEmpty()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'notification_emails' => 'Ogiltiga e-postadresser: '.$invalid->implode(', '),
+                ]);
+        }
+
+        $this->notifications->saveConfiguredEmails(implode("\n", $parsed));
+
+        return back()->with('success', 'E-postmottagare för felrapporter sparade.');
+    }
+
+    public function updateOpeningDeviationEmails(Request $request)
+    {
+        $data = $request->validate([
+            'opening_deviation_emails' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $raw = (string) ($data['opening_deviation_emails'] ?? '');
+        $parsed = $this->openingDeviationNotifications->parseEmails($raw);
+        $tokens = collect(preg_split('/[\s,;]+/', $raw) ?: [])
+            ->map(fn ($email) => trim((string) $email))
+            ->filter()
+            ->values();
+
+        $invalid = $tokens
+            ->reject(fn (string $email) => filter_var(strtolower($email), FILTER_VALIDATE_EMAIL))
+            ->values();
+
+        if ($invalid->isNotEmpty()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'opening_deviation_emails' => 'Ogiltiga e-postadresser: '.$invalid->implode(', '),
+                ]);
+        }
+
+        $this->openingDeviationNotifications->saveConfiguredEmails(implode("\n", $parsed));
+
+        return back()->with('success', 'E-postmottagare för öppningsavvikelser sparade.');
     }
 
     public function storeCategory(Request $request)

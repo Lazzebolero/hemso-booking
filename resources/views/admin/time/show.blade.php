@@ -129,6 +129,8 @@
             </div>
         </div>
 
+        @include('admin.time.partials.location-details', ['entry' => $entry])
+
         <div class="card border-0 shadow-sm">
             <div class="card-body">
 

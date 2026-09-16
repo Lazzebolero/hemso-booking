@@ -43,7 +43,50 @@ class TimeEntryDeviationService
             $deviations[] = self::item('admin_corrected', 'Adminkorrigerat', 'info', 'Passet har korrigerats av admin.');
         }
 
+        foreach (self::locationDeviations($entry) as $locationDeviation) {
+            $deviations[] = $locationDeviation;
+        }
+
         return self::unique($deviations);
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private static function locationDeviations(TimeEntry $entry): array
+    {
+        $deviations = [];
+
+        if (! $entry->clock_in_station && ! $entry->clock_out_station) {
+            return [];
+        }
+
+        $inDeviation = TimeClockLocationPayload::locationDeviationForPunch(
+            $entry->clock_in_location_status,
+            $entry->clock_in_latitude !== null ? (float) $entry->clock_in_latitude : null,
+            $entry->clock_in_longitude !== null ? (float) $entry->clock_in_longitude : null,
+        );
+
+        if ($entry->clock_in_station && $inDeviation !== null) {
+            $deviations[] = array_merge($inDeviation, [
+                'label' => 'In: '.$inDeviation['label'],
+            ]);
+        }
+
+        $outDeviation = TimeClockLocationPayload::locationDeviationForPunch(
+            $entry->clock_out_location_status,
+            $entry->clock_out_latitude !== null ? (float) $entry->clock_out_latitude : null,
+            $entry->clock_out_longitude !== null ? (float) $entry->clock_out_longitude : null,
+        );
+
+        if ($entry->clock_out_station && $outDeviation !== null) {
+            $deviations[] = array_merge($outDeviation, [
+                'code' => 'clock_out_'.$outDeviation['code'],
+                'label' => 'Ut: '.$outDeviation['label'],
+            ]);
+        }
+
+        return $deviations;
     }
 
     public static function appendOverlapDeviations(Collection $entries): Collection
@@ -51,7 +94,7 @@ class TimeEntryDeviationService
         $overlappingIds = collect();
 
         $groups = $entries->groupBy(function (TimeEntry $entry) {
-            return $entry->user_id . ':' . optional($entry->work_date)->format('Y-m-d');
+            return $entry->user_id.':'.optional($entry->work_date)->format('Y-m-d');
         });
 
         foreach ($groups as $group) {

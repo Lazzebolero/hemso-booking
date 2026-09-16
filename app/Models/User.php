@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\Roles;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,6 +24,28 @@ class User extends Authenticatable
         'kiosk_target',
         'facility_reports_acknowledged_at',
     ];
+
+    public function guideLanguages(): BelongsToMany
+    {
+        return $this->belongsToMany(Language::class, 'guide_language')
+            ->orderBy('sort_order')
+            ->orderBy('name');
+    }
+
+    public function guideLanguageLabel(): string
+    {
+        if (! $this->relationLoaded('guideLanguages')) {
+            $this->loadMissing('guideLanguages');
+        }
+
+        $codes = $this->guideLanguages
+            ->pluck('code')
+            ->filter()
+            ->map(fn (string $code) => strtoupper($code))
+            ->values();
+
+        return $codes->isEmpty() ? '-' : $codes->implode(', ');
+    }
 
     public function timeEntries()
     {
@@ -51,6 +74,17 @@ class User extends Authenticatable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class)->withTimestamps();
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeWithoutProductionRoles($query)
+    {
+        return $query->whereDoesntHave('roles', function ($roleQuery) {
+            $roleQuery->whereIn('slug', Roles::productionLoginRoles());
+        });
     }
 
     public function hasRole(string $slug): bool
@@ -84,15 +118,43 @@ class User extends Authenticatable
 
     public function availableRoleSlugs(): array
     {
+        return $this->loginRoleSlugs();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function loginRoleSlugs(): array
+    {
         if (! $this->relationLoaded('roles')) {
             $this->loadMissing('roles');
         }
 
         return $this->roles
             ->pluck('slug')
-            ->filter(fn ($slug) => is_string($slug) && $slug !== '')
+            ->filter(fn ($slug) => is_string($slug) && $slug !== '' && ! Roles::isScheduleOnly($slug))
             ->values()
             ->all();
+    }
+
+    public function canUseApplication(): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        return $this->loginRoleSlugs() !== [];
+    }
+
+    public function isScheduleOnlyUser(): bool
+    {
+        if (! $this->relationLoaded('roles')) {
+            $this->loadMissing('roles');
+        }
+
+        $slugs = $this->roles->pluck('slug')->filter()->values()->all();
+
+        return $slugs !== [] && array_diff($slugs, Roles::scheduleOnlyRoles()) === [];
     }
 
     public function activeRole(): ?string
@@ -107,7 +169,7 @@ class User extends Authenticatable
 
     public function canActivateRole(string $slug): bool
     {
-        return $this->hasRole($slug);
+        return $this->hasRole($slug) && in_array($slug, Roles::loginRoles(), true);
     }
 
     public function assignRoles(array $roles): self
@@ -134,9 +196,34 @@ class User extends Authenticatable
         return $this->hasRole(Roles::GUIDE);
     }
 
+    public function isElev(): bool
+    {
+        return $this->hasRole(Roles::ELEV);
+    }
+
     public function isRestaurant(): bool
     {
         return $this->hasRole(Roles::RESTAURANT);
+    }
+
+    public function isProduktionAdmin(): bool
+    {
+        return $this->hasRole(Roles::PRODUKTION_ADMIN);
+    }
+
+    public function isProduktionPersonal(): bool
+    {
+        return $this->hasRole(Roles::PRODUKTION_PERSONAL);
+    }
+
+    public function hasProductionAccess(): bool
+    {
+        return $this->hasAnyRole(Roles::productionLoginRoles());
+    }
+
+    public function productionPeople(): HasMany
+    {
+        return $this->hasMany(ProductionPerson::class);
     }
 
     public function isActiveAdmin(): bool

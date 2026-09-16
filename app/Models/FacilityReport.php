@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 class FacilityReport extends Model
@@ -50,15 +52,47 @@ class FacilityReport extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(FacilityReportAttachment::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * @return Collection<int, FacilityReportAttachment>
+     */
+    public function resolvedAttachments(): Collection
+    {
+        $this->loadMissing('attachments');
+
+        if ($this->attachments->isNotEmpty()) {
+            return $this->attachments;
+        }
+
+        if (empty($this->attachment_path)) {
+            return collect();
+        }
+
+        return collect([
+            new FacilityReportAttachment([
+                'facility_report_id' => $this->id,
+                'path' => $this->attachment_path,
+                'original_name' => null,
+                'sort_order' => 0,
+            ]),
+        ]);
+    }
+
     /**
      * Public URL for an uploaded guide photo (disk public + storage link).
      */
     public function attachmentPublicUrl(): ?string
     {
-        if (empty($this->attachment_path)) {
+        $first = $this->resolvedAttachments()->first();
+
+        if ($first === null || empty($first->path)) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->attachment_path);
+        return Storage::disk('public')->url($first->path);
     }
 }

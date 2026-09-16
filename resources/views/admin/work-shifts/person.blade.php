@@ -244,7 +244,7 @@
                                         {{ $shiftRoles[$shift->shift_role] ?? ucfirst($shift->shift_role) }}
 
                                         @if($shift->shift_role === 'restaurant' && $shift->shift_function)
-                                            · {{ $restaurantFunctions[$shift->shift_function] ?? ucfirst($shift->shift_function) }}
+                                            · {{ \App\Models\RestaurantFunction::label($shift->shift_function) }}
                                         @endif
                                     </div>
 

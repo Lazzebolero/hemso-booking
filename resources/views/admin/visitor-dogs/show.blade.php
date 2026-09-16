@@ -59,6 +59,11 @@
                     @endif
                 </dd>
 
+                <dt class="col-sm-4 small-muted">Särskilda behov</dt>
+                <dd class="col-sm-8">
+                    @include('partials.visitor-dogs.care-flags-display', ['dog' => $dog])
+                </dd>
+
                 <dt class="col-sm-4 small-muted">Registrerad</dt>
                 <dd class="col-sm-8">{{ $dog->created_at?->format('Y-m-d H:i') }}</dd>
 

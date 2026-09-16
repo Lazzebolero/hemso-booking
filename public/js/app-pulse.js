@@ -101,9 +101,16 @@
                 cache: 'no-store'
             });
 
+            if (response.status === 401 || response.status === 419) {
+                document.dispatchEvent(new CustomEvent('app:pulse:session-expired'));
+                return;
+            }
+
             if (!response.ok) {
                 return;
             }
+
+            window.__sessionExpiredNotified = false;
 
             const data = await response.json();
             window.__lastAppPulse = data;

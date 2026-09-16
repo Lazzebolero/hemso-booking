@@ -24,6 +24,7 @@ class HostWorkShiftStaffingTest extends TestCase
             ->assertOk()
             ->assertSee('Dagens personal', false)
             ->assertDontSee('Entrévärd · Personalvy', false)
+            ->assertSee('restaurant-mobile-header d-lg-none', false)
             ->assertDontSee('Dagvy', false)
             ->assertDontSee('Personvy', false)
             ->assertDontSee('Redigera', false);

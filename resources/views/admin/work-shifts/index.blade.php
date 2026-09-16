@@ -24,6 +24,7 @@
         'admin' => 'Admin',
         'host' => 'Värd',
         'guide' => 'Guide',
+        'elev' => 'Trainee / elev',
     ];
 @endphp
 
@@ -203,6 +204,10 @@
             <div class="staffing-summary-item">
                 <span>Restaurang</span>
                 <strong>{{ $shifts->where('shift_role', 'restaurant')->count() }}</strong>
+            </div>
+            <div class="staffing-summary-item">
+                <span>Trainee / elev</span>
+                <strong>{{ $shifts->where('shift_role', 'elev')->count() }}</strong>
             </div>
         </div>
 

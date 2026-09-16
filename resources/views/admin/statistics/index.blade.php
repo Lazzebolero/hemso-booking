@@ -2,6 +2,8 @@
 
 @section('content')
 @php
+    $prefix = \App\Support\ActiveRole::routePrefix();
+
     $timelineData = $stats['timeline'] ?? [
         'labels' => [],
         'booked' => [],
@@ -20,10 +22,6 @@
     $previousBookings = $comparison['summary']['bookings'] ?? 0;
     $bookingsChange = $previousBookings > 0 ? round((($currentBookings - $previousBookings) / $previousBookings) * 100) : 0;
 
-    $currentOccupancy = $stats['summary']['occupancy_rate'] ?? 0;
-    $previousOccupancy = $comparison['summary']['occupancy_rate'] ?? 0;
-    $occupancyChange = $previousOccupancy > 0 ? round((($currentOccupancy - $previousOccupancy) / $previousOccupancy) * 100) : 0;
-
     $currentNoShowLate = ($stats['summary']['no_show'] ?? 0) + ($stats['summary']['late_cancel'] ?? 0);
     $previousNoShowLate = ($comparison['summary']['no_show'] ?? 0) + ($comparison['summary']['late_cancel'] ?? 0);
     $noShowLateChange = $previousNoShowLate > 0 ? round((($currentNoShowLate - $previousNoShowLate) / $previousNoShowLate) * 100) : 0;
@@ -32,19 +30,29 @@
     $womenCount = $stats['summary']['women_count'] ?? 0;
     $youthCount = $stats['summary']['youth_count'] ?? 0;
     $childCount = $stats['summary']['child_count'] ?? 0;
+    $unspecifiedCount = $stats['summary']['unspecified_count'] ?? 0;
 
     $previousMenCount = $comparison['summary']['men_count'] ?? 0;
     $previousWomenCount = $comparison['summary']['women_count'] ?? 0;
     $previousYouthCount = $comparison['summary']['youth_count'] ?? 0;
     $previousChildCount = $comparison['summary']['child_count'] ?? 0;
 
+    $familyBookingsCount = $stats['summary']['family_bookings_count'] ?? 0;
+    $previousFamilyBookingsCount = $comparison['summary']['family_bookings_count'] ?? 0;
+    $familyBookingsShare = $stats['summary']['family_bookings_share'] ?? 0;
+
+    $nonSwedishLanguageBookingsCount = $stats['summary']['non_swedish_language_bookings_count'] ?? 0;
+    $previousNonSwedishLanguageBookingsCount = $comparison['summary']['non_swedish_language_bookings_count'] ?? 0;
+    $nonSwedishLanguageBookingsShare = $stats['summary']['non_swedish_language_bookings_share'] ?? 0;
+
+    $foreignCountryBookingsCount = $stats['summary']['foreign_country_bookings_count'] ?? 0;
+    $previousForeignCountryBookingsCount = $comparison['summary']['foreign_country_bookings_count'] ?? 0;
+    $foreignCountryBookingsShare = $stats['summary']['foreign_country_bookings_share'] ?? 0;
+
     $groupTotal = $menCount + $womenCount + $youthCount + $childCount;
 
     $topBooked = $stats['tour_type_insights']['top_booked']['label'] ?? '-';
     $topBookedValue = $stats['tour_type_insights']['top_booked']['booked_people'] ?? 0;
-
-    $bestOccupancy = $stats['tour_type_insights']['best_occupancy']['label'] ?? '-';
-    $bestOccupancyValue = $stats['tour_type_insights']['best_occupancy']['occupancy_percent'] ?? 0;
 
     $largestAverage = $stats['tour_type_insights']['largest_average']['label'] ?? '-';
     $largestAverageValue = $stats['tour_type_insights']['largest_average']['avg_group_size'] ?? 0;
@@ -75,7 +83,6 @@
 
     $bookedTrend = $formatTrend($bookedChange);
     $bookingsTrend = $formatTrend($bookingsChange);
-    $occupancyTrend = $formatTrend($occupancyChange);
     $noShowTrend = $formatTrend($noShowLateChange, true);
 
     $menChange = $previousMenCount > 0 ? round((($menCount - $previousMenCount) / $previousMenCount) * 100) : ($menCount > 0 ? 100 : 0);
@@ -87,6 +94,23 @@
     $womenTrend = $formatTrend($womenChange);
     $youthTrend = $formatTrend($youthChange);
     $childTrend = $formatTrend($childChange);
+
+    $familyChange = $previousFamilyBookingsCount > 0
+        ? round((($familyBookingsCount - $previousFamilyBookingsCount) / $previousFamilyBookingsCount) * 100)
+        : ($familyBookingsCount > 0 ? 100 : 0);
+    $familyTrend = $formatTrend($familyChange);
+
+    $nonSwedishLanguageChange = $previousNonSwedishLanguageBookingsCount > 0
+        ? round((($nonSwedishLanguageBookingsCount - $previousNonSwedishLanguageBookingsCount) / $previousNonSwedishLanguageBookingsCount) * 100)
+        : ($nonSwedishLanguageBookingsCount > 0 ? 100 : 0);
+    $nonSwedishLanguageTrend = $formatTrend($nonSwedishLanguageChange);
+
+    $foreignCountryChange = $previousForeignCountryBookingsCount > 0
+        ? round((($foreignCountryBookingsCount - $previousForeignCountryBookingsCount) / $previousForeignCountryBookingsCount) * 100)
+        : ($foreignCountryBookingsCount > 0 ? 100 : 0);
+    $foreignCountryTrend = $formatTrend($foreignCountryChange);
+
+    $statisticsRoute = route(\App\Support\ActiveRole::routeName('statistics.index'));
 @endphp
 
 <div class="stats-page">
@@ -94,11 +118,29 @@
         <div>
             <h2 class="page-title">Statistik</h2>
             <div class="page-subtitle">
-                Analys av bokningar, beläggning, turtyper, kön och åldersfördelning över vald period.
+                Analys av bokningar, turtyper, kön och åldersfördelning över vald period.
             </div>
         </div>
 
-        <div class="page-actions">
+        <div class="page-actions d-flex gap-2 flex-wrap">
+            @if(Route::has(\App\Support\ActiveRole::routePrefix() . '.statistics-notes.edit'))
+                <a href="{{ route(\App\Support\ActiveRole::routePrefix() . '.statistics-notes.edit', ['date' => ($to ?? now())->toDateString()]) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-journal-text me-2"></i>Notera denna dag
+                </a>
+            @endif
+            @if(Route::has(\App\Support\ActiveRole::routeName('statistics.booking-inflow')))
+                <a href="{{ route(\App\Support\ActiveRole::routeName('statistics.booking-inflow'), request()->query()) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-clock me-2"></i>Bokningsinflöde
+                </a>
+            @endif
+            @if(Route::has(\App\Support\ActiveRole::routeName('statistics.ferry-booking-waves')))
+                <a href="{{ route(\App\Support\ActiveRole::routeName('statistics.ferry-booking-waves'), request()->query()) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-water me-2"></i>Färja & bokningsvågor
+                </a>
+            @endif
+            <a href="{{ route('admin.statistics.historical-visitors.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history me-2"></i>Historisk besöksstatistik
+            </a>
             <a href="{{ route('admin.statistics.export-csv', request()->query()) }}" class="btn btn-outline-secondary">
                 <i class="bi bi-download me-2"></i>CSV-export
             </a>
@@ -106,35 +148,21 @@
     </div>
 
     <div class="page-card compact-card mb-4">
-        <form method="GET" action="{{ route('admin.statistics.index') }}" class="stats-filter-grid">
-            <div>
-                <label class="form-label">Period</label>
-                <select name="period" class="form-select">
-                    <option value="day" @selected($period === 'day')>Dag</option>
-                    <option value="week" @selected($period === 'week')>Vecka</option>
-                    <option value="month" @selected($period === 'month')>Månad</option>
-                    <option value="year" @selected($period === 'year')>År</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="form-label">Basdatum</label>
-                <input type="date" name="date" class="form-control" value="{{ $date->toDateString() }}">
-            </div>
-
-            <div>
-                <label class="form-label">Vald period</label>
-                <div class="stats-period-box">
-                    {{ $from->toDateString() }} – {{ $to->toDateString() }}
-                </div>
-            </div>
-
-            <div class="stats-filter-actions">
-                <button class="btn btn-primary w-100">
-                    <i class="bi bi-funnel me-2"></i>Visa statistik
-                </button>
-            </div>
-        </form>
+        @include('partials.admin.statistics-period-filter', [
+            'formAction' => $statisticsRoute,
+            'formId' => 'statistics-filter-form',
+            'period' => $period,
+            'date' => $date,
+            'from' => $from,
+            'to' => $to,
+            'year' => $year,
+            'month' => $month,
+            'submitLabel' => 'Visa statistik',
+            'showTourTypeFilter' => true,
+            'tourTypes' => $tourTypes,
+            'tourTypeFilterValue' => $tourTypeFilterValue,
+            'scheduleTourTypeLabel' => $tourTypeLabel,
+        ])
     </div>
 
     <div class="stats-kpi-grid mb-4">
@@ -155,16 +183,6 @@
             <div class="trend-row {{ $bookingsTrend['class'] }}">
                 <i class="bi {{ $bookingsTrend['icon'] }}"></i>
                 <span>{{ $bookingsTrend['label'] }}</span>
-            </div>
-        </div>
-
-        <div class="stats-card premium-kpi">
-            <div class="stats-label">Beläggning</div>
-            <div class="stats-value">{{ $currentOccupancy }}%</div>
-            <div class="stats-subtext">Väntelista: {{ $stats['summary']['waitlist'] ?? 0 }}</div>
-            <div class="trend-row {{ $occupancyTrend['class'] }}">
-                <i class="bi {{ $occupancyTrend['icon'] }}"></i>
-                <span>{{ $occupancyTrend['label'] }}</span>
             </div>
         </div>
 
@@ -235,6 +253,74 @@
         </div>
 
         <div class="stats-card premium-kpi">
+            <div class="stats-label">Antal barnfamiljer</div>
+            <div class="stats-value">{{ $familyBookingsCount }}</div>
+            <div class="stats-subtext">
+                Föregående period: {{ $previousFamilyBookingsCount }}
+                • {{ $familyBookingsShare }}% av aktiva bokningar
+            </div>
+            <div class="trend-row {{ $familyTrend['class'] }}">
+                <i class="bi {{ $familyTrend['icon'] }}"></i>
+                <span>{{ $familyTrend['label'] }}</span>
+            </div>
+        </div>
+
+        <div class="stats-card premium-kpi">
+            <div class="stats-label">Bokningar med annat språk</div>
+            <div class="stats-value">{{ $nonSwedishLanguageBookingsCount }}</div>
+            <div class="stats-subtext">
+                Föregående period: {{ $previousNonSwedishLanguageBookingsCount }}
+                • {{ $nonSwedishLanguageBookingsShare }}% av aktiva bokningar
+            </div>
+            <div class="trend-row {{ $nonSwedishLanguageTrend['class'] }}">
+                <i class="bi {{ $nonSwedishLanguageTrend['icon'] }}"></i>
+                <span>{{ $nonSwedishLanguageTrend['label'] }}</span>
+            </div>
+        </div>
+
+        <div class="stats-card premium-kpi">
+            <div class="stats-label">Bokningar från andra länder</div>
+            <div class="stats-value">{{ $foreignCountryBookingsCount }}</div>
+            <div class="stats-subtext">
+                Föregående period: {{ $previousForeignCountryBookingsCount }}
+                • {{ $foreignCountryBookingsShare }}% av aktiva bokningar
+            </div>
+            <div class="trend-row {{ $foreignCountryTrend['class'] }}">
+                <i class="bi {{ $foreignCountryTrend['icon'] }}"></i>
+                <span>{{ $foreignCountryTrend['label'] }}</span>
+            </div>
+        </div>
+
+        @if(Route::has($prefix . '.statistics.unspecified-follow-up'))
+            <a href="{{ route($prefix . '.statistics.unspecified-follow-up') }}" class="text-decoration-none text-reset d-block">
+                <div class="stats-card premium-kpi">
+                    <div class="stats-label">Ospecificerade</div>
+                    <div class="stats-value">{{ $unspecifiedCount }}</div>
+                    <div class="stats-subtext">
+                        @if(($stats['summary']['booked_people'] ?? 0) > 0)
+                            {{ round(($unspecifiedCount / max(1, $stats['summary']['booked_people'])) * 100, 1) }}% av bokade
+                        @else
+                            Andel utan fördelning m/k/u/b
+                        @endif
+                        <span class="d-block mt-1"><i class="bi bi-arrow-right-short"></i>Visa uppföljning</span>
+                    </div>
+                </div>
+            </a>
+        @else
+            <div class="stats-card premium-kpi">
+                <div class="stats-label">Ospecificerade</div>
+                <div class="stats-value">{{ $unspecifiedCount }}</div>
+                <div class="stats-subtext">
+                    @if(($stats['summary']['booked_people'] ?? 0) > 0)
+                        {{ round(($unspecifiedCount / max(1, $stats['summary']['booked_people'])) * 100, 1) }}% av bokade
+                    @else
+                        Andel utan fördelning m/k/u/b
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        <div class="stats-card premium-kpi">
             <div class="stats-label">Totalt M/K/U/B</div>
             <div class="stats-value">{{ $groupTotal }}</div>
             <div class="stats-subtext">Summering av män, kvinnor, ungdomar och barn</div>
@@ -246,7 +332,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <div class="section-title mb-1">Utveckling över vald period</div>
-                    <div class="small-muted">Bokade personer och antal turer över tid.</div>
+                    <div class="small-muted">Bokade personer och antal turer per 15-minutersintervall.</div>
                 </div>
             </div>
 
@@ -304,12 +390,6 @@
                     </div>
 
                     <div class="stats-insight-item">
-                        <div class="small-muted">Bästa beläggning</div>
-                        <div class="fw-semibold">{{ $bestOccupancy }}</div>
-                        <div class="small-muted">{{ $bestOccupancyValue }}%</div>
-                    </div>
-
-                    <div class="stats-insight-item">
                         <div class="small-muted">Störst snittgrupp</div>
                         <div class="fw-semibold">{{ $largestAverage }}</div>
                         <div class="small-muted">{{ $largestAverageValue }} personer/tur</div>
@@ -323,7 +403,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <div class="section-title mb-1">Turtypsanalys</div>
-                <div class="small-muted">Jämförelse av bokningar, beläggning, snittstorlek och trend.</div>
+                <div class="small-muted">Jämförelse av bokningar, snittstorlek och trend.</div>
             </div>
         </div>
 
@@ -332,12 +412,6 @@
                 <div class="stats-label">Mest bokad turtyp</div>
                 <div class="stats-value stats-value-sm">{{ $topBooked }}</div>
                 <div class="stats-subtext">{{ $topBookedValue }} bokade</div>
-            </div>
-
-            <div class="stats-card compact-card">
-                <div class="stats-label">Bästa beläggning</div>
-                <div class="stats-value stats-value-sm">{{ $bestOccupancy }}</div>
-                <div class="stats-subtext">{{ $bestOccupancyValue }}%</div>
             </div>
 
             <div class="stats-card compact-card">
@@ -365,15 +439,6 @@
         </div>
 
         <div class="page-card">
-            <div class="section-title mb-3">Beläggning per turtyp</div>
-            <div class="chart-shell">
-                <div class="stats-chart-md">
-                    <canvas id="tourTypeOccupancyChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="page-card">
             <div class="section-title mb-3">Snittstorlek per turtyp</div>
             <div class="chart-shell">
                 <div class="stats-chart-md">
@@ -383,7 +448,7 @@
         </div>
 
         <div class="page-card">
-            <div class="section-title mb-3">Trend över tid per turtyp</div>
+            <div class="section-title mb-3">Trend per 15-minutersintervall och turtyp</div>
             <div class="chart-shell">
                 <div class="stats-chart-md">
                     <canvas id="tourTypeTrendChart"></canvas>
@@ -404,7 +469,6 @@
                             <th style="width: 120px;">Antal turer</th>
                             <th style="width: 140px;">Bokade personer</th>
                             <th style="width: 120px;">Snittstorlek</th>
-                            <th style="width: 110px;">Beläggning</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -414,11 +478,10 @@
                                 <td>{{ $row['tours'] }}</td>
                                 <td>{{ $row['booked_people'] }}</td>
                                 <td>{{ $row['avg_group_size'] }}</td>
-                                <td>{{ $row['occupancy_percent'] }}%</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center muted py-4">Ingen data.</td>
+                                <td colspan="4" class="text-center muted py-4">Ingen data.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -427,17 +490,23 @@
         </div>
 
         <div class="stats-side-stack">
-            <div class="page-card">
-                <div class="section-title mb-3">Beläggning per turtyp</div>
+            @php
+                $maxBookedByTourType = collect($stats['tour_type_summary'] ?? [])->max('booked_people') ?: 1;
+                $maxBookedByWeekday = collect($stats['booked_by_weekday'] ?? [])->max('booked') ?: 1;
+                $maxBookedByGuide = collect($stats['booked_by_guide'] ?? [])->max('booked') ?: 1;
+            @endphp
 
-                @forelse($stats['occupancy_by_tour_type'] as $row)
+            <div class="page-card">
+                <div class="section-title mb-3">Bokade per turtyp</div>
+
+                @forelse($stats['tour_type_summary'] ?? [] as $row)
                     <div class="mb-3">
                         <div class="d-flex justify-content-between small mb-1">
                             <span>{{ $row['label'] }}</span>
-                            <span>{{ $row['occupancy_percent'] }}%</span>
+                            <span>{{ $row['booked_people'] }} pers</span>
                         </div>
                         <div class="progress-modern">
-                            <div style="width: {{ min(100, $row['occupancy_percent']) }}%; background: var(--brand-success);"></div>
+                            <div style="width: {{ min(100, round(($row['booked_people'] / $maxBookedByTourType) * 100)) }}%; background: var(--brand-success);"></div>
                         </div>
                     </div>
                 @empty
@@ -446,16 +515,17 @@
             </div>
 
             <div class="page-card">
-                <div class="section-title mb-3">Beläggning per veckodag</div>
+                <div class="section-title mb-1">Bokade per veckodag</div>
+                <div class="page-subtitle mb-3">{{ $tourTypeLabel }}</div>
 
-                @forelse($stats['occupancy_by_weekday'] as $row)
+                @forelse($stats['booked_by_weekday'] ?? [] as $row)
                     <div class="mb-3">
                         <div class="d-flex justify-content-between small mb-1">
                             <span>{{ $row['label'] }}</span>
-                            <span>{{ $row['occupancy_percent'] }}%</span>
+                            <span>{{ $row['booked'] }} pers</span>
                         </div>
                         <div class="progress-modern">
-                            <div style="width: {{ min(100, $row['occupancy_percent']) }}%; background: var(--brand-warning);"></div>
+                            <div style="width: {{ min(100, round(($row['booked'] / $maxBookedByWeekday) * 100)) }}%; background: var(--brand-warning);"></div>
                         </div>
                     </div>
                 @empty
@@ -464,16 +534,16 @@
             </div>
 
             <div class="page-card">
-                <div class="section-title mb-3">Beläggning per guide</div>
+                <div class="section-title mb-3">Bokade per guide</div>
 
-                @forelse($stats['occupancy_by_guide'] as $row)
+                @forelse($stats['booked_by_guide'] ?? [] as $row)
                     <div class="mb-3">
                         <div class="d-flex justify-content-between small mb-1">
                             <span>{{ $row['label'] }}</span>
-                            <span>{{ $row['occupancy_percent'] }}%</span>
+                            <span>{{ $row['booked'] }} pers</span>
                         </div>
                         <div class="progress-modern">
-                            <div style="width: {{ min(100, $row['occupancy_percent']) }}%; background: var(--brand-danger);"></div>
+                            <div style="width: {{ min(100, round(($row['booked'] / $maxBookedByGuide) * 100)) }}%; background: var(--brand-danger);"></div>
                         </div>
                     </div>
                 @empty
@@ -526,8 +596,190 @@
         </div>
     </div>
 
+    @if(($period ?? '') !== 'year')
     <div class="page-card mt-4">
-        <div class="section-title mb-3">Mest populära tider</div>
+        <div class="section-title mb-1">Länder i perioden</div>
+        <div class="page-subtitle mb-3">
+            Bokningar med angivet land samt noterade dagar från Dagens länder (oberoende av enskilda bokningar). Sverige ingår inte.
+        </div>
+
+        @include('admin.statistics.partials.countries-breakdown-table', [
+            'rows' => $stats['countries_breakdown'] ?? [],
+            'emptyMessage' => 'Inga utländska länder i vald period.',
+        ])
+    </div>
+    @endif
+
+    <div class="page-card mt-4">
+        <div class="section-title mb-1">Länder under året ({{ $year }})</div>
+        <div class="page-subtitle mb-3">
+            Alla utländska länder med besök under {{ $year }} — från bokningar och Dagens länder. Sverige ingår inte.
+        </div>
+
+        @include('admin.statistics.partials.countries-breakdown-table', [
+            'rows' => $yearCountriesBreakdown ?? [],
+            'emptyMessage' => 'Inga utländska länder under ' . $year . '.',
+        ])
+    </div>
+
+    <div class="page-card mt-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div>
+                <div class="section-title mb-1">Karta över årets länder ({{ $year }})</div>
+                <div class="page-subtitle mb-0">
+                    Choropleth-världskarta för utländska länder under {{ $year }}. Färgen rangordnar länder mot varandra (fler nyanser syns även när skillnaderna är stora).
+                </div>
+            </div>
+            <a href="{{ route($prefix . '.statistics.year-countries-map', array_filter(['year' => $year, 'tour_type_id' => $tourTypeFilterValue !== 'all' ? $tourTypeFilterValue : null])) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-arrows-fullscreen me-1"></i>Öppna stor karta
+            </a>
+        </div>
+
+        @if(! empty($yearCountriesBreakdown))
+            <div id="year-countries-map" class="year-countries-map" aria-label="Karta över årets länder"></div>
+            <div class="d-flex align-items-center gap-2 mt-3 small-muted">
+                <span>Få</span>
+                <span class="year-countries-map-legend-swatch year-countries-map-legend-low"></span>
+                <span class="flex-grow-1 year-countries-map-legend-bar"></span>
+                <span class="year-countries-map-legend-swatch year-countries-map-legend-high"></span>
+                <span>Fler</span>
+            </div>
+        @else
+            <div class="muted">Inga utländska länder att visa på kartan under {{ $year }}.</div>
+        @endif
+    </div>
+
+    <div class="page-card mt-4">
+        <div class="section-title mb-1">Väder & besök ({{ $year }})</div>
+        <div class="page-subtitle mb-3">Dagar med besökare och väder från SMHI Lungö A · {{ $tourTypeLabel }}</div>
+
+        <div class="stats-kpi-grid mb-0">
+            <div class="stats-card premium-kpi">
+                <div class="stats-label">Årets varmaste besöksdag</div>
+                @if(($visitorWeatherExtremes['hottest'] ?? null) !== null)
+                    @php $hottest = $visitorWeatherExtremes['hottest']; @endphp
+                    <div class="stats-value">{{ rtrim(rtrim(number_format($hottest['temp_max'], 1, '.', ''), '0'), '.') }}°</div>
+                    <div class="stats-subtext">
+                        {{ $hottest['date_label'] }} · {{ ucfirst($hottest['weekday']) }} · {{ $hottest['booked'] }} bokade · dagens maxtemp
+                        @if(! empty($hottest['weather_summary']))
+                            <span class="d-block mt-1 small-muted">{{ $hottest['weather_summary'] }}</span>
+                        @endif
+                    </div>
+                @else
+                    <div class="stats-value">–</div>
+                    <div class="stats-subtext">Ingen dag med både besökare och väderdata.</div>
+                @endif
+            </div>
+
+            <div class="stats-card premium-kpi">
+                <div class="stats-label">Årets kallaste besöksdag</div>
+                @if(($visitorWeatherExtremes['coldest'] ?? null) !== null)
+                    @php $coldest = $visitorWeatherExtremes['coldest']; @endphp
+                    <div class="stats-value">{{ rtrim(rtrim(number_format($coldest['temp_max'], 1, '.', ''), '0'), '.') }}°</div>
+                    <div class="stats-subtext">
+                        {{ $coldest['date_label'] }} · {{ ucfirst($coldest['weekday']) }} · {{ $coldest['booked'] }} bokade · dagens maxtemp
+                        @if(! empty($coldest['weather_summary']))
+                            <span class="d-block mt-1 small-muted">{{ $coldest['weather_summary'] }}</span>
+                        @endif
+                    </div>
+                @else
+                    <div class="stats-value">–</div>
+                    <div class="stats-subtext">Ingen dag med både besökare och väderdata.</div>
+                @endif
+            </div>
+
+            <div class="stats-card premium-kpi">
+                <div class="stats-label">Årets blötaste besöksdag</div>
+                @if(($visitorWeatherExtremes['wettest'] ?? null) !== null)
+                    @php $wettest = $visitorWeatherExtremes['wettest']; @endphp
+                    <div class="stats-value">{{ rtrim(rtrim(number_format($wettest['precipitation_mm'], 1, '.', ''), '0'), '.') }} mm</div>
+                    <div class="stats-subtext">
+                        {{ $wettest['date_label'] }} · {{ ucfirst($wettest['weekday']) }} · {{ $wettest['booked'] }} bokade
+                        @if(! empty($wettest['weather_summary']))
+                            <span class="d-block mt-1 small-muted">{{ $wettest['weather_summary'] }}</span>
+                        @endif
+                    </div>
+                @else
+                    <div class="stats-value">–</div>
+                    <div class="stats-subtext">Ingen besöksdag med nederbörd och väderdata.</div>
+                @endif
+            </div>
+
+            <div class="stats-card premium-kpi">
+                <div class="stats-label">Årets blåsigaste besöksdag</div>
+                @if(($visitorWeatherExtremes['windiest'] ?? null) !== null)
+                    @php $windiest = $visitorWeatherExtremes['windiest']; @endphp
+                    <div class="stats-value">{{ rtrim(rtrim(number_format($windiest['wind_gust_max'], 1, '.', ''), '0'), '.') }} m/s</div>
+                    <div class="stats-subtext">
+                        {{ $windiest['date_label'] }} · {{ ucfirst($windiest['weekday']) }} · {{ $windiest['booked'] }} bokade · dagens max byvind
+                        @if(! empty($windiest['weather_summary']))
+                            <span class="d-block mt-1 small-muted">{{ $windiest['weather_summary'] }}</span>
+                        @endif
+                    </div>
+                @else
+                    <div class="stats-value">–</div>
+                    <div class="stats-subtext">Ingen besöksdag med vinddata.</div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div class="page-card mt-4">
+        <div class="section-title mb-1">Årets populäraste dagar ({{ $year }})</div>
+        <div class="page-subtitle mb-3">
+            Hela kalenderåret · {{ $tourTypeLabel }}.
+            Turer = ej avbokade. Guider = unika huvudguider + medguider den dagen.
+        </div>
+
+        <div class="table-responsive-modern">
+            <table class="table-modern">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">#</th>
+                        <th style="width: 180px;">Datum</th>
+                        <th style="width: 140px;">Veckodag</th>
+                        <th style="width: 150px;">Bokade personer</th>
+                        <th style="width: 120px;">Turer</th>
+                        <th style="width: 120px;">Guider</th>
+                        <th>Väder (Lungö A)</th>
+                        <th>Notering</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($popularDays ?? [] as $index => $row)
+                        <tr>
+                            <td class="fw-semibold">{{ $index + 1 }}</td>
+                            <td>{{ $row['date_label'] }}</td>
+                            <td>{{ ucfirst($row['weekday']) }}</td>
+                            <td>{{ $row['booked'] }}</td>
+                            <td>{{ $row['tours'] ?? 0 }}</td>
+                            <td>{{ $row['guides'] ?? 0 }}</td>
+                            <td class="small-muted">
+                                @include('partials.admin.weather-summary', [
+                                    'summary' => $row['weather_summary'] ?? null,
+                                ])
+                            </td>
+                            <td class="small-muted">
+                                @if(! empty($row['day_note']))
+                                    <span title="{{ $row['day_note'] }}">{{ \Illuminate\Support\Str::limit($row['day_note'], 60) }}</span>
+                                @else
+                                    –
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="text-center muted py-4">Ingen data för {{ $year }}.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="page-card mt-4">
+        <div class="section-title mb-1">Mest populära tider</div>
+        <div class="page-subtitle mb-3">{{ $tourTypeLabel }}</div>
 
         <div class="table-responsive-modern">
             <table class="table-modern">
@@ -562,26 +814,6 @@
 }
 .stats-header {
     margin-bottom: 1.2rem;
-}
-.stats-filter-grid {
-    display: grid;
-    grid-template-columns: 220px 220px minmax(260px, 1fr) 220px;
-    gap: 1rem;
-    align-items: end;
-}
-.stats-filter-actions {
-    display: flex;
-    align-items: end;
-}
-.stats-period-box {
-    min-height: 46px;
-    display: flex;
-    align-items: center;
-    padding: 0.72rem 0.86rem;
-    border: 1px solid var(--brand-line-soft);
-    border-radius: 12px;
-    background: #f8fafc;
-    font-weight: 600;
 }
 .stats-kpi-grid {
     display: grid;
@@ -628,6 +860,36 @@
 .stats-chart-md {
     height: 300px;
     position: relative;
+}
+.year-countries-map {
+    height: 420px;
+    width: 100%;
+    background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+    border: 1px solid var(--brand-line-soft);
+    border-radius: 16px;
+}
+.year-countries-map .jvm-container {
+    width: 100%;
+    height: 100%;
+}
+.year-countries-map-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    flex-shrink: 0;
+}
+.year-countries-map-legend-low {
+    background: #dbeafe;
+}
+.year-countries-map-legend-high {
+    background: #1d4ed8;
+}
+.year-countries-map-legend-bar {
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #dbeafe 0%, #93c5fd 20%, #60a5fa 40%, #3b82f6 60%, #2563eb 80%, #1d4ed8 100%);
+    border: 1px solid rgba(15, 23, 42, 0.08);
 }
 .chart-shell {
     background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
@@ -693,7 +955,6 @@
         min-width: 0;
     }
 
-    .stats-filter-grid,
     .stats-kpi-grid,
     .stats-tourtype-kpis,
     .stats-mini-grid {
@@ -703,15 +964,19 @@
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.6.0/dist/jsvectormap.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.6.0/dist/jsvectormap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.6.0/dist/maps/world.js"></script>
+@include('partials.admin.year-countries-choropleth')
 <script>
     const timeline = @json($timelineData);
     const distribution = @json($distributionData);
     const tourTypeSummary = @json($tourTypeSummary);
     const tourTypeTimeline = @json($tourTypeTimeline);
+    const yearCountriesMapData = @json($yearCountriesBreakdown ?? []);
 
     const tourTypeLabels = tourTypeSummary.map(item => item.label);
     const tourTypeBooked = tourTypeSummary.map(item => item.booked_people);
-    const tourTypeOccupancy = tourTypeSummary.map(item => item.occupancy_percent);
     const tourTypeAverage = tourTypeSummary.map(item => item.avg_group_size);
 
     const CHART_COLORS = {
@@ -1085,16 +1350,6 @@
     );
 
     createBarChart(
-        'tourTypeOccupancyChart',
-        tourTypeLabels,
-        tourTypeOccupancy,
-        'Beläggning %',
-        CHART_COLORS.green,
-        CHART_COLORS.greenSoft,
-        '%'
-    );
-
-    createBarChart(
         'tourTypeAverageChart',
         tourTypeLabels,
         tourTypeAverage,
@@ -1160,5 +1415,76 @@
             }
         });
     }
+
+    (function initYearCountriesMap() {
+        const mapEl = document.getElementById('year-countries-map');
+        if (!mapEl || typeof jsVectorMap === 'undefined' || !Array.isArray(yearCountriesMapData) || yearCountriesMapData.length === 0) {
+            return;
+        }
+
+        const byCode = {};
+        const rawValues = {};
+
+        yearCountriesMapData.forEach((row) => {
+            const code = String(row.code || '').toUpperCase();
+            if (!code) {
+                return;
+            }
+
+            const weight = Math.max(1, Number(row.bookings || 0) + Number(row.noted_days || 0));
+            byCode[code] = row;
+            rawValues[code] = weight;
+
+            if (code === 'GB') {
+                byCode.UK = row;
+                rawValues.UK = weight;
+            }
+        });
+
+        const choropleth = window.HemsoCountryChoropleth;
+        const values = choropleth.toSeriesValues(rawValues);
+
+        new jsVectorMap({
+            selector: '#year-countries-map',
+            map: 'world',
+            backgroundColor: 'transparent',
+            zoomOnScroll: false,
+            regionStyle: {
+                initial: {
+                    fill: '#e2e8f0',
+                    stroke: '#94a3b8',
+                    strokeWidth: 0.4,
+                },
+                hover: {
+                    fill: '#93c5fd',
+                },
+            },
+            series: {
+                regions: [
+                    {
+                        attribute: 'fill',
+                        scale: choropleth.scale,
+                        values: values,
+                        normalizeFunction: choropleth.normalizeFunction,
+                    },
+                ],
+            },
+            onRegionTooltipShow(event, tooltip, code) {
+                const row = byCode[code];
+                if (!row) {
+                    tooltip.text(code);
+                    return;
+                }
+
+                tooltip.text(
+                    row.name
+                    + ' — '
+                    + row.bookings + ' bokningar, '
+                    + row.people + ' personer, '
+                    + row.noted_days + ' noterade dagar'
+                );
+            },
+        });
+    })();
 </script>
 @endsection

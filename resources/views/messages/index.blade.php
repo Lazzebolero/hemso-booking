@@ -1,4 +1,4 @@
-@extends(session('active_role') === \App\Support\Roles::GUIDE ? 'layouts.guide' : 'layouts.app')
+@extends(\App\Support\GuideShell::layoutView())
 
 @section('content')
 @php

@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Tour;
 use App\Models\User;
+use App\Services\GuideLanguageMatchService;
 use App\Support\Roles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class GuideAvailabilityController extends Controller
 {
+    public function __construct(
+        private GuideLanguageMatchService $guideLanguageMatchService
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -18,26 +23,34 @@ class GuideAvailabilityController extends Controller
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
             'ignore_tour_id' => ['nullable', 'integer'],
+            'tour_id' => ['nullable', 'integer', 'exists:tours,id'],
         ]);
 
         $date = $data['date'];
         $startTime = $data['start_time'] ?? null;
         $endTime = $data['end_time'] ?? null;
         $ignoreTourId = $data['ignore_tour_id'] ?? null;
+        $tour = isset($data['tour_id']) ? Tour::query()->find($data['tour_id']) : null;
+        $requiredLanguageCodes = $tour
+            ? $this->guideLanguageMatchService->requiredLanguageCodesForTour($tour)
+            : [];
 
         $guides = User::query()
             ->whereHas('roles', function ($query) {
                 $query->where('slug', Roles::GUIDE);
             })
-            ->with(['workShifts' => function ($query) use ($date) {
-                $query->whereDate('shift_date', $date)
-                    ->where('shift_role', Roles::GUIDE)
-                    ->whereNotIn('status', ['cancelled'])
-                    ->orderBy('start_time');
-            }])
+            ->with([
+                'guideLanguages',
+                'workShifts' => function ($query) use ($date) {
+                    $query->whereDate('shift_date', $date)
+                        ->where('shift_role', Roles::GUIDE)
+                        ->whereNotIn('status', ['cancelled'])
+                        ->orderBy('start_time');
+                },
+            ])
             ->orderBy('name')
             ->get()
-            ->map(function ($guide) use ($date, $startTime, $endTime, $ignoreTourId) {
+            ->map(function ($guide) use ($date, $startTime, $endTime, $ignoreTourId, $requiredLanguageCodes) {
                 $shift = $guide->workShifts->first();
 
                 $shiftStart = $shift?->start_time
@@ -52,6 +65,18 @@ class GuideAvailabilityController extends Controller
                     ignoreTourId: $ignoreTourId
                 );
 
+                $languageCodes = $guide->guideLanguages
+                    ->pluck('code')
+                    ->filter()
+                    ->map(fn (string $code) => strtoupper($code))
+                    ->values()
+                    ->all();
+
+                $missingLanguageCodes = $this->guideLanguageMatchService->missingLanguageCodes(
+                    $guide,
+                    $requiredLanguageCodes
+                );
+
                 return [
                     'id' => $guide->id,
                     'name' => $guide->name,
@@ -59,11 +84,18 @@ class GuideAvailabilityController extends Controller
                     'shift_start' => $shiftStart,
                     'has_conflict' => (bool) $tourConflict,
                     'conflict_text' => $tourConflict,
+                    'language_codes' => $languageCodes,
+                    'required_language_codes' => $requiredLanguageCodes,
+                    'missing_language_codes' => $missingLanguageCodes,
+                    'has_language_mismatch' => $missingLanguageCodes !== [],
+                    'language_mismatch_text' => $this->guideLanguageMatchService->mismatchMessage($missingLanguageCodes),
                     'label' => $this->buildLabel(
                         name: $guide->name,
                         shiftStart: $shiftStart,
                         hasShift: (bool) $shift,
-                        hasConflict: (bool) $tourConflict
+                        hasConflict: (bool) $tourConflict,
+                        languageCodes: $languageCodes,
+                        missingLanguageCodes: $missingLanguageCodes,
                     ),
                 ];
             })
@@ -72,12 +104,30 @@ class GuideAvailabilityController extends Controller
         return response()->json($guides);
     }
 
-    private function buildLabel(string $name, ?string $shiftStart, bool $hasShift, bool $hasConflict): string
-    {
+    /**
+     * @param  list<string>  $languageCodes
+     * @param  list<string>  $missingLanguageCodes
+     */
+    private function buildLabel(
+        string $name,
+        ?string $shiftStart,
+        bool $hasShift,
+        bool $hasConflict,
+        array $languageCodes = [],
+        array $missingLanguageCodes = [],
+    ): string {
         $parts = [$name];
 
+        if ($languageCodes !== []) {
+            $parts[] = '['.implode(', ', $languageCodes).']';
+        }
+
+        if ($missingLanguageCodes !== []) {
+            $parts[] = '[Saknar '.implode(', ', $missingLanguageCodes).']';
+        }
+
         if ($shiftStart) {
-            $parts[] = '[' . $shiftStart . ']';
+            $parts[] = '['.$shiftStart.']';
         } elseif (! $hasShift) {
             $parts[] = '[Inget pass]';
         }
@@ -109,7 +159,7 @@ class GuideAvailabilityController extends Controller
             ->where(function ($query) use ($startTime, $effectiveEndTime) {
                 $query->where(function ($q) use ($startTime, $effectiveEndTime) {
                     $q->where('start_time', '<', $effectiveEndTime)
-                      ->whereRaw('COALESCE(end_time, start_time) > ?', [$startTime]);
+                        ->whereRaw('COALESCE(end_time, start_time) > ?', [$startTime]);
                 });
             })
             ->orderBy('start_time');
@@ -127,6 +177,6 @@ class GuideAvailabilityController extends Controller
         $title = $conflict->title ?: 'Tur';
         $tourStart = $conflict->start_time ? substr($conflict->start_time, 0, 5) : '--:--';
 
-        return $title . ' kl ' . $tourStart;
+        return $title.' kl '.$tourStart;
     }
 }

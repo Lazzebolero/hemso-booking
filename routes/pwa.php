@@ -65,3 +65,21 @@ Route::get('/js/offline-queue.js', function () {
         'Content-Type' => 'application/javascript; charset=UTF-8',
     ]);
 })->name('pwa.offline-queue');
+
+Route::get('/js/guide-tour-optimistic-ui.js', function () {
+    $path = public_path('js/guide-tour-optimistic-ui.js');
+    abort_unless(File::isFile($path), 404);
+
+    return response(File::get($path), 200, [
+        'Content-Type' => 'application/javascript; charset=UTF-8',
+    ]);
+})->name('pwa.guide-tour-optimistic-ui');
+
+Route::get('/js/guide-offline-prep.js', function () {
+    $path = public_path('js/guide-offline-prep.js');
+    abort_unless(File::isFile($path), 404);
+
+    return response(File::get($path), 200, [
+        'Content-Type' => 'application/javascript; charset=UTF-8',
+    ]);
+})->name('pwa.guide-offline-prep');

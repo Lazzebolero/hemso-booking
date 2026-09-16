@@ -4,10 +4,24 @@
         <span>Dashboard</span>
     </a>
 
-    <a href="{{ route('quick-tours.create') }}" class="guide-nav-btn">
-        <i class="bi bi-lightning-charge-fill"></i>
-        <span>Snabbtur</span>
-    </a>
+    @if(($guideQuickTourBlock['can_start'] ?? true) && Route::has('quick-tours.create'))
+        <a href="{{ route('quick-tours.create') }}" class="guide-nav-btn">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>Snabbtur</span>
+        </a>
+    @else
+        <span class="guide-nav-btn guide-nav-btn-disabled" title="{{ $guideQuickTourBlock['message'] ?? 'Snabbtur är inte tillgänglig just nu.' }}">
+            <i class="bi bi-lightning-charge"></i>
+            <span>Snabbtur</span>
+        </span>
+    @endif
+
+    @if(Route::has('guide.memories.create'))
+        <a href="{{ route('guide.memories.create', isset($tour) ? ['tour' => $tour->id] : []) }}" class="guide-nav-btn">
+            <i class="bi bi-journal-text"></i>
+            <span>Minne</span>
+        </a>
+    @endif
 
     <a href="{{ route('guide.reports.create') }}" class="guide-nav-btn">
         <i class="bi bi-exclamation-triangle"></i>
@@ -30,7 +44,7 @@
     z-index: 50;
 
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 0.5rem;
 
     background: rgba(255,255,255,0.95);
@@ -71,6 +85,12 @@
 
 .guide-nav-btn:active {
     transform: scale(0.97);
+}
+
+.guide-nav-btn-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .guide-nav-logout {

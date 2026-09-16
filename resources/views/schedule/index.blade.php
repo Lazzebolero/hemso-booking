@@ -1,4 +1,4 @@
-@extends(in_array(session('active_role'), [\App\Support\Roles::GUIDE, \App\Support\Roles::RESTAURANT], true) ? 'layouts.guide' : 'layouts.app')
+@extends(\App\Support\GuideShell::layoutView())
 
 @section('content')
 <div class="page-header">

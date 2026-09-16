@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @auth
+        <meta name="guide-tours-version" content="{{ $guideToursVersion ?? '' }}">
+        <meta name="guide-pwa-cache-name" content="hemso-pwa-v24">
+        @if(Route::has('guide.dashboard'))
+            <meta name="guide-dashboard-url" content="{{ route('guide.dashboard') }}">
+        @endif
+    @endauth
     <title>{{ config('app.name', 'Hemsö') }} – Guide</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -298,6 +305,32 @@
         .badge-soft-secondary {
             background: rgba(100, 116, 139, 0.12);
             color: #334155;
+        }
+
+        .badge-soft-info {
+            background: rgba(37, 99, 235, 0.12);
+            color: #1d4ed8;
+        }
+
+        .tour-meal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            padding: 0.4rem 0.78rem;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
+            box-shadow: 0 1px 2px rgba(146, 64, 14, 0.14);
+        }
+
+        .tour-meal-badge .bi {
+            font-size: 0.95rem;
+            line-height: 1;
         }
 
         .btn {
@@ -697,6 +730,11 @@
         }
 
 
+        .guide-mobile-action .ferry-icon {
+            width: 1.2rem;
+            height: 1.2rem;
+        }
+
         .guide-mobile-action {
             position: relative;
             width: 42px;
@@ -733,6 +771,12 @@
         .guide-mobile-action-primary:hover {
             background: linear-gradient(135deg, #0ea5e9, #1d4ed8);
             color: #ffffff;
+        }
+
+        .guide-mobile-action-disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .guide-mobile-action-success {
@@ -855,48 +899,6 @@
 @php
     $user = auth()->user();
 
-    $activeSystemMessages = collect();
-    $unreadSystemMessagesCount = 0;
-    $unreadConversationsCount = 0;
-
-    if (auth()->check() && class_exists(\App\Models\SystemMessage::class) && \Illuminate\Support\Facades\Schema::hasTable('system_messages')) {
-        $activeSystemMessages = \App\Models\SystemMessage::query()
-            ->visibleNow()
-            ->forRole($user->role ?? null)
-            ->notDismissedForUser($user->id)
-            ->with(['users' => function ($query) use ($user) {
-                $query->where('users.id', $user->id);
-            }])
-            ->orderByDesc('priority')
-            ->orderByDesc('starts_at')
-            ->orderByDesc('created_at')
-            ->get();
-
-        $unreadSystemMessagesCount = $activeSystemMessages->filter(function ($message) {
-            $pivotUser = $message->users->first();
-            return !$pivotUser || empty($pivotUser->pivot?->read_at);
-        })->count();
-    }
-
-    if (auth()->check() && class_exists(\App\Models\Conversation::class) && class_exists(\App\Models\ConversationParticipant::class) && \Illuminate\Support\Facades\Schema::hasTable('conversations') && \Illuminate\Support\Facades\Schema::hasTable('conversation_participants')) {
-        $unreadConversationsCount = \App\Models\Conversation::query()
-            ->whereHas('participants', function ($query) {
-                $query->where('user_id', auth()->id());
-            })
-            ->where(function ($query) {
-                $query->whereHas('participants', function ($participantQuery) {
-                    $participantQuery
-                        ->where('user_id', auth()->id())
-                        ->where(function ($q) {
-                            $q->whereNull('last_read_at')
-                                ->orWhereColumn('last_read_at', '<', 'conversations.last_message_at');
-                        });
-                });
-            })
-            ->whereNotNull('last_message_at')
-            ->count();
-    }
-
     $isRestaurantRole = auth()->check()
         && (
             (int) ($user->role_id ?? 0) === 4
@@ -969,7 +971,14 @@
                     @endif
                 </a>
 
-                @if(Route::has('time.clock-out') && ($openTimeEntryForHeader ?? null))
+                @if(($requiresQrStamp ?? false) && Route::has('time.index'))
+                    <a href="{{ route('time.index') }}"
+                       class="guide-mobile-action {{ ($openTimeEntryForHeader ?? null) ? 'guide-mobile-action-warning' : 'guide-mobile-action-success' }} {{ request()->routeIs('time.scan') || request()->routeIs('time.station') ? 'guide-mobile-action-active' : '' }}"
+                       title="{{ ($openTimeEntryForHeader ?? null) ? 'Stämpla ut' : 'Stämpla in' }}"
+                       aria-label="{{ ($openTimeEntryForHeader ?? null) ? 'Stämpla ut' : 'Stämpla in' }}">
+                        <i class="bi bi-qr-code-scan"></i>
+                    </a>
+                @elseif(Route::has('time.clock-out') && ($openTimeEntryForHeader ?? null))
                     <form method="POST" action="{{ route('time.clock-out') }}" data-offline-queue>
                         @csrf
                         <button type="submit"
@@ -997,6 +1006,24 @@
                        title="Tidrapportering"
                        aria-label="Tidrapportering">
                         <i class="bi bi-clock-history"></i>
+                    </a>
+                @endif
+
+                @if(Route::has('ferry-schedule.index'))
+                    <a href="{{ route('ferry-schedule.index') }}"
+                       class="guide-mobile-action {{ request()->routeIs('ferry-schedule.*') ? 'guide-mobile-action-active' : '' }}"
+                       title="Färjetrafik"
+                       aria-label="Färjetrafik">
+                        @include('partials.icons.ferry')
+                    </a>
+                @endif
+
+                @if(Route::has('guide.memories.create'))
+                    <a href="{{ route('guide.memories.create') }}"
+                       class="guide-mobile-action {{ request()->routeIs('guide.memories.*') ? 'guide-mobile-action-active' : '' }}"
+                       title="Spara minne"
+                       aria-label="Spara minne">
+                        <i class="bi bi-journal-text"></i>
                     </a>
                 @endif
 
@@ -1028,12 +1055,20 @@
                 @endif
 
                 @if(Route::has('quick-tours.create'))
-                    <a href="{{ route('quick-tours.create') }}"
-                       class="guide-mobile-action guide-mobile-action-primary"
-                       title="Snabbtur"
-                       aria-label="Snabbtur">
-                        <i class="bi bi-lightning-charge-fill"></i>
-                    </a>
+                    @if($guideQuickTourBlock['can_start'] ?? true)
+                        <a href="{{ route('quick-tours.create') }}"
+                           class="guide-mobile-action guide-mobile-action-primary"
+                           title="Snabbtur"
+                           aria-label="Snabbtur">
+                            <i class="bi bi-lightning-charge-fill"></i>
+                        </a>
+                    @else
+                        <span class="guide-mobile-action guide-mobile-action-disabled"
+                              title="{{ $guideQuickTourBlock['message'] ?? 'Snabbtur är inte tillgänglig just nu.' }}"
+                              aria-label="Snabbtur otillgänglig">
+                            <i class="bi bi-lightning-charge"></i>
+                        </span>
+                    @endif
                 @endif
                 @if(Route::has('staff.documents.index'))
                     <a href="{{ route('staff.documents.index') }}"
@@ -1074,7 +1109,7 @@
                 @endif
             </div>
 
-            @if($activeSystemMessages->isNotEmpty())
+            @if(($activeSystemMessages ?? collect())->isNotEmpty())
                 <div id="system-messages-panel" class="flash-stack mb-3">
                     @foreach($activeSystemMessages as $message)
                         @php
@@ -1083,8 +1118,7 @@
                             $isAcked = $pivotUser && !empty($pivotUser->pivot?->acknowledged_at);
                         @endphp
 
-                        @if(!$message->popup_only)
-                            <div class="system-message-banner {{ $message->priority === 3 ? 'system-message-important' : 'system-message-normal' }}">
+                        <div class="system-message-banner {{ $message->priority === 3 ? 'system-message-important' : 'system-message-normal' }}">
                                 <div class="d-flex justify-content-between align-items-start gap-3">
                                     <div class="flex-grow-1">
                                         <div class="system-message-title">
@@ -1136,7 +1170,6 @@
                                     </div>
                                 </div>
                             </div>
-                        @endif
                     @endforeach
                 </div>
             @endif
@@ -1146,271 +1179,28 @@
     </main>
 </div>
 
-@if(auth()->check() && Route::has('system-messages.live-panel'))
-<script>
-    (function () {
-        let lastUnreadCount = {{ (int) $unreadSystemMessagesCount }};
-
-        async function refreshSystemMessagePanel() {
-            try {
-                const response = await fetch('{{ route('system-messages.live-panel') }}', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin'
-                });
-
-                if (!response.ok) return;
-
-                const data = await response.json();
-
-                const badge = document.querySelector('[data-system-message-count]');
-                if (badge) {
-                    const unread = Number(data.unread_count ?? 0);
-                    badge.textContent = unread;
-                    badge.classList.toggle('d-none', unread <= 0);
-                    badge.style.display = unread > 0 ? 'inline-flex' : 'none';
-                }
-
-                const currentUnread = Number(data.unread_count ?? 0);
-
-                if (Array.isArray(data.important_unread) && data.important_unread.length > 0) {
-                    const latestForced = data.important_unread.find(item => item.priority === 3 && item.requires_ack);
-
-                    if (latestForced) {
-                        showLiveSystemToast(latestForced.title, latestForced.body || '', true);
-                    } else if (currentUnread > lastUnreadCount) {
-                        const newest = data.important_unread[0];
-                        if (newest && newest.title) {
-                            showLiveSystemToast(newest.title, newest.body || '', !!newest.requires_ack);
-                        }
-                    }
-                }
-
-                lastUnreadCount = currentUnread;
-            } catch (e) {
-            }
-        }
-
-        function showLiveSystemToast(title, body, requiresAck) {
-            const old = document.getElementById('live-system-toast');
-            if (old) old.remove();
-
-            const toast = document.createElement('div');
-            toast.id = 'live-system-toast';
-            toast.innerHTML = `
-                <div style="
-                    position: fixed;
-                    right: 24px;
-                    bottom: 24px;
-                    width: 360px;
-                    max-width: calc(100vw - 32px);
-                    background: #fff7ed;
-                    color: #9a3412;
-                    border: 1px solid #fdba74;
-                    border-radius: 16px;
-                    box-shadow: 0 18px 40px rgba(15,23,42,0.15);
-                    padding: 16px 18px;
-                    z-index: 9999;
-                ">
-                    <div style="font-weight:800; margin-bottom:6px;">
-                        <i class="bi bi-bell-fill" style="margin-right:8px;"></i>${escapeHtml(title)}
-                    </div>
-                    <div style="font-size:0.92rem; line-height:1.45; margin-bottom:${requiresAck ? '8px' : '0'};">
-                        ${escapeHtml(body)}
-                    </div>
-                    ${requiresAck ? '<div style="font-size:0.8rem; font-weight:700;">Kräver kvittering i systemet.</div>' : ''}
-                </div>
-            `;
-
-            document.body.appendChild(toast);
-
-            setTimeout(() => {
-                const current = document.getElementById('live-system-toast');
-                if (current) current.remove();
-            }, 8000);
-        }
-
-        function escapeHtml(text) {
-            return String(text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        setInterval(refreshSystemMessagePanel, 30000);
-    })();
-</script>
-@endif
-
-@if(auth()->check() && Route::has('system-messages.force-popup-panel'))
-<script>
-    (function () {
-        async function loadForcedPopups() {
-            try {
-                const response = await fetch('{{ route('system-messages.force-popup-panel') }}', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin'
-                });
-
-                if (!response.ok) return;
-
-                const data = await response.json();
-                const messages = data.messages || [];
-
-                if (!messages.length) return;
-
-                const first = messages[0];
-                showForcedSystemModal(first);
-            } catch (e) {
-            }
-        }
-
-        function showForcedSystemModal(message) {
-            if (document.getElementById('forced-system-modal')) return;
-
-            const modal = document.createElement('div');
-            modal.id = 'forced-system-modal';
-            modal.innerHTML = `
-                <div style="
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(15, 23, 42, 0.55);
-                    z-index: 9999;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 20px;
-                ">
-                    <div style="
-                        width: 100%;
-                        max-width: 640px;
-                        background: #fff;
-                        border-radius: 20px;
-                        padding: 24px;
-                        box-shadow: 0 24px 60px rgba(15,23,42,0.25);
-                    ">
-                        <div style="font-size: 1.2rem; font-weight: 800; margin-bottom: 10px;">
-                            ${escapeHtml(message.title)}
-                        </div>
-                        <div style="color: #334155; line-height: 1.6; margin-bottom: 20px; white-space: pre-line;">
-                            ${escapeHtml(message.body || '')}
-                        </div>
-                        <div style="display:flex; gap:10px; justify-content:flex-end;">
-                            <button id="forced-system-read" style="
-                                border:none;
-                                background:#e2e8f0;
-                                color:#0f172a;
-                                padding:10px 14px;
-                                border-radius:12px;
-                                font-weight:700;
-                                cursor:pointer;
-                            ">Markera läst</button>
-                            ${message.requires_ack ? `
-                                <form method="POST" action="/system-messages/${message.id}/acknowledge" style="margin:0;">
-                                    <input type="hidden" name="_token" value="${csrfToken()}">
-                                    <button type="submit" style="
-                                        border:none;
-                                        background:linear-gradient(135deg,#38bdf8,#2563eb);
-                                        color:#fff;
-                                        padding:10px 14px;
-                                        border-radius:12px;
-                                        font-weight:700;
-                                        cursor:pointer;
-                                    ">Kvittera</button>
-                                </form>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            document.body.appendChild(modal);
-
-            const readBtn = document.getElementById('forced-system-read');
-            if (readBtn) {
-                readBtn.addEventListener('click', async function () {
-                    await fetch(`/system-messages/${message.id}/read`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken(),
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        },
-                        credentials: 'same-origin'
-                    });
-
-                    modal.remove();
-                });
-            }
-        }
-
-        function csrfToken() {
-            const meta = document.querySelector('meta[name="csrf-token"]');
-            return meta ? meta.getAttribute('content') : '';
-        }
-
-        function escapeHtml(text) {
-            return String(text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        loadForcedPopups();
-    })();
-</script>
-@endif
+@include('partials.system-message-client')
 @auth
 @php
-    $pwaWarmUrls = collect([
+    $guideOfflineShellUrls = collect([
         Route::has('guide.dashboard') ? route('guide.dashboard') : null,
         Route::has('quick-tours.create') ? route('quick-tours.create') : null,
-    ])->filter()->values()->all();
+        Route::has('my-schedule.index') ? route('my-schedule.index') : null,
+        Route::has('messages.index') ? route('messages.index') : null,
+        Route::has('time.index') ? route('time.index') : null,
+        Route::has('guide.reports.create') ? route('guide.reports.create') : null,
+        Route::has('staff.documents.index') ? route('staff.documents.index') : null,
+        Route::has('visitor-dogs.index') ? route('visitor-dogs.index') : null,
+    ])->filter()->values();
 @endphp
-@if(count($pwaWarmUrls))
-<script>
-    (function () {
-        var urls = @json($pwaWarmUrls);
-        var MIN_GAP_MS = 45 * 1000;
-        var INTERVAL_MS = 4 * 60 * 1000;
-        var lastWarm = 0;
-
-        function warmGuideShellCache() {
-            if (!navigator.onLine || !('serviceWorker' in navigator)) {
-                return;
-            }
-
-            var now = Date.now();
-            if (now - lastWarm < MIN_GAP_MS) {
-                return;
-            }
-
-            lastWarm = now;
-
-            urls.forEach(function (url) {
-                fetch(url, {credentials: 'same-origin'}).catch(function () {});
-            });
-        }
-
-        warmGuideShellCache();
-        window.setInterval(warmGuideShellCache, INTERVAL_MS);
-        document.addEventListener('visibilitychange', function () {
-            if (document.visibilityState === 'visible') {
-                warmGuideShellCache();
-            }
-        });
-    })();
-</script>
+@if($guideOfflineShellUrls->isNotEmpty())
+    <meta name="guide-offline-shell-urls" content="{{ $guideOfflineShellUrls->toJson() }}">
 @endif
+@php
+    $guideOfflinePrepPath = public_path('js/guide-offline-prep.js');
+    $guideOfflinePrepVer = is_file($guideOfflinePrepPath) ? (string) filemtime($guideOfflinePrepPath) : '0';
+@endphp
+<script src="{{ asset('js/guide-offline-prep.js') }}?v={{ $guideOfflinePrepVer }}" defer></script>
 @endauth
 </body>
 </html>

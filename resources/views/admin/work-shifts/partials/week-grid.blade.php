@@ -3,6 +3,7 @@
     $roleLabels = [
         'guide' => 'Guider',
         'host' => 'Värdar',
+        'elev' => 'Trainee / elev',
         'restaurant' => 'Restaurang',
         'admin' => 'Admin',
     ];
@@ -23,6 +24,7 @@
 
             $guideCount = $dayShiftsFlat->where('shift_role', 'guide')->count();
             $hostCount = $dayShiftsFlat->where('shift_role', 'host')->count();
+            $elevCount = $dayShiftsFlat->where('shift_role', 'elev')->count();
             $adminCount = $dayShiftsFlat->where('shift_role', 'admin')->count();
             $restaurantCount = $dayShiftsFlat->where('shift_role', 'restaurant')->count();
 
@@ -61,6 +63,7 @@
 
             <div class="week-summary-row mb-3">
                 <span class="week-summary-pill">Guider: {{ $guideCount }}</span>
+                <span class="week-summary-pill">Trainee / elev: {{ $elevCount }}</span>
                 <span class="week-summary-pill">Värdar: {{ $hostCount }}</span>
                 <span class="week-summary-pill">Restaurang: {{ $restaurantCount }}</span>
 

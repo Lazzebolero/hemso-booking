@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreDashboardVisitorDogRequest;
 use App\Http\Requests\UpdateVisitorDogRequest;
 use App\Models\ActivityLog;
 use App\Models\VisitorDog;
+use App\Services\VisitorDogRegistrationService;
 use App\Support\ActiveRole;
+use App\Support\Roles;
 use App\Support\VisitorDogActivityLogger;
 use App\Support\VisitorDogSupport;
 use App\Support\VisitorDogUpdater;
@@ -17,6 +20,47 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class VisitorDogController extends Controller
 {
+    public function __construct(
+        private VisitorDogRegistrationService $visitorDogRegistrations,
+    ) {}
+
+    public function create(): View
+    {
+        $this->authorize('createFromDashboard', VisitorDog::class);
+
+        return view('admin.visitor-dogs.create', [
+            'defaultVisitDate' => now()->format('Y-m-d'),
+        ]);
+    }
+
+    public function store(StoreDashboardVisitorDogRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+        $activeRole = session('active_role');
+
+        if (! is_string($activeRole) || ! in_array($activeRole, [Roles::ADMIN, Roles::HOST], true)) {
+            abort(403);
+        }
+
+        $this->visitorDogRegistrations->register(
+            [
+                'dog_name' => $validated['dog_name'],
+                'breed' => $validated['breed'] ?? null,
+                'owner_phone' => $validated['owner_phone'] ?? null,
+                'visit_date' => $validated['visit_date'] ?? now()->toDateString(),
+                'tour_start_time' => $validated['tour_start_time'] ?? null,
+            ],
+            $request->user(),
+            $activeRole,
+        );
+
+        $vPrefix = ActiveRole::visitorDogsRoutePrefix();
+
+        return redirect()
+            ->route($vPrefix.'.visitor-dogs.index', VisitorDogSupport::dateFilterQueryFromRequest($request))
+            ->with('success', 'Besökshund registrerad. Bild kan läggas till senare.');
+    }
+
     public function index(Request $request): View
     {
         $this->authorize('viewAny', VisitorDog::class);

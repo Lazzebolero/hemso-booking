@@ -9,15 +9,6 @@
     $bookedCount = $activeBookings->sum('total_count');
 
     $maxParticipants = $tour->max_participants ?? 0;
-    $available = max(0, $maxParticipants - $bookedCount);
-
-    $percent = $maxParticipants > 0
-        ? min(100, round(($bookedCount / $maxParticipants) * 100))
-        : 0;
-
-    $barColor = $available <= 0
-        ? 'var(--brand-danger)'
-        : ($available <= 5 ? 'var(--brand-warning)' : 'var(--brand-success)');
 
     $status = $tour->status ?? 'planned';
 
@@ -94,11 +85,24 @@
     $tourWomen = (int) $bookings->sum('women_count');
     $tourYouth = (int) $bookings->sum('youth_count');
     $tourChildren = (int) $bookings->sum('child_count');
+    $tourUnspecified = (int) $bookings->sum('unspecified_count');
     $tourCategoryShort = "M{$tourMen} K{$tourWomen} U{$tourYouth} B{$tourChildren}";
+    if ($tourUnspecified > 0) {
+        $tourCategoryShort .= " O{$tourUnspecified}";
+    }
 @endphp
 
 
-<div class="page-card mb-4">
+<div
+    data-guide-tour-root
+    data-tour-id="{{ $tour->id }}"
+    data-tour-status="{{ $status }}"
+    data-start-url="{{ route('guide.tours.start', $tour) }}"
+    data-headcount-url="{{ route('guide.tours.adjust-headcount', $tour) }}"
+    data-complete-url="{{ route('guide.tours.complete', $tour) }}"
+    data-server-started-at="{{ $startedAtLabel ?? '' }}"
+>
+<div class="page-card mb-3 guide-tour-header">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
             <h2 class="page-title mb-1">{{ $tour->title }}</h2>
@@ -113,7 +117,13 @@
             </div>
         </div>
 
-        <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
+        <div class="d-flex flex-column align-items-end gap-2">
+            <span data-guide-tour-status-badge class="{{ $statusClass }}">{{ $statusLabel }}</span>
+            <div data-guide-tour-sync-pending class="guide-tour-sync-pending" hidden>
+                <i class="bi bi-cloud-upload"></i>
+                Synkas när nätet är tillbaka
+            </div>
+        </div>
     </div>
 
     <div class="toolbar-inline mt-3">
@@ -129,149 +139,110 @@
             <span class="badge-soft badge-soft-secondary">Guide: {{ $tour->guide->name }}</span>
         @endif
     </div>
-</div>
 
-<div class="stats-grid mb-4">
-    <div class="stats-card">
-        <div class="stats-label">Bokningar</div>
-        <div class="stats-value">{{ $bookingCount }}</div>
-        <div class="stats-subtext">Aktiva grupper på turen.</div>
+    <div class="guide-tour-quick-stats mt-3">
+        <span><strong>{{ $bookingCount }}</strong> bokningar</span>
+        <span class="guide-tour-quick-stats-sep">·</span>
+        <span><strong>{{ $bookedCount }}</strong> personer</span>
+        <span class="tour-category-short">{{ $tourCategoryShort }}</span>
     </div>
 
-    <div class="stats-card">
-        <div class="stats-label">Bokade personer</div>
-        <div class="stats-value">{{ $bookedCount }} <span class="tour-category-short">{{ $tourCategoryShort }}</span></div>
-        <div class="stats-subtext">Totalt antal deltagare just nu.</div>
-    </div>
+    <div class="guide-tour-header-actions mt-3">
+        @if($status === 'planned')
+            <div class="guide-start-panel mb-3" data-guide-start-panel>
+                <div class="small-muted mb-1">Bokat i systemet: <strong data-guide-booked-count>{{ $bookedCount }}</strong></div>
+                <label class="form-label mb-1" for="actual_on_site_count">Antal på plats</label>
+                <input
+                    type="number"
+                    min="1"
+                    id="actual_on_site_count"
+                    class="form-control form-control-lg text-center fw-bold"
+                    value="{{ old('actual_on_site_count', $bookedCount) }}"
+                    inputmode="numeric"
+                >
+                <div class="guide-headcount-buttons mt-2 mb-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-headcount-adjust="-3">−3</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-headcount-adjust="-1">−1</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-headcount-adjust="1">+1</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-headcount-adjust="3">+3</button>
+                </div>
+                <div class="small-muted mb-3" data-headcount-diff-wrap hidden>
+                    Avvikelse: <strong data-headcount-diff>0</strong>
+                </div>
+            </div>
+        @elseif($status === 'started')
+            <div class="guide-headcount-live mb-3" data-guide-headcount-live>
+                <div class="small-muted mb-1">
+                    Personer på turen: <strong data-guide-live-count>{{ $bookedCount }}</strong>
+                    @if($tour->booked_total_at_start)
+                        <span class="ms-1">(Bokat var: {{ (int) $tour->booked_total_at_start }})</span>
+                    @endif
+                </div>
+                <form method="POST" action="{{ route('guide.tours.adjust-headcount', $tour) }}" data-offline-queue data-guide-headcount-form>
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="actual_on_site_count" value="{{ $bookedCount }}" data-guide-live-count-hidden>
+                    <div class="guide-headcount-buttons">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-live-adjust="-5">−5</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-live-adjust="-1">−1</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-live-adjust="1">+1</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-live-adjust="5">+5</button>
+                    </div>
+                </form>
+            </div>
+        @endif
 
-    <div class="stats-card">
-        <div class="stats-label">Lediga platser</div>
-        <div class="stats-value">{{ $available }}</div>
-        <div class="stats-subtext">
-            @if($maxParticipants > 0)
-                Av {{ $maxParticipants }} maxplatser
-            @else
-                Ingen maxgräns satt
+        <div data-guide-tour-primary-action class="guide-tour-primary-action">
+            @if($status === 'planned')
+                <form method="POST" action="{{ route('guide.tours.start', $tour) }}" id="guide-start-tour-form" data-offline-queue data-guide-tour-action-form>
+                    @csrf
+                    <input type="hidden" name="actual_on_site_count" value="{{ $bookedCount }}" data-guide-start-count-hidden>
+                    <button type="submit" class="btn btn-success btn-lg w-100" data-guide-start-submit>
+                        <i class="bi bi-play-circle me-2"></i>Starta med <span data-guide-start-count-label>{{ $bookedCount }}</span> personer
+                    </button>
+                </form>
+            @elseif($status === 'started')
+                <form method="POST" action="{{ route('guide.tours.complete', $tour) }}" data-offline-queue data-guide-tour-action-form>
+                    @csrf
+                    <button type="submit" class="btn btn-danger btn-lg w-100">
+                        <i class="bi bi-stop-circle me-2"></i>Avsluta tur
+                    </button>
+                </form>
+            @elseif($status === 'completed')
+                <div class="alert alert-success mb-0 text-center">
+                    <i class="bi bi-check-circle me-2"></i>
+                    @if(method_exists($tour, 'wasAutoCompleted') && $tour->wasAutoCompleted())
+                        Tur avslutad automatiskt.
+                    @else
+                        Tur avslutad.
+                    @endif
+                </div>
+            @endif
+        </div>
+
+        <div class="guide-tour-secondary-actions">
+            <a href="{{ route('guide.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Tillbaka
+            </a>
+
+            <a href="{{ route('guide.reports.create') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-exclamation-triangle me-2"></i>Felrapport
+            </a>
+
+            @if(Route::has('guide.memories.create'))
+                <a href="{{ route('guide.memories.create', ['tour' => $tour->id]) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-journal-text me-2"></i>Spara minne
+                </a>
             @endif
         </div>
     </div>
-
-    <div class="stats-card">
-        <div class="stats-label">Beläggning</div>
-        <div class="stats-value">{{ $percent }}%</div>
-        <div class="stats-subtext">Nuvarande fyllnadsgrad.</div>
-    </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-md-8">
-        <div class="page-card">
-            <div class="section-title">Turstatus</div>
-
-            <div class="tour-timeline">
-                <div class="tour-step {{ in_array($status, ['planned', 'started', 'completed']) ? 'tour-step-active' : '' }}">
-                    <div class="tour-step-dot"></div>
-                    <div>
-                        <div class="fw-semibold">Planerad</div>
-                        <div class="small-muted">
-                            {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="tour-step {{ in_array($status, ['started', 'completed']) ? 'tour-step-active' : '' }}">
-                    <div class="tour-step-dot"></div>
-                    <div>
-                        <div class="fw-semibold">Startad</div>
-                        <div class="small-muted">{{ $startedAtLabel ?? '-' }}</div>
-                    </div>
-                </div>
-
-                <div class="tour-step {{ $status === 'completed' ? 'tour-step-active' : '' }}">
-                    <div class="tour-step-dot"></div>
-                    <div>
-                        <div class="fw-semibold">Avslutad</div>
-                        <div class="small-muted">{{ $endedAtLabel ?? '-' }}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="progress-modern mt-3 mb-3">
-                <div style="width: {{ $percent }}%; background: {{ $barColor }};"></div>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="info-item">
-                        <div class="small-muted mb-1">Planerad turtid</div>
-                        <div class="fw-semibold">
-                            {{ $plannedDurationMinutes !== null && $plannedDurationMinutes > 0 ? $plannedDurationMinutes . ' min' : '-' }}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="info-item">
-                        <div class="small-muted mb-1">Beräknas klar</div>
-                        <div class="fw-semibold">{{ $estimatedEndTime ?? '-' }}</div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="info-item">
-                        <div class="small-muted mb-1">Tid kvar</div>
-                        <div class="fw-semibold">{{ $remainingToEnd ?? '-' }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="page-card">
-            <div class="section-title">Åtgärder</div>
-
-            <div class="guide-primary-actions">
-                @if($status === 'planned')
-                    <form method="POST" action="{{ route('guide.tours.start', $tour) }}" data-offline-queue>
-                        @csrf
-                        <button class="btn btn-success btn-lg w-100">
-                            <i class="bi bi-play-circle me-2"></i>Starta tur
-                        </button>
-                    </form>
-                @endif
-
-                @if($status === 'started')
-                    <form method="POST" action="{{ route('guide.tours.complete', $tour) }}" data-offline-queue>
-                        @csrf
-                        <button class="btn btn-danger btn-lg w-100">
-                            <i class="bi bi-stop-circle me-2"></i>Avsluta tur
-                        </button>
-                    </form>
-                @endif
-
-                <a href="{{ route('guide.reports.create') }}" class="btn btn-outline-secondary w-100">
-                    <i class="bi bi-exclamation-triangle me-2"></i>Felrapport
-                </a>
-
-                <a href="{{ route('guide.dashboard') }}" class="btn btn-outline-secondary w-100">
-                    <i class="bi bi-arrow-left me-2"></i>Tillbaka
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="page-card booking-mobile-section">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+<div class="page-card booking-mobile-section mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
             <div class="section-title mb-1">Bokningar</div>
-            <div class="small-muted">Översikt per grupp. Tryck på en grupp för att ändra antal.</div>
-        </div>
-
-        <div class="badge-soft badge-soft-secondary">
-            <i class="bi bi-people"></i>
-            {{ $bookedCount }} bokade
+            <div class="small-muted">Tryck på en grupp för att ändra antal.</div>
         </div>
     </div>
 
@@ -303,6 +274,13 @@
                     ->filter()
                     ->map(fn ($code) => strtoupper($code))
                     ->implode(', ');
+                $bookingCategoryShort = 'M' . (int) $booking->men_count
+                    . ' K' . (int) $booking->women_count
+                    . ' U' . (int) $booking->youth_count
+                    . ' B' . (int) $booking->child_count;
+                if ((int) ($booking->unspecified_count ?? 0) > 0) {
+                    $bookingCategoryShort .= ' O' . (int) $booking->unspecified_count;
+                }
             @endphp
 
             <div class="booking-mobile-card">
@@ -320,45 +298,15 @@
                             <span class="{{ $rowClass }}">{{ $rowStatusLabel }}</span>
                         </div>
 
-                        <div class="booking-mobile-meta">
+                        <div class="booking-mobile-people">
+                            <span class="booking-mobile-people-count">{{ $bookingTotal }} personer</span>
+                            @if($bookingTotal > 0)
+                                <span class="booking-mobile-people-breakdown">{{ $bookingCategoryShort }}</span>
+                            @endif
                             @if($bookingLanguages)
-                                <span><i class="bi bi-translate"></i>{{ $bookingLanguages }}</span>
+                                <span class="booking-mobile-people-lang">{{ $bookingLanguages }}</span>
                             @endif
-
-                            @if(!empty($booking->contact_name) && $booking->contact_name !== $bookingTitle)
-                                <span><i class="bi bi-person"></i>{{ $booking->contact_name }}</span>
-                            @endif
-
-                            <span><i class="bi bi-calculator"></i>{{ $bookingTotal }} totalt</span>
                         </div>
-
-                        <div class="booking-count-grid">
-                            <div class="booking-count-pill">
-                                <span class="booking-count-label">Män</span>
-                                <strong>{{ (int) $booking->men_count }}</strong>
-                            </div>
-
-                            <div class="booking-count-pill">
-                                <span class="booking-count-label">Kvinnor</span>
-                                <strong>{{ (int) $booking->women_count }}</strong>
-                            </div>
-
-                            <div class="booking-count-pill">
-                                <span class="booking-count-label">Ungdomar</span>
-                                <strong>{{ (int) $booking->youth_count }}</strong>
-                            </div>
-
-                            <div class="booking-count-pill">
-                                <span class="booking-count-label">Barn</span>
-                                <strong>{{ (int) $booking->child_count }}</strong>
-                            </div>
-                        </div>
-
-                        @if(!empty($booking->notes))
-                            <div class="booking-mobile-notes">
-                                {{ \Illuminate\Support\Str::limit($booking->notes, 110) }}
-                            </div>
-                        @endif
                     </div>
 
                     <div class="booking-mobile-chevron">
@@ -412,6 +360,16 @@
                                        value="{{ (int) $booking->child_count > 0 ? $booking->child_count : '' }}">
                             </label>
 
+                            <label class="booking-edit-field">
+                                <span>Ospec.</span>
+                                <input type="number"
+                                       min="0"
+                                       inputmode="numeric"
+                                       name="unspecified_count"
+                                       class="form-control"
+                                       value="{{ (int) ($booking->unspecified_count ?? 0) > 0 ? $booking->unspecified_count : '' }}">
+                            </label>
+
                             <label class="booking-edit-field booking-edit-status">
                                 <span>Status</span>
                                 <select name="status" class="form-select">
@@ -422,6 +380,12 @@
                                 </select>
                             </label>
                         </div>
+
+                        @if(!empty($booking->notes))
+                            <div class="booking-mobile-notes mt-2">
+                                {{ $booking->notes }}
+                            </div>
+                        @endif
 
                         <div class="booking-edit-actions">
                             <button type="button"
@@ -451,7 +415,161 @@
     </div>
 </div>
 
+<div class="page-card guide-tour-status-panel mb-3">
+    <div class="section-title mb-3">Turstatus</div>
+
+    <div class="tour-timeline">
+        <div class="tour-step {{ in_array($status, ['planned', 'started', 'completed']) ? 'tour-step-active' : '' }}" data-guide-tour-step="planned">
+            <div class="tour-step-dot"></div>
+            <div>
+                <div class="fw-semibold">Planerad</div>
+                <div class="small-muted">
+                    {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
+                </div>
+            </div>
+        </div>
+
+        <div class="tour-step {{ in_array($status, ['started', 'completed']) ? 'tour-step-active' : '' }}" data-guide-tour-step="started">
+            <div class="tour-step-dot"></div>
+            <div>
+                <div class="fw-semibold">Startad</div>
+                <div class="small-muted" data-guide-tour-started-at>{{ $startedAtLabel ?? '-' }}</div>
+            </div>
+        </div>
+
+        <div class="tour-step {{ $status === 'completed' ? 'tour-step-active' : '' }}" data-guide-tour-step="completed">
+            <div class="tour-step-dot"></div>
+            <div>
+                <div class="fw-semibold">{{ method_exists($tour, 'wasAutoCompleted') && $tour->wasAutoCompleted() ? 'Automatiskt avslutad' : 'Avslutad' }}</div>
+                <div class="small-muted" data-guide-tour-ended-at>{{ $endedAtLabel ?? '-' }}</div>
+            </div>
+        </div>
+    </div>
+
+    @if($status === 'started' && ($estimatedEndTime || $remainingToEnd))
+        <div class="guide-tour-timing mt-3">
+            @if($estimatedEndTime)
+                <span>Beräknas klar {{ $estimatedEndTime }}</span>
+            @endif
+            @if($remainingToEnd)
+                <span>{{ $remainingToEnd }}</span>
+            @endif
+        </div>
+    @endif
+</div>
+
+<template data-guide-tour-template="start">
+    <form method="POST" action="{{ route('guide.tours.start', $tour) }}" data-offline-queue data-guide-tour-action-form>
+        @csrf
+        <input type="hidden" name="actual_on_site_count" value="{{ $bookedCount }}" data-guide-start-count-hidden>
+        <button type="submit" class="btn btn-success btn-lg w-100">
+            <i class="bi bi-play-circle me-2"></i>Starta med {{ $bookedCount }} personer
+        </button>
+    </form>
+</template>
+
+<template data-guide-tour-template="complete">
+    <form method="POST" action="{{ route('guide.tours.complete', $tour) }}" data-offline-queue data-guide-tour-action-form>
+        @csrf
+        <button type="submit" class="btn btn-danger btn-lg w-100">
+            <i class="bi bi-stop-circle me-2"></i>Avsluta tur
+        </button>
+    </form>
+</template>
+
+<template data-guide-tour-template="completed">
+    <div class="alert alert-success mb-0 text-center">
+        <i class="bi bi-check-circle me-2"></i>Tur avslutad.
+    </div>
+</template>
+</div>
+
+@if(!empty($tourPhotosEnabled))
+<div class="page-card mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+        <div>
+            <div class="section-title mb-1">Bilder från turen</div>
+            <div class="small-muted">Ladda upp bilder som hör till hela turen.</div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge-soft badge-soft-secondary">{{ $tour->photos->count() }} bilder</span>
+            <a href="{{ route('guide.tours.photos.create', $tour, false) }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-camera me-1"></i>Ladda upp bild
+            </a>
+        </div>
+    </div>
+
+    @if($tour->photos->isNotEmpty())
+        <div class="row g-3">
+            @foreach($tour->photos as $photo)
+                <div class="col-6 col-md-4">
+                    <a href="{{ $photo->url }}" target="_blank" rel="noopener" class="d-block">
+                        <img src="{{ $photo->url }}" alt="{{ $photo->caption ?: $photo->original_name ?: 'Turbild' }}" class="img-fluid rounded border">
+                    </a>
+                    @if($photo->caption)
+                        <div class="small-muted mt-1">{{ $photo->caption }}</div>
+                    @endif
+                    <form method="POST" action="{{ route('guide.tours.photos.destroy', [$tour, $photo], false) }}" class="mt-2">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                            Ta bort
+                        </button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
+    @else
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="bi bi-images"></i>
+            </div>
+            <div class="fw-semibold">Inga bilder ännu</div>
+            <div class="small-muted">När turbilder laddas upp visas de här.</div>
+        </div>
+    @endif
+</div>
+@endif
+
 <style>
+.guide-tour-quick-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    color: #334155;
+    font-size: 0.95rem;
+}
+
+.guide-tour-quick-stats-sep {
+    color: #94a3b8;
+}
+
+.guide-tour-header-actions {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.guide-tour-secondary-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+}
+
+.guide-tour-status-panel {
+    background: #f8fafc;
+}
+
+.guide-tour-timing {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    color: #475569;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
 .tour-timeline {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -514,11 +632,11 @@
     border: 0;
     background: #ffffff;
     text-align: left;
-    padding: 1rem;
+    padding: 0.8rem 0.9rem;
     display: grid;
-    grid-template-columns: 52px minmax(0, 1fr) 24px;
-    gap: 0.85rem;
-    align-items: flex-start;
+    grid-template-columns: 42px minmax(0, 1fr) 20px;
+    gap: 0.7rem;
+    align-items: center;
     cursor: pointer;
 }
 
@@ -527,9 +645,9 @@
 }
 
 .booking-mobile-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -554,25 +672,39 @@
 .booking-mobile-title {
     color: #0f172a;
     font-weight: 900;
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1.2;
     min-width: 0;
     word-break: break-word;
 }
 
-.booking-mobile-meta {
+.booking-mobile-people {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
-    color: #64748b;
-    font-size: 0.82rem;
-    margin-bottom: 0.75rem;
+    align-items: center;
+    gap: 0.4rem;
+    color: #475569;
+    font-size: 0.84rem;
 }
 
-.booking-mobile-meta span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
+.booking-mobile-people-count {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.booking-mobile-people-breakdown {
+    border-radius: 999px;
+    background: #eef6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    padding: 0.12rem 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.booking-mobile-people-lang {
+    color: #64748b;
+    font-weight: 700;
 }
 
 .booking-count-grid {
@@ -741,7 +873,46 @@
     vertical-align: middle;
 }
 
+.guide-headcount-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.guide-start-panel,
+.guide-headcount-live {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+}
+
+.guide-tour-sync-pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.35rem 0.65rem;
+    background: #fff7ed;
+    border: 1px solid #fdba74;
+    color: #9a3412;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: right;
+}
+
+.guide-tour-sync-pending[hidden] {
+    display: none !important;
+}
+
 </style>
+
+@php
+    $guideTourUiPath = public_path('js/guide-tour-optimistic-ui.js');
+    $guideTourUiVer = is_file($guideTourUiPath) ? (string) filemtime($guideTourUiPath) : '0';
+@endphp
+<script src="{{ asset('js/guide-tour-optimistic-ui.js') }}?v={{ $guideTourUiVer }}"></script>
 
 <script>
     document.addEventListener('click', function (event) {
@@ -767,10 +938,83 @@
         });
     });
 
-    setTimeout(function () {
-        if (navigator.onLine) {
-            window.location.reload();
+    (function () {
+        const bookedCount = {{ (int) $bookedCount }};
+        const startInput = document.getElementById('actual_on_site_count');
+        const startHidden = document.querySelector('[data-guide-start-count-hidden]');
+        const startLabel = document.querySelector('[data-guide-start-count-label]');
+        const diffWrap = document.querySelector('[data-headcount-diff-wrap]');
+        const diffNode = document.querySelector('[data-headcount-diff]');
+
+        function syncStartCount() {
+            if (!startInput || !startHidden) {
+                return;
+            }
+
+            const value = Math.max(1, parseInt(startInput.value, 10) || bookedCount);
+            startInput.value = value;
+            startHidden.value = value;
+
+            if (startLabel) {
+                startLabel.textContent = String(value);
+            }
+
+            const diff = value - bookedCount;
+
+            if (diffWrap && diffNode) {
+                if (diff === 0) {
+                    diffWrap.setAttribute('hidden', 'hidden');
+                } else {
+                    diffWrap.removeAttribute('hidden');
+                    diffNode.textContent = (diff > 0 ? '+' : '') + String(diff);
+                }
+            }
         }
-    }, 30000);
+
+        if (startInput) {
+            startInput.addEventListener('input', syncStartCount);
+            syncStartCount();
+        }
+
+        document.querySelectorAll('[data-headcount-adjust]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (!startInput) {
+                    return;
+                }
+
+                const delta = parseInt(button.getAttribute('data-headcount-adjust'), 10) || 0;
+                const current = parseInt(startInput.value, 10) || bookedCount;
+                startInput.value = Math.max(1, current + delta);
+                syncStartCount();
+            });
+        });
+
+        const liveHidden = document.querySelector('[data-guide-live-count-hidden]');
+        const liveCount = document.querySelector('[data-guide-live-count]');
+        const liveForm = document.querySelector('[data-guide-headcount-form]');
+
+        function submitLiveCount(nextValue) {
+            if (!liveHidden || !liveForm) {
+                return;
+            }
+
+            const value = Math.max(1, nextValue);
+            liveHidden.value = String(value);
+
+            if (liveCount) {
+                liveCount.textContent = String(value);
+            }
+
+            liveForm.requestSubmit();
+        }
+
+        document.querySelectorAll('[data-live-adjust]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const delta = parseInt(button.getAttribute('data-live-adjust'), 10) || 0;
+                const current = parseInt(liveHidden ? liveHidden.value : '0', 10) || bookedCount;
+                submitLiveCount(current + delta);
+            });
+        });
+    })();
 </script>
 @endsection

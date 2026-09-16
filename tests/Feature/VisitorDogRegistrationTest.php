@@ -22,7 +22,11 @@ class VisitorDogRegistrationTest extends TestCase
             ->withSession(['active_role' => Roles::HOST])
             ->get(route('visitor-dogs.create'))
             ->assertOk()
-            ->assertSee('Besökshund', false);
+            ->assertSee('Besökshund', false)
+            ->assertSee('Starta kamera', false)
+            ->assertSee('navigator.mediaDevices.getUserMedia', false)
+            ->assertSee('name="photo"', false)
+            ->assertDontSee('capture="environment"', false);
     }
 
     public function test_guide_can_open_form_and_register_dog(): void
@@ -206,6 +210,67 @@ class VisitorDogRegistrationTest extends TestCase
         $this->assertSame('Värd-uppdaterad', $dog->fresh()->dog_name);
     }
 
+    public function test_host_can_list_and_complete_photo_on_other_users_dog(): void
+    {
+        Storage::fake('public');
+
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $host = User::factory()->create();
+        $host->assignRoles([$hostRole]);
+
+        $guide = User::factory()->create();
+        $guide->assignRoles([$guideRole]);
+
+        $own = VisitorDog::factory()->create([
+            'dog_name' => 'Min värdhund',
+            'visit_date' => now()->toDateString(),
+            'registered_by' => $host->id,
+            'registered_as_role' => Roles::HOST,
+        ]);
+
+        $other = VisitorDog::factory()->create([
+            'dog_name' => 'Guidens hund',
+            'visit_date' => now()->toDateString(),
+            'registered_by' => $guide->id,
+            'registered_as_role' => Roles::GUIDE,
+            'photo_path' => null,
+        ]);
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->get(route('visitor-dogs.index'))
+            ->assertOk()
+            ->assertSee('Min värdhund', false)
+            ->assertSee('Guidens hund', false)
+            ->assertSee('Saknar bild', false)
+            ->assertSee('Lägg till bild', false);
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->get(route('visitor-dogs.edit', $other))
+            ->assertOk()
+            ->assertSee('Lägg till bild på Guidens hund', false);
+
+        $file = UploadedFile::fake()->image('hund.jpg', 300, 300);
+
+        $this->actingAs($host)
+            ->withSession(['active_role' => Roles::HOST])
+            ->put(route('visitor-dogs.update', $other), [
+                'dog_name' => 'Försök byta namn',
+                'visit_date' => now()->toDateString(),
+                'photo' => $file,
+            ])
+            ->assertRedirect(route('visitor-dogs.show', $other));
+
+        $other->refresh();
+
+        $this->assertSame('Guidens hund', $other->dog_name);
+        $this->assertNotNull($other->photo_path);
+        Storage::disk('public')->assertExists($other->photo_path);
+    }
+
     public function test_guide_can_list_and_edit_own_visitor_dogs(): void
     {
         $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
@@ -234,12 +299,20 @@ class VisitorDogRegistrationTest extends TestCase
             ->get(route('visitor-dogs.index'))
             ->assertOk()
             ->assertSee('Min guide-hund', false)
-            ->assertDontSee('Annans hund', false);
+            ->assertSee('Annans hund', false)
+            ->assertSee('Saknar bild', false)
+            ->assertSee('Lägg till bild', false);
 
         $this->actingAs($user)
             ->withSession(['active_role' => Roles::GUIDE])
             ->get(route('visitor-dogs.show', $other))
-            ->assertForbidden();
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->get(route('visitor-dogs.edit', $other))
+            ->assertOk()
+            ->assertSee('Lägg till bild på Annans hund', false);
 
         $this->actingAs($user)
             ->withSession(['active_role' => Roles::GUIDE])
@@ -250,6 +323,45 @@ class VisitorDogRegistrationTest extends TestCase
             ->assertRedirect(route('visitor-dogs.show', $own));
 
         $this->assertSame('Uppdaterad guide-hund', $own->fresh()->dog_name);
+    }
+
+    public function test_guide_can_add_photo_to_another_users_dog_without_changing_details(): void
+    {
+        Storage::fake('public');
+
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+        $user = User::factory()->create();
+        $user->assignRoles([$guideRole]);
+
+        $otherUser = User::factory()->create();
+        $otherUser->assignRoles([$guideRole]);
+
+        $dog = VisitorDog::factory()->create([
+            'dog_name' => 'Annans hund',
+            'breed' => 'Schäfer',
+            'visit_date' => now()->toDateString(),
+            'registered_by' => $otherUser->id,
+            'registered_as_role' => Roles::GUIDE,
+            'photo_path' => null,
+        ]);
+
+        $file = UploadedFile::fake()->image('hund.jpg', 300, 300);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->put(route('visitor-dogs.update', $dog), [
+                'dog_name' => 'Försök byta namn',
+                'visit_date' => now()->toDateString(),
+                'photo' => $file,
+            ])
+            ->assertRedirect(route('visitor-dogs.show', $dog));
+
+        $dog->refresh();
+
+        $this->assertSame('Annans hund', $dog->dog_name);
+        $this->assertSame('Schäfer', $dog->breed);
+        $this->assertNotNull($dog->photo_path);
+        Storage::disk('public')->assertExists($dog->photo_path);
     }
 
     public function test_guide_cannot_edit_visitor_dog_as_admin(): void

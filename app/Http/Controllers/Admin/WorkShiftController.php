@@ -30,6 +30,7 @@ class WorkShiftController extends Controller
             ->get();
 
         $users = User::with('roles')
+            ->withoutProductionRoles()
             ->orderBy('name')
             ->get();
 
@@ -48,103 +49,108 @@ class WorkShiftController extends Controller
             'shifts' => $shifts,
             'workShift' => $workShift,
             'users' => $users,
-            'shiftRoles' => $this->shiftRoles(),
+            'shiftRoles' => WorkShift::shiftRoles(),
             'statuses' => $this->statuses(),
             'restaurantFunctions' => WorkShift::restaurantFunctions(),
         ]);
     }
-public function person(Request $request): View
-{
-    $selectedUser = null;
 
-    if ($request->filled('user_id')) {
-        $selectedUser = User::with('roles')->find($request->get('user_id'));
-    }
+    public function person(Request $request): View
+    {
+        $selectedUser = null;
 
-    $users = User::with('roles')
-        ->orderBy('name')
-        ->get();
-
-    $upcomingShifts = collect();
-
-    if ($selectedUser) {
-        $upcomingShifts = WorkShift::with('user')
-            ->where('user_id', $selectedUser->id)
-            ->whereDate('shift_date', '>=', now()->toDateString())
-            ->orderBy('shift_date')
-            ->orderBy('start_time')
-            ->get();
-    }
-
-    return view('admin.work-shifts.person', [
-        'selectedUser' => $selectedUser,
-        'users' => $users,
-        'upcomingShifts' => $upcomingShifts,
-        'shiftRoles' => $this->shiftRoles(),
-        'statuses' => $this->statuses(),
-        'restaurantFunctions' => WorkShift::restaurantFunctions(),
-    ]);
-}
-public function staffing(Request $request): View
-{
-    $date = $request->filled('date')
-        ? \Carbon\Carbon::parse($request->get('date'))
-        : now();
-
-    $shifts = WorkShift::with('user')
-        ->whereDate('shift_date', $date->toDateString())
-        ->whereNotIn('status', ['cancelled'])
-        ->orderBy('shift_role')
-        ->orderBy('shift_function')
-        ->orderBy('start_time')
-        ->get();
-
-    $restaurantFunctions = WorkShift::restaurantFunctions();
-
-    $groupedShifts = $shifts->groupBy(function ($shift) {
-        if ($shift->shift_role === 'restaurant') {
-            return 'restaurant:' . ($shift->shift_function ?: 'ovrigt');
+        if ($request->filled('user_id')) {
+            $selectedUser = User::with('roles')->find($request->get('user_id'));
         }
 
-        return $shift->shift_role;
-    });
+        $users = User::with('roles')
+            ->withoutProductionRoles()
+            ->orderBy('name')
+            ->get();
 
-    return view('admin.work-shifts.staffing', [
-        'selectedDate' => $date,
-        'shifts' => $shifts,
-        'groupedShifts' => $groupedShifts,
-        'restaurantFunctions' => $restaurantFunctions,
-        'shiftRoles' => $this->shiftRoles(),
-        'statuses' => $this->statuses(),
-    ]);
-}
-public function storePerson(Request $request): RedirectResponse
-{
-    $data = $this->validated($request);
+        $upcomingShifts = collect();
 
-    $user = User::with('roles')->findOrFail($data['user_id']);
+        if ($selectedUser) {
+            $upcomingShifts = WorkShift::with('user')
+                ->where('user_id', $selectedUser->id)
+                ->whereDate('shift_date', '>=', now()->toDateString())
+                ->orderBy('shift_date')
+                ->orderBy('start_time')
+                ->get();
+        }
 
-    $this->ensureUserCanWorkAs($user, $data['shift_role']);
-
-    $data['created_by'] = auth()->id();
-    $data['updated_by'] = auth()->id();
-
-    WorkShift::create($data);
-
-    $warning = $this->tourConflictMessage($data);
-
-    $redirect = redirect()
-        ->route($this->routePrefix() . '.work-shifts.person', [
-            'user_id' => $data['user_id'],
-        ])
-        ->with('success', 'Arbetspass skapades.');
-
-    if ($warning) {
-        $redirect->with('warning', $warning);
+        return view('admin.work-shifts.person', [
+            'selectedUser' => $selectedUser,
+            'users' => $users,
+            'upcomingShifts' => $upcomingShifts,
+            'shiftRoles' => WorkShift::shiftRoles(),
+            'statuses' => $this->statuses(),
+            'restaurantFunctions' => WorkShift::restaurantFunctions(),
+        ]);
     }
 
-    return $redirect;
-}
+    public function staffing(Request $request): View
+    {
+        $date = $request->filled('date')
+            ? Carbon::parse($request->get('date'))
+            : now();
+
+        $shifts = WorkShift::with('user')
+            ->whereDate('shift_date', $date->toDateString())
+            ->whereNotIn('status', ['cancelled'])
+            ->orderBy('shift_role')
+            ->orderBy('shift_function')
+            ->orderBy('start_time')
+            ->get();
+
+        $restaurantFunctions = WorkShift::restaurantFunctions();
+
+        $groupedShifts = $shifts->groupBy(function ($shift) {
+            if ($shift->shift_role === 'restaurant') {
+                return 'restaurant:'.($shift->shift_function ?: 'ovrigt');
+            }
+
+            return $shift->shift_role;
+        });
+
+        return view('admin.work-shifts.staffing', [
+            'selectedDate' => $date,
+            'shifts' => $shifts,
+            'groupedShifts' => $groupedShifts,
+            'restaurantFunctions' => $restaurantFunctions,
+            'shiftRoles' => WorkShift::shiftRoles(),
+            'statuses' => $this->statuses(),
+        ]);
+    }
+
+    public function storePerson(Request $request): RedirectResponse
+    {
+        $data = $this->validated($request);
+
+        $user = User::with('roles')->findOrFail($data['user_id']);
+
+        $this->ensureUserCanWorkAs($user, $data['shift_role']);
+
+        $data['created_by'] = auth()->id();
+        $data['updated_by'] = auth()->id();
+
+        WorkShift::create($data);
+
+        $warning = $this->tourConflictMessage($data);
+
+        $redirect = redirect()
+            ->route($this->routePrefix().'.work-shifts.person', [
+                'user_id' => $data['user_id'],
+            ])
+            ->with('success', 'Arbetspass skapades.');
+
+        if ($warning) {
+            $redirect->with('warning', $warning);
+        }
+
+        return $redirect;
+    }
+
     public function create(Request $request): View
     {
         return $this->index($request);
@@ -165,7 +171,7 @@ public function storePerson(Request $request): RedirectResponse
         $warning = $this->tourConflictMessage($data);
 
         $redirect = redirect()
-            ->route($this->routePrefix() . '.work-shifts.index', [
+            ->route($this->routePrefix().'.work-shifts.index', [
                 'date' => $data['shift_date'],
             ])
             ->with('success', 'Arbetspass skapades.');
@@ -180,13 +186,14 @@ public function storePerson(Request $request): RedirectResponse
     public function edit(WorkShift $workShift): View
     {
         $users = User::with('roles')
+            ->withoutProductionRoles()
             ->orderBy('name')
             ->get();
 
         return view('admin.work-shifts.edit', [
             'workShift' => $workShift,
             'users' => $users,
-            'shiftRoles' => $this->shiftRoles(),
+            'shiftRoles' => WorkShift::shiftRoles(),
             'statuses' => $this->statuses(),
             'restaurantFunctions' => WorkShift::restaurantFunctions(),
         ]);
@@ -206,7 +213,7 @@ public function storePerson(Request $request): RedirectResponse
         $warning = $this->tourConflictMessage($data, $workShift->id);
 
         $redirect = redirect()
-            ->route($this->routePrefix() . '.work-shifts.index', [
+            ->route($this->routePrefix().'.work-shifts.index', [
                 'date' => $data['shift_date'],
             ])
             ->with('success', 'Arbetspass uppdaterades.');
@@ -225,7 +232,7 @@ public function storePerson(Request $request): RedirectResponse
         $workShift->delete();
 
         return redirect()
-            ->route($this->routePrefix() . '.work-shifts.index', [
+            ->route($this->routePrefix().'.work-shifts.index', [
                 'date' => $date ?: now()->toDateString(),
             ])
             ->with('success', 'Arbetspass togs bort.');
@@ -238,7 +245,7 @@ public function storePerson(Request $request): RedirectResponse
             'shift_date' => ['required', 'date'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
-            'shift_role' => ['required', Rule::in(array_keys($this->shiftRoles()))],
+            'shift_role' => ['required', Rule::in(array_keys(WorkShift::shiftRoles()))],
             'shift_function' => ['nullable', 'string', 'max:50'],
             'status' => ['required', Rule::in(array_keys($this->statuses()))],
             'notes' => ['nullable', 'string'],
@@ -266,16 +273,6 @@ public function storePerson(Request $request): RedirectResponse
     private function ensureUserCanWorkAs(User $user, string $shiftRole): void
     {
         abort_unless($user->hasRole($shiftRole), 422, 'Användaren har inte denna roll.');
-    }
-
-    private function shiftRoles(): array
-    {
-        return [
-            'guide' => 'Guide',
-            'host' => 'Värd',
-            'restaurant' => 'Restaurang',
-            'admin' => 'Admin',
-        ];
     }
 
     private function statuses(): array
@@ -325,11 +322,11 @@ public function storePerson(Request $request): RedirectResponse
             ->map(function ($tour) {
                 $start = $tour->start_time ? substr($tour->start_time, 0, 5) : '--:--';
 
-                return ($tour->title ?: 'Tur') . ' kl ' . $start;
+                return ($tour->title ?: 'Tur').' kl '.$start;
             })
             ->implode(', ');
 
-        return 'Varning: Guiden är redan tilldelad tur samma tid: ' . $tourList . '.';
+        return 'Varning: Guiden är redan tilldelad tur samma tid: '.$tourList.'.';
     }
 
     private function routePrefix(): string

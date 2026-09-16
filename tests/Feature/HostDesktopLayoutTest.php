@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class HostDesktopLayoutTest extends TestCase
 {
-    public function test_host_visitor_dogs_overview_uses_desktop_sidebar_with_single_link(): void
+    public function test_host_visitor_dogs_overview_includes_mobile_nav_on_small_screens(): void
     {
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
         $user = User::factory()->create();
@@ -22,13 +22,11 @@ class HostDesktopLayoutTest extends TestCase
         $response->assertOk()
             ->assertSee('Besökshundar', false)
             ->assertSee(route('host.visitor-dogs.index'), false)
-            ->assertDontSee('Mobil personalvy', false)
-            ->assertDontSee('Byt arbetsyta', false)
-            ->assertDontSee('Mina registreringar', false)
-            ->assertDontSee('restaurant-mobile-header', false);
+            ->assertSee('restaurant-mobile-header d-lg-none', false)
+            ->assertSee('Entrévärd · Bokning', false);
     }
 
-    public function test_host_time_reporting_from_topbar_uses_desktop_layout(): void
+    public function test_host_time_reporting_uses_staff_mobile_shell_not_desktop_sidebar(): void
     {
         $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
         $user = User::factory()->create();
@@ -40,7 +38,8 @@ class HostDesktopLayoutTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Tidrapportering', false)
-            ->assertSee('topbar', false)
-            ->assertDontSee('restaurant-mobile-header', false);
+            ->assertSee('restaurant-mobile-header', false)
+            ->assertDontSee('restaurant-mobile-header d-lg-none', false)
+            ->assertDontSee('Boknings- och guidesystem', false);
     }
 }

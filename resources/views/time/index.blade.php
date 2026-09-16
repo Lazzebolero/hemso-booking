@@ -4,23 +4,30 @@
     <x-ui.page-header
         :guide="$useGuideLayout"
         title="Tidrapportering"
-        subtitle="Stämpla tid, kontrollera pass och skicka in när allt stämmer."
+        :subtitle="count($qrStations ?? []) > 0 ? 'Stämpling via QR vid entré eller restaurang. Kontrollera pass och skicka in när allt stämmer.' : 'Stämpla tid, kontrollera pass och skicka in när allt stämmer.'"
         icon="bi-clock-history"
     >
         <x-slot:actions>
             @include('partials.time.clock-actions', [
                 'openEntry' => $openEntry,
                 'guide' => $useGuideLayout,
+                'qrStations' => $qrStations ?? [],
             ])
         </x-slot>
     </x-ui.page-header>
 
     @include('partials.ui.flash-messages', ['guide' => $useGuideLayout])
 
+    @include('partials.time.qr-stamp-panel', [
+        'qrStations' => $qrStations ?? [],
+        'guide' => $useGuideLayout,
+    ])
+
     @include('partials.time.open-entries-alert', [
         'openEntries' => $openEntries,
         'openEntry' => $openEntry,
         'guide' => $useGuideLayout,
+        'qrStations' => $qrStations ?? [],
     ])
 
     @include('partials.time.period-summary', [

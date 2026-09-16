@@ -7,12 +7,24 @@ use App\Models\Language;
 use App\Models\Tour;
 use App\Models\TourType;
 use App\Models\User;
+use App\Services\BookingParticipantService;
+use App\Services\GuideQuickTourGuardService;
 use App\Services\LogService;
+use App\Services\TourAutoCompleteService;
+use App\Services\TourDurationSettingsService;
 use App\Support\Roles;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 class QuickTourController extends Controller
 {
+    public function __construct(
+        private BookingParticipantService $participants,
+        private TourDurationSettingsService $durationSettings,
+        private TourAutoCompleteService $autoComplete,
+        private GuideQuickTourGuardService $quickTourGuard,
+    ) {}
+
     public function create()
     {
         $guides = User::query()
@@ -46,9 +58,12 @@ class QuickTourController extends Controller
         }
 
         if (session('active_role') === Roles::GUIDE) {
+            $quickTourAssessment = $this->quickTourGuard->assess((int) auth()->id());
+
             return view('guide.quick-tours.create', compact(
                 'languages',
-                'defaultLanguageIds'
+                'defaultLanguageIds',
+                'quickTourAssessment',
             ));
         }
 
@@ -60,32 +75,40 @@ class QuickTourController extends Controller
     }
 
     public function store(Request $request)
-{
-    $data = $request->validate([
-        'men_count' => ['nullable', 'integer', 'min:0'],
-        'women_count' => ['nullable', 'integer', 'min:0'],
-        'youth_count' => ['nullable', 'integer', 'min:0'],
-        'child_count' => ['nullable', 'integer', 'min:0'],
-        'notes' => ['nullable', 'string'],
-        'guide_id' => ['nullable', 'exists:users,id'],
-        'language_ids' => ['nullable', 'array'],
-        'language_ids.*' => ['integer', 'exists:languages,id'],
-    ], [
-        'guide_id.exists' => 'Vald guide finns inte.',
-        'language_ids.*.exists' => 'Ett valt språk finns inte.',
-    ]);
+    {
+        $data = $request->validate([
+            'participant_count' => ['nullable', 'integer', 'min:1'],
+            'men_count' => ['nullable', 'integer', 'min:0'],
+            'women_count' => ['nullable', 'integer', 'min:0'],
+            'youth_count' => ['nullable', 'integer', 'min:0'],
+            'child_count' => ['nullable', 'integer', 'min:0'],
+            'unspecified_count' => ['nullable', 'integer', 'min:0'],
+            'notes' => ['nullable', 'string'],
+            'guide_id' => ['nullable', 'exists:users,id'],
+            'language_ids' => ['nullable', 'array'],
+            'language_ids.*' => ['integer', 'exists:languages,id'],
+        ], [
+            'guide_id.exists' => 'Vald guide finns inte.',
+            'language_ids.*.exists' => 'Ett valt språk finns inte.',
+        ]);
 
-    $data['men_count'] = (int) ($data['men_count'] ?? 0);
-    $data['women_count'] = (int) ($data['women_count'] ?? 0);
-    $data['youth_count'] = (int) ($data['youth_count'] ?? 0);
-    $data['child_count'] = (int) ($data['child_count'] ?? 0);
-
-    $totalCount = (int) $data['men_count']
-        + (int) $data['women_count']
-        + (int) $data['youth_count']
-        + (int) $data['child_count'];
+        $counts = $this->participants->normalize($data);
+        $totalCount = $counts['total_count'];
 
         $guideId = $this->resolveGuideId($data);
+
+        if ($guideId !== null) {
+            $blockingTour = $this->quickTourGuard->blockingTour($guideId);
+
+            if ($blockingTour !== null) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'quick_tour' => $this->quickTourGuard->blockedMessage($blockingTour, now(), $guideId),
+                    ]);
+            }
+        }
+
         $now = now();
 
         $tourType = TourType::query()
@@ -96,15 +119,10 @@ class QuickTourController extends Controller
             $tourType = TourType::query()->orderBy('id')->first();
         }
 
-        $durationMinutes = (int) ($tourType->default_duration_minutes ?? 60);
-        if ($durationMinutes <= 0) {
-            $durationMinutes = 60;
-        }
+        $endTime = $this->durationSettings->endTimeFromStart($now, $tourType?->id);
 
-        $endAt = $now->copy()->addMinutes($durationMinutes);
-
-        $tourTitle = 'Snabbtur ' . $now->format('Y-m-d H:i');
-        $bookingName = 'Snabbtur ' . $now->format('Y-m-d H:i');
+        $tourTitle = 'Snabbtur '.$now->format('Y-m-d H:i');
+        $bookingName = 'Snabbtur '.$now->format('Y-m-d H:i');
 
         $languageIds = collect($data['language_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
@@ -136,12 +154,15 @@ class QuickTourController extends Controller
             'title' => $tourTitle,
             'tour_date' => $now->toDateString(),
             'start_time' => $now->format('H:i:s'),
-            'end_time' => $endAt->format('H:i:s'),
+            'end_time' => $endTime,
+            'baseline_end_time' => $this->autoComplete->captureBaselineEndTime($endTime),
             'status' => 'started',
             'started_at' => $now,
             'tour_type_id' => $tourType?->id,
             'guide_id' => $guideId,
-            'max_participants' => max(25, $totalCount),
+            'max_participants' => $this->durationSettings->resolveCapacityForQuickTour($totalCount),
+            'booked_total_at_start' => $totalCount,
+            'actual_total_at_start' => $totalCount,
             'created_by' => auth()->id(),
             'updated_by' => auth()->id(),
         ]);
@@ -150,11 +171,12 @@ class QuickTourController extends Controller
             'tour_id' => $tour->id,
             'booking_name' => $bookingName,
             'contact_name' => $bookingName,
-            'men_count' => (int) $data['men_count'],
-            'women_count' => (int) $data['women_count'],
-            'youth_count' => (int) $data['youth_count'],
-            'child_count' => (int) $data['child_count'],
-            'total_count' => $totalCount,
+            'men_count' => $counts['men_count'],
+            'women_count' => $counts['women_count'],
+            'youth_count' => $counts['youth_count'],
+            'child_count' => $counts['child_count'],
+            'unspecified_count' => $counts['unspecified_count'],
+            'total_count' => $counts['total_count'],
             'notes' => $data['notes'] ?? null,
             'status' => 'confirmed',
             'created_by' => auth()->id(),
@@ -188,6 +210,19 @@ class QuickTourController extends Controller
         if (session('active_role') === Roles::GUIDE) {
             return redirect()
                 ->route('guide.dashboard')
+                ->with('success', 'Snabbtur startad.')
+                ->with('warm_guide_tour_id', $tour->id);
+        }
+
+        $prefix = match (session('active_role')) {
+            Roles::HOST => 'host',
+            Roles::ADMIN => 'admin',
+            default => null,
+        };
+
+        if ($prefix && Route::has($prefix.'.dashboard')) {
+            return redirect()
+                ->route($prefix.'.dashboard')
                 ->with('success', 'Snabbtur startad.');
         }
 
@@ -202,6 +237,6 @@ class QuickTourController extends Controller
             return auth()->id();
         }
 
-        return !empty($data['guide_id']) ? (int) $data['guide_id'] : null;
+        return ! empty($data['guide_id']) ? (int) $data['guide_id'] : null;
     }
 }

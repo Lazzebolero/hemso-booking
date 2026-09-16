@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\ActiveRoleRedirect;
+use App\Support\GuideShell;
+use App\Support\Roles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -41,6 +44,26 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = $request->user()?->loadMissing('roles');
+        $availableRoles = $user?->availableRoleSlugs() ?? [];
+
+        if ($user && count($availableRoles) === 1) {
+            $role = $availableRoles[0];
+            $request->session()->put('active_role', $role);
+
+            if ($role === Roles::GUIDE) {
+                GuideShell::markActive();
+            } else {
+                GuideShell::clear();
+            }
+
+            if ($role === Roles::PRODUKTION_ADMIN || $role === Roles::PRODUKTION_PERSONAL) {
+                return redirect('/berget');
+            }
+
+            return redirect()->to(ActiveRoleRedirect::location($role, $user));
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
@@ -70,7 +93,7 @@ class AuthenticatedSessionController extends Controller
         $seconds = RateLimiter::availableIn($this->throttleKey($request));
 
         throw ValidationException::withMessages([
-            'email' => 'För många misslyckade inloggningsförsök. Försök igen om ' . ceil($seconds / 60) . ' minuter.',
+            'email' => 'För många misslyckade inloggningsförsök. Försök igen om '.ceil($seconds / 60).' minuter.',
         ]);
     }
 
@@ -80,7 +103,7 @@ class AuthenticatedSessionController extends Controller
     protected function throttleKey(Request $request): string
     {
         return Str::transliterate(
-            Str::lower($request->input('email')) . '|' . $request->ip()
+            Str::lower($request->input('email')).'|'.$request->ip()
         );
     }
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hemso-pwa-v11';
+const CACHE_NAME = 'hemso-pwa-v24';
 
 /**
  * Laravel (and proxies) often set Vary on HTML. Default caches.match() then misses the
@@ -47,7 +47,6 @@ function absUrl(absoluteFromRoot) {
 }
 
 const CORE_ASSETS = [
-    absUrl('/'),
     absUrl('/manifest.webmanifest'),
     absUrl('/offline.html'),
     absUrl('/js/offline-queue.js'),
@@ -73,23 +72,120 @@ self.addEventListener('activate', event => {
     self.clients.claim();
 });
 
-/**
- * Only cache successful responses for offline replay.
- * Never cache redirects (e.g. auth 302 to login) — they poison the cache so
- * unrelated URLs return the login document when offline.
- */
-function cacheIfEligible(request, response) {
+function canonicalHtmlUrl(href) {
+    try {
+        const url = new URL(href, self.location.origin);
+        let pathname = url.pathname;
+
+        if (pathname.length > 1 && pathname.endsWith('/')) {
+            pathname = pathname.slice(0, -1);
+        }
+
+        return `${url.origin}${pathname}`;
+    } catch {
+        return href;
+    }
+}
+
+function canonicalHtmlRequest(href) {
+    return new Request(canonicalHtmlUrl(href), { method: 'GET' });
+}
+
+function warmHtmlCacheUrl(url) {
+    const request = canonicalHtmlRequest(url);
+
+    return fetch(request, { credentials: 'include' })
+        .then(response => {
+            if (!response || !response.ok || response.redirected) {
+                return null;
+            }
+
+            const path = relativeAppPath(new URL(request.url).pathname);
+
+            if (shouldSkipHtmlCache(path) || isLoginDocumentResponse(response, path)) {
+                return null;
+            }
+
+            return caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+        })
+        .catch(() => null);
+}
+
+self.addEventListener('message', event => {
+    const data = event.data;
+
+    if (!data || !data.type) {
+        return;
+    }
+
+    if (data.type === 'invalidate-html-cache' && data.url) {
+        event.waitUntil(
+            caches.open(CACHE_NAME).then(cache => cache.delete(canonicalHtmlRequest(data.url), CACHE_MATCH_OPTS))
+        );
+
+        return;
+    }
+
+    if (data.type === 'warm-html-cache' && data.url) {
+        event.waitUntil(warmHtmlCacheUrl(data.url));
+    }
+});
+
+function isAuthPage(path) {
+    return path === '/login'
+        || path.startsWith('/login/')
+        || path === '/register'
+        || path.startsWith('/register/')
+        || path.startsWith('/password')
+        || path.startsWith('/forgot-password')
+        || path.startsWith('/reset-password')
+        || path.startsWith('/verify-email')
+        || path.startsWith('/confirm-password');
+}
+
+function isRoleRoutingPage(path) {
+    return path === '/dashboard'
+        || path === '/select-role'
+        || path.startsWith('/select-role/');
+}
+
+function isLoginDocumentResponse(response, requestPath) {
     if (!response || !response.ok) {
+        return false;
+    }
+
+    try {
+        const responsePath = relativeAppPath(new URL(response.url).pathname);
+        if (isAuthPage(responsePath)) {
+            return true;
+        }
+    } catch {
+        return isAuthPage(requestPath);
+    }
+
+    return false;
+}
+
+function shouldSkipHtmlCache(path) {
+    return isAuthPage(path) || isRoleRoutingPage(path);
+}
+
+function cacheIfEligible(request, response, requestPath) {
+    if (!response || !response.ok || response.redirected) {
+        return;
+    }
+
+    const path = requestPath || relativeAppPath(new URL(request.url).pathname);
+
+    if (shouldSkipHtmlCache(path) || isLoginDocumentResponse(response, path)) {
         return;
     }
 
     const copy = response.clone();
-    caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+    const cacheRequest = canonicalHtmlRequest(request.url);
+    caches.open(CACHE_NAME).then(cache => cache.put(cacheRequest, copy));
 }
 
-/**
- * Avoid hanging forever on "lie-fi" / flaky TCP; fall back to cache/offline.html.
- */
 function fetchWithNetworkTimeout(request, timeoutMs) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -100,18 +196,34 @@ function fetchWithNetworkTimeout(request, timeoutMs) {
 }
 
 function matchAppHtmlCache(request) {
-    return caches.match(request, CACHE_MATCH_OPTS).then(hit => {
+    const canonical = canonicalHtmlRequest(request.url);
+
+    return caches.match(canonical, CACHE_MATCH_OPTS).then(hit => {
         if (hit) {
             return hit;
         }
 
-        return caches.match(new Request(request.url, { method: 'GET' }), CACHE_MATCH_OPTS);
+        return caches.match(request, CACHE_MATCH_OPTS).then(secondHit => {
+            if (secondHit) {
+                return secondHit;
+            }
+
+            return caches.match(new Request(request.url, { method: 'GET' }), CACHE_MATCH_OPTS);
+        });
     });
 }
 
-/**
- * Last-resort offline: same document may have been stored under the canonical app path.
- */
+function isDynamicAppPage(path) {
+    return path === '/dashboard'
+        || path.startsWith('/admin/')
+        || path.startsWith('/host/')
+        || path.startsWith('/guide/');
+}
+
+function isLiveSystemMessageRequest(path) {
+    return path.startsWith('/system-messages/');
+}
+
 function matchQuickTourCreateOffline(appRelativePath) {
     if (!appRelativePath.includes('quick-tours')) {
         return Promise.resolve(null);
@@ -120,6 +232,136 @@ function matchQuickTourCreateOffline(appRelativePath) {
     const canonical = new Request(absUrl('/quick-tours/create'), { method: 'GET' });
 
     return caches.match(canonical, CACHE_MATCH_OPTS);
+}
+
+function isGuideTourShowPath(path) {
+    return /^\/guide\/tours\/\d+\/?$/.test(path);
+}
+
+function isGuidePath(path) {
+    return path === '/guide' || path.startsWith('/guide/');
+}
+
+function matchCachedPathSuffix(pathSuffix) {
+    return caches.open(CACHE_NAME).then(cache => cache.keys().then(keys => {
+        const match = keys.find((request) => {
+            try {
+                const pathname = new URL(request.url).pathname;
+
+                return pathname === pathSuffix || pathname.endsWith(pathSuffix);
+            } catch {
+                return false;
+            }
+        });
+
+        if (!match) {
+            return null;
+        }
+
+        return cache.match(match, CACHE_MATCH_OPTS);
+    }));
+}
+
+function matchGuideDashboardCache() {
+    const candidates = [
+        canonicalHtmlUrl(absUrl('/guide/dashboard')),
+        canonicalHtmlUrl(new URL('/guide/dashboard', self.location.origin).href),
+    ];
+
+    return candidates.reduce(
+        (promise, candidate) => promise.then(hit => {
+            if (hit) {
+                return hit;
+            }
+
+            return caches.match(new Request(candidate, { method: 'GET' }), CACHE_MATCH_OPTS);
+        }),
+        Promise.resolve(null),
+    ).then(hit => hit || matchCachedPathSuffix('/guide/dashboard'));
+}
+
+function isGuideShellOfflinePath(path) {
+    if (isGuidePath(path)) {
+        return true;
+    }
+
+    return path === '/my-schedule' || path.startsWith('/my-schedule/')
+        || path === '/messages' || path.startsWith('/messages/')
+        || path.startsWith('/group-chats/')
+        || path === '/time' || path.startsWith('/time/')
+        || path.startsWith('/quick-tours/')
+        || path.startsWith('/staff/documents')
+        || path.startsWith('/visitor-dogs')
+        || path.startsWith('/guide/reports');
+}
+
+function matchGuideDashboardOrOffline() {
+    return matchGuideDashboardCache().then(dashboard => {
+        if (dashboard) {
+            return dashboard;
+        }
+
+        return offlineHtmlFallback();
+    });
+}
+
+function matchGuideOfflineFallback(request, path) {
+    return matchQuickTourCreateOffline(path).then(quickTour => {
+        if (quickTour) {
+            return quickTour;
+        }
+
+        if (isGuideTourShowPath(path) || isGuideShellOfflinePath(path)) {
+            return matchAppHtmlCache(request).then(cachedPage => {
+                if (cachedPage) {
+                    return cachedPage;
+                }
+
+                if (isGuideTourShowPath(path)) {
+                    const tourIdMatch = path.match(/^\/guide\/tours\/(\d+)\/?$/);
+
+                    if (tourIdMatch) {
+                        return matchCachedPathSuffix(`/guide/tours/${tourIdMatch[1]}`).then(cachedTour => {
+                            if (cachedTour) {
+                                return cachedTour;
+                            }
+
+                            return matchGuideDashboardOrOffline();
+                        });
+                    }
+                }
+
+                return matchGuideDashboardOrOffline();
+            });
+        }
+
+        return offlineHtmlFallback();
+    });
+}
+
+function offlineHtmlFallback() {
+    return caches.match(new Request(absUrl('/offline.html')), CACHE_MATCH_OPTS);
+}
+
+function respondWithHtml(request, path, htmlNetworkTimeoutMs) {
+    return Promise.all([
+        matchAppHtmlCache(request),
+        fetchWithNetworkTimeout(request, htmlNetworkTimeoutMs),
+    ]).then(([cached, networkResponse]) => {
+        if (networkResponse) {
+            if (networkResponse.ok && networkResponse.status === 200 && !networkResponse.redirected && !shouldSkipHtmlCache(path) && !isLoginDocumentResponse(networkResponse, path)) {
+                cacheIfEligible(request, networkResponse.clone(), path);
+            }
+
+            return networkResponse;
+        }
+
+        if (cached) {
+            return cached;
+        }
+
+        return matchGuideOfflineFallback(request, path);
+    });
 }
 
 self.addEventListener('fetch', event => {
@@ -132,8 +374,10 @@ self.addEventListener('fetch', event => {
 
     const isSameOrigin = url.origin === self.location.origin;
     const path = relativeAppPath(url.pathname);
+    const wantsHtml = request.headers.get('accept')?.includes('text/html');
+    const isNavigate = request.mode === 'navigate';
 
-    const isStaticAsset = isSameOrigin && (
+    const isStaticAsset = isSameOrigin && !isNavigate && !wantsHtml && (
         path.startsWith('/build/')
         || path.startsWith('/js/')
         || path.startsWith('/icons/')
@@ -157,7 +401,7 @@ self.addEventListener('fetch', event => {
 
                 return fetch(request).then(response => {
                     if (response.ok) {
-                        cacheIfEligible(request, response);
+                        cacheIfEligible(request, response, path);
                     }
 
                     return response;
@@ -167,47 +411,23 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    const wantsHtml = request.headers.get('accept')?.includes('text/html');
-    const isNavigate = request.mode === 'navigate';
-
-    // HTML / navigations: fetch first when online (fresh content); when offline, fetch fails
-    // and we fall back to cache, then offline.html. Parallel cache read avoids waiting only on network.
-    //
-    // Use a long timeout for real navigations (e.g. POST redirect -> GET dashboard). A short
-    // timeout here falsely served offline.html while still "online" when the server was slow.
     const htmlNetworkTimeoutMs = isNavigate ? 60000 : 8000;
 
-    if (isSameOrigin && (wantsHtml || isNavigate)) {
+    if (isSameOrigin && isLiveSystemMessageRequest(path)) {
         event.respondWith(
-            Promise.all([
-                matchAppHtmlCache(request),
-                fetchWithNetworkTimeout(request, htmlNetworkTimeoutMs),
-            ]).then(([cached, networkResponse]) => {
-                // Any real HTTP response (4xx/5xx included) must win over offline.html so users
-                // see Laravel errors / CSRF / auth — not a misleading "offline" shell.
-                if (networkResponse) {
-                    if (networkResponse.ok && networkResponse.status === 200 && !networkResponse.redirected) {
-                        cacheIfEligible(request, networkResponse.clone());
-                    }
-
-                    return networkResponse;
-                }
-
-                if (cached) {
-                    return cached;
-                }
-
-                return matchQuickTourCreateOffline(path).then(quickTour => {
-                    if (quickTour) {
-                        return quickTour;
-                    }
-
-                    return caches.match(new Request(absUrl('/offline.html')), CACHE_MATCH_OPTS).then(offline => {
-                        return offline || caches.match(new Request(absUrl('/')), CACHE_MATCH_OPTS);
-                    });
-                });
-            })
+            fetch(request).catch(() => caches.match(request))
         );
+
+        return;
+    }
+
+    if (isSameOrigin && (wantsHtml || isNavigate)) {
+        if (isDynamicAppPage(path)) {
+            event.respondWith(respondWithHtml(request, path, htmlNetworkTimeoutMs));
+            return;
+        }
+
+        event.respondWith(respondWithHtml(request, path, htmlNetworkTimeoutMs));
         return;
     }
 
@@ -219,7 +439,7 @@ self.addEventListener('fetch', event => {
 
             return fetch(request).then(response => {
                 if (response.ok) {
-                    cacheIfEligible(request, response);
+                    cacheIfEligible(request, response, path);
                 }
 
                 return response;

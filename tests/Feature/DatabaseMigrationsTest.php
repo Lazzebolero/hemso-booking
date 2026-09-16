@@ -18,6 +18,7 @@ class DatabaseMigrationsTest extends TestCase
             'bookings',
             'booking_language',
             'work_shifts',
+            'restaurant_functions',
             'time_entries',
             'time_entry_audits',
             'locked_payroll_periods',

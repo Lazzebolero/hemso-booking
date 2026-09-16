@@ -23,7 +23,7 @@ class TimeEntryPolicy
             return false;
         }
 
-        return in_array($activeRole, [Roles::GUIDE, Roles::HOST, Roles::ADMIN], true)
+        return in_array($activeRole, [Roles::GUIDE, Roles::HOST, Roles::RESTAURANT, Roles::ADMIN], true)
             && $user->canActivateRole($activeRole);
     }
 

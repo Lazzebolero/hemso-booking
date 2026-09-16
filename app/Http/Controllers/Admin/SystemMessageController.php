@@ -7,6 +7,7 @@ use App\Mail\SystemMessageAlertMail;
 use App\Models\SystemMessage;
 use App\Models\User;
 use App\Support\ActiveRole;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,7 +56,7 @@ class SystemMessageController extends Controller
 
     public function create(): View
     {
-        $message = new SystemMessage();
+        $message = new SystemMessage;
 
         return view('admin.system-messages.form', compact('message'));
     }
@@ -77,7 +78,7 @@ class SystemMessageController extends Controller
         $success = 'Systemmeddelandet skapades.';
 
         if ($emailsSent > 0) {
-            $success .= ' E-post skickades till ' . $emailsSent . ' mottagare.';
+            $success .= ' E-post skickades till '.$emailsSent.' mottagare.';
         }
 
         return redirect()
@@ -108,7 +109,7 @@ class SystemMessageController extends Controller
         $success = 'Systemmeddelandet uppdaterades.';
 
         if ($emailsSent > 0) {
-            $success .= ' E-post skickades till ' . $emailsSent . ' mottagare.';
+            $success .= ' E-post skickades till '.$emailsSent.' mottagare.';
         }
 
         return redirect()
@@ -128,6 +129,7 @@ class SystemMessageController extends Controller
     public function livePanel(): JsonResponse
     {
         $messages = collect();
+        $unreadMessages = collect();
         $unreadCount = 0;
         $importantUnread = collect();
 
@@ -162,19 +164,22 @@ class SystemMessageController extends Controller
                 ->values();
         }
 
+        $mapMessage = function ($message) {
+            return [
+                'id' => $message->id,
+                'title' => $message->title,
+                'body' => $message->body,
+                'is_important' => (bool) $message->is_important,
+                'priority' => (int) $message->priority,
+                'popup_only' => (bool) $message->popup_only,
+                'requires_ack' => (bool) $message->requires_ack,
+            ];
+        };
+
         return response()->json([
             'unread_count' => $unreadCount,
-            'important_unread' => $importantUnread->map(function ($message) {
-                return [
-                    'id' => $message->id,
-                    'title' => $message->title,
-                    'body' => $message->body,
-                    'is_important' => (bool) $message->is_important,
-                    'priority' => (int) $message->priority,
-                    'popup_only' => (bool) $message->popup_only,
-                    'requires_ack' => (bool) $message->requires_ack,
-                ];
-            })->values(),
+            'unread' => $unreadMessages->map($mapMessage)->values(),
+            'important_unread' => $importantUnread->map($mapMessage)->values(),
         ]);
     }
 
@@ -193,7 +198,6 @@ class SystemMessageController extends Controller
                 ->with(['users' => function ($query) use ($user) {
                     $query->where('users.id', $user->id);
                 }])
-                ->where('popup_only', true)
                 ->orderByDesc('priority')
                 ->orderByDesc('starts_at')
                 ->get()
@@ -245,7 +249,7 @@ class SystemMessageController extends Controller
             $request->boolean('only_unacknowledged')
         );
 
-        $filename = 'system-message-readers-' . $systemMessage->id . '.csv';
+        $filename = 'system-message-readers-'.$systemMessage->id.'.csv';
 
         return response()->streamDownload(function () use ($rows) {
             $handle = fopen('php://output', 'w');
@@ -268,9 +272,9 @@ class SystemMessageController extends Controller
                     $row['user']->name,
                     $row['user']->email,
                     $roles,
-                    $row['read_at'] ? \Carbon\Carbon::parse($row['read_at'])->format('Y-m-d H:i') : '',
-                    $row['acknowledged_at'] ? \Carbon\Carbon::parse($row['acknowledged_at'])->format('Y-m-d H:i') : '',
-                    $row['dismissed_at'] ? \Carbon\Carbon::parse($row['dismissed_at'])->format('Y-m-d H:i') : '',
+                    $row['read_at'] ? Carbon::parse($row['read_at'])->format('Y-m-d H:i') : '',
+                    $row['acknowledged_at'] ? Carbon::parse($row['acknowledged_at'])->format('Y-m-d H:i') : '',
+                    $row['dismissed_at'] ? Carbon::parse($row['dismissed_at'])->format('Y-m-d H:i') : '',
                 ], ';');
             }
 
@@ -313,7 +317,7 @@ class SystemMessageController extends Controller
         }
 
         return redirect()
-            ->route(ActiveRole::routePrefix() . '.system-messages.index')
+            ->route(ActiveRole::routePrefix().'.system-messages.index')
             ->with(
                 'success',
                 "Påminnelsekörning klar. Bearbetade: {$processed}. E-post skickade: {$emailsSent}."

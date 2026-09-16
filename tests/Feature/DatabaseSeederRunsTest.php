@@ -15,6 +15,8 @@ class DatabaseSeederRunsTest extends TestCase
         Artisan::call('db:seed', ['--no-interaction' => true]);
 
         $this->assertTrue(Schema::hasColumn('bookings', 'is_waitlist'));
+        $this->assertTrue(Schema::hasColumn('bookings', 'includes_meal'));
+        $this->assertTrue(Schema::hasColumn('tours', 'default_includes_meal'));
         $this->assertTrue(Schema::hasTable('booking_language'));
         $this->assertTrue(Schema::hasTable('tour_types'));
         $this->assertTrue(Schema::hasTable('tour_booking_pages'));

@@ -7,13 +7,12 @@ use App\Models\Tour;
 use App\Models\TourBookingPage;
 use App\Models\TourType;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\TourDurationSettingsService;
+use App\Support\ActiveRole;
+use App\Support\Roles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use App\Support\ActiveRole;
-use App\Support\Roles;
-use App\Models\WorkShift;
 
 class SpecialTourController extends Controller
 {
@@ -28,91 +27,91 @@ class SpecialTourController extends Controller
         return view('admin.special-tours.index', compact('tours'));
     }
 
-   public function create()
-{
-    $tour = new Tour([
-        'tour_date' => now()->toDateString(),
-        'start_time' => '11:00',
-        'max_participants' => (int) setting('default_tour_capacity', 25),
-        'status' => 'planned',
-    ]);
+    public function create()
+    {
+        $tour = new Tour([
+            'tour_date' => now()->toDateString(),
+            'start_time' => '11:00',
+            'max_participants' => (int) setting('default_tour_capacity', 25),
+            'status' => 'planned',
+        ]);
 
-    $bookingPage = new TourBookingPage([
-        'page_title' => '',
-        'page_text' => '',
-        'thank_you_text' => 'Tack för din bokning.',
-        'full_tour_text' => 'Denna tur är fullbokad.',
-        'booking_terms' => 'Bokningen är bindande enligt angivna villkor.',
-        'adult_price' => 0,
-        'youth_price' => 0,
-        'child_price' => 0,
-        'confirmation_subject' => 'Bokningsbekräftelse',
-        'confirmation_body' => "Hej {{contact_name}},\n\nTack för din bokning till {{tour_title}} den {{tour_date}} kl {{start_time}}.\nAntal personer: {{total_count}}.\n\nVälkommen!",
-        'is_public' => true,
-    ]);
+        $bookingPage = new TourBookingPage([
+            'page_title' => '',
+            'page_text' => '',
+            'thank_you_text' => 'Tack för din bokning.',
+            'full_tour_text' => 'Denna tur är fullbokad.',
+            'booking_terms' => 'Bokningen är bindande enligt angivna villkor.',
+            'adult_price' => 0,
+            'youth_price' => 0,
+            'child_price' => 0,
+            'confirmation_subject' => 'Bokningsbekräftelse',
+            'confirmation_body' => "Hej {{contact_name}},\n\nTack för din bokning till {{tour_title}} den {{tour_date}} kl {{start_time}}.\nAntal personer: {{total_count}}.\n\nVälkommen!",
+            'is_public' => true,
+        ]);
 
-    $guides = User::query()
-        ->whereHas('roles', function ($query) {
-            $query->where('slug', Roles::GUIDE);
-        })
-        ->with(['workShifts' => function ($query) use ($tour) {
-            $query->whereDate('shift_date', $tour->tour_date)
-                ->where('shift_role', Roles::GUIDE)
-                ->whereNotIn('status', ['cancelled'])
-                ->orderBy('start_time');
-        }])
-        ->orderBy('name')
-        ->get();
+        $guides = User::query()
+            ->whereHas('roles', function ($query) {
+                $query->where('slug', Roles::GUIDE);
+            })
+            ->with(['workShifts' => function ($query) use ($tour) {
+                $query->whereDate('shift_date', $tour->tour_date)
+                    ->where('shift_role', Roles::GUIDE)
+                    ->whereNotIn('status', ['cancelled'])
+                    ->orderBy('start_time');
+            }])
+            ->orderBy('name')
+            ->get();
 
-    $tourTypes = TourType::where('is_active', true)->orderBy('name')->get();
-    $defaultTourTypeId = TourType::where('is_default', true)->value('id');
+        $tourTypes = TourType::where('is_active', true)->orderBy('name')->get();
+        $defaultTourTypeId = TourType::where('is_default', true)->value('id');
 
-    return view('admin.special-tours.create', compact(
-        'tour',
-        'bookingPage',
-        'guides',
-        'tourTypes',
-        'defaultTourTypeId'
-    ));
-}
+        return view('admin.special-tours.create', compact(
+            'tour',
+            'bookingPage',
+            'guides',
+            'tourTypes',
+            'defaultTourTypeId'
+        ));
+    }
 
-   public function edit(Tour $tour)
-{
-    $tour->load('bookingPage');
+    public function edit(Tour $tour)
+    {
+        $tour->load('bookingPage');
 
-    abort_unless($tour->bookingPage, 404);
+        abort_unless($tour->bookingPage, 404);
 
-    $bookingPage = $tour->bookingPage;
+        $bookingPage = $tour->bookingPage;
 
-    $guides = User::query()
-        ->whereHas('roles', function ($query) {
-            $query->where('slug', Roles::GUIDE);
-        })
-        ->with(['workShifts' => function ($query) use ($tour) {
-            $query->whereDate('shift_date', $tour->tour_date)
-                ->where('shift_role', Roles::GUIDE)
-                ->whereNotIn('status', ['cancelled'])
-                ->orderBy('start_time');
-        }])
-        ->orderBy('name')
-        ->get();
+        $guides = User::query()
+            ->whereHas('roles', function ($query) {
+                $query->where('slug', Roles::GUIDE);
+            })
+            ->with(['workShifts' => function ($query) use ($tour) {
+                $query->whereDate('shift_date', $tour->tour_date)
+                    ->where('shift_role', Roles::GUIDE)
+                    ->whereNotIn('status', ['cancelled'])
+                    ->orderBy('start_time');
+            }])
+            ->orderBy('name')
+            ->get();
 
-    $tourTypes = TourType::where('is_active', true)->orderBy('name')->get();
-    $defaultTourTypeId = TourType::where('is_default', true)->value('id');
+        $tourTypes = TourType::where('is_active', true)->orderBy('name')->get();
+        $defaultTourTypeId = TourType::where('is_default', true)->value('id');
 
-    $publicUrl = $bookingPage->slug
-        ? route('public.tour-booking.show', $bookingPage->slug)
-        : null;
+        $publicUrl = $bookingPage->slug
+            ? route('public.tour-booking.show', $bookingPage->slug)
+            : null;
 
-    return view('admin.special-tours.edit', compact(
-        'tour',
-        'bookingPage',
-        'guides',
-        'tourTypes',
-        'defaultTourTypeId',
-        'publicUrl'
-    ));
-}
+        return view('admin.special-tours.edit', compact(
+            'tour',
+            'bookingPage',
+            'guides',
+            'tourTypes',
+            'defaultTourTypeId',
+            'publicUrl'
+        ));
+    }
 
     public function update(Request $request, Tour $tour)
     {
@@ -215,49 +214,42 @@ class SpecialTourController extends Controller
 
     private function resolveEndTime(?string $startTime, ?string $endTime = null, $tourTypeId = null): ?string
     {
-        if (!$startTime) {
+        if (! $startTime) {
             return $endTime;
         }
 
-        if (!empty($endTime)) {
+        if (! empty($endTime)) {
             return $endTime;
         }
 
-        $duration = 80;
-
-        if ($tourTypeId) {
-            $typeDuration = TourType::where('id', $tourTypeId)->value('default_duration_minutes');
-            if ($typeDuration) {
-                $duration = (int) $typeDuration;
-            }
-        }
-
-        return Carbon::createFromFormat('H:i', substr($startTime, 0, 5))
-            ->addMinutes($duration)
-            ->format('H:i');
+        return substr(app(TourDurationSettingsService::class)->endTimeFromStartTime(
+            substr($startTime, 0, 5),
+            $tourTypeId ? (int) $tourTypeId : null
+        ), 0, 5);
     }
 
     private function generateTourTitle(array $data): string
     {
         $typeName = 'Specialtur';
 
-        if (!empty($data['tour_type_id'])) {
+        if (! empty($data['tour_type_id'])) {
             $type = TourType::find($data['tour_type_id']);
             if ($type) {
                 $typeName = $type->name;
             }
         }
 
-        $date = !empty($data['tour_date'])
+        $date = ! empty($data['tour_date'])
             ? date('Y-m-d', strtotime($data['tour_date']))
             : now()->toDateString();
 
-        $time = !empty($data['start_time']) ? substr($data['start_time'], 0, 5) : '00:00';
+        $time = ! empty($data['start_time']) ? substr($data['start_time'], 0, 5) : '00:00';
 
-        return trim($typeName . ' ' . $date . ' ' . $time);
+        return trim($typeName.' '.$date.' '.$time);
     }
-	private function routePrefix(): string
-{
-    return ActiveRole::routePrefix();
-}
+
+    private function routePrefix(): string
+    {
+        return ActiveRole::routePrefix();
+    }
 }

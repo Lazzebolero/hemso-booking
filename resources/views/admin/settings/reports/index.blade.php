@@ -4,8 +4,65 @@
 <div class="page-header">
     <div>
         <h2 class="page-title">Inställningar för felrapporter</h2>
-        <div class="page-subtitle">Hantera kategorier, prioriteringar, statusar och platser för felrapporter.</div>
+        <div class="page-subtitle">Hantera kategorier, prioriteringar, statusar, platser och e-postmottagare för felrapporter.</div>
     </div>
+</div>
+
+<div class="page-card mb-4">
+    <div class="section-title">E-post vid ny felrapport</div>
+    <div class="form-text mb-3">
+        Aktiva admin-användare får alltid e-post. Lägg till extra adresser här (en per rad eller kommaseparerade).
+        Bifogade bilder skickas med i mailet.
+    </div>
+
+    <form method="POST" action="{{ route('admin.settings.reports.notification-emails.update') }}">
+        @csrf
+        @method('PUT')
+
+        <label class="form-label" for="notification_emails">Extra mottagare</label>
+        <textarea
+            id="notification_emails"
+            name="notification_emails"
+            class="form-control @error('notification_emails') is-invalid @enderror"
+            rows="4"
+            placeholder="exempel@hemso.se&#10;drift@hemso.se"
+        >{{ old('notification_emails', $notificationEmails ?? '') }}</textarea>
+        @error('notification_emails')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Spara e-postmottagare</button>
+        </div>
+    </form>
+</div>
+
+<div class="page-card mb-4">
+    <div class="section-title">E-post vid avvikelse i öppningskontroll</div>
+    <div class="form-text mb-3">
+        Aktiva admin-användare får alltid e-post. Lägg till extra adresser här (en per rad eller kommaseparerade), till exempel drift eller räddningstjänst.
+    </div>
+
+    <form method="POST" action="{{ route('admin.settings.reports.opening-deviation-emails.update') }}">
+        @csrf
+        @method('PUT')
+
+        <label class="form-label" for="opening_deviation_emails">Extra mottagare</label>
+        <textarea
+            id="opening_deviation_emails"
+            name="opening_deviation_emails"
+            class="form-control @error('opening_deviation_emails') is-invalid @enderror"
+            rows="4"
+            placeholder="exempel@hemso.se&#10;drift@hemso.se"
+        >{{ old('opening_deviation_emails', $openingDeviationEmails ?? '') }}</textarea>
+        @error('opening_deviation_emails')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Spara e-postmottagare</button>
+        </div>
+    </form>
 </div>
 
 <div class="admin-grid-2">

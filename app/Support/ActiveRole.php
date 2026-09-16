@@ -26,6 +26,8 @@ class ActiveRole
             return match ($suffix) {
                 'restaurant-board' => 'restaurant.dashboard',
                 'restaurant-board.kiosk' => 'restaurant.kiosk',
+                'restaurant-board.poll' => 'restaurant.poll',
+                'restaurant-board.ferry-timetable' => 'restaurant.ferry-timetable',
                 default => 'restaurant.'.$suffix,
             };
         }
@@ -36,6 +38,11 @@ class ActiveRole
     public static function visitorDogsRoutePrefix(): string
     {
         return self::slug() === Roles::HOST ? 'host' : 'admin';
+    }
+
+    public static function facilityMemoriesRoutePrefix(): ?string
+    {
+        return self::slug() === Roles::ADMIN ? 'admin' : null;
     }
 
     public static function isAdmin(): bool

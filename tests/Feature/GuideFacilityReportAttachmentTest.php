@@ -16,6 +16,22 @@ use Tests\TestCase;
 
 class GuideFacilityReportAttachmentTest extends TestCase
 {
+    public function test_guide_report_form_uses_inline_camera_without_capture_attribute(): void
+    {
+        $user = User::factory()->create();
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+        $user->assignRoles([$guideRole]);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::GUIDE])
+            ->get(route('guide.reports.create'))
+            ->assertOk()
+            ->assertSee('Starta kamera', false)
+            ->assertSee('navigator.mediaDevices.getUserMedia', false)
+            ->assertSee('name="attachment"', false)
+            ->assertDontSee('capture="environment"', false);
+    }
+
     public function test_guide_can_submit_facility_report_with_optional_image(): void
     {
         Mail::fake();

@@ -30,6 +30,7 @@
                     <th>E-post</th>
                     <th style="width:120px;">Telefon</th>
                     <th>Roller</th>
+                    <th style="width: 140px;">Guide språk</th>
                     <th style="width:100px;">Status</th>
                     <th style="width:120px;"></th>
                 </tr>
@@ -38,6 +39,7 @@
                 @forelse($users as $user)
                     @php
                         $roleNames = $user->roles?->pluck('name')->filter()->values() ?? collect();
+                        $roleSlugs = $user->roles?->pluck('slug')->filter()->values() ?? collect();
                     @endphp
 
                     <tr>
@@ -58,6 +60,14 @@
                         </td>
 
                         <td>
+                            @if($roleSlugs->contains('guide'))
+                                {{ $user->guideLanguageLabel() }}
+                            @else
+                                <span class="small-muted">—</span>
+                            @endif
+                        </td>
+
+                        <td>
                             @if($user->is_active)
                                 <span class="badge-soft badge-soft-success">Aktiv</span>
                             @else
@@ -74,7 +84,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-center muted py-4">
+                        <td colspan="7" class="text-center muted py-4">
                             Inga användare hittades.
                         </td>
                     </tr>

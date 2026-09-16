@@ -1,10 +1,20 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $statusLabels = [
+        'planned' => 'Planerat',
+        'confirmed' => 'Bekräftat',
+        'changed' => 'Ändrat',
+        'cancelled' => 'Inställt',
+    ];
+@endphp
+
 <div class="page-header">
     <div>
         <h2 class="page-title">Mitt schema</h2>
         <div class="page-subtitle">
+            Alla dina arbetspass denna vecka, oavsett roll.
             Vecka {{ $startOfWeek->format('Y-m-d') }} – {{ $endOfWeek->format('Y-m-d') }}
         </div>
     </div>
@@ -29,43 +39,64 @@
 </div>
 
 <div class="page-card">
-    <div class="staff-list">
-        @forelse($shifts as $shift)
-            <div class="staff-shift-card">
-                <div class="fw-semibold">
-                    {{ \Carbon\Carbon::parse($shift->shift_date)->translatedFormat('l Y-m-d') }}
-                </div>
-                <div class="small-muted">
-                    {{ substr($shift->start_time, 0, 5) }}–{{ $shift->end_time ? substr($shift->end_time, 0, 5) : '--:--' }}
-                </div>
-                <div class="small-muted">
-                    {{ ucfirst($shift->shift_role) }}
-                    @if($shift->shift_function)
-                        · {{ \App\Models\WorkShift::restaurantFunctions()[$shift->shift_function] ?? ucfirst($shift->shift_function) }}
-                    @endif
-                </div>
-                @if($shift->notes)
-                    <div class="mt-2">{{ $shift->notes }}</div>
-                @endif
-            </div>
-        @empty
-            <div class="small-muted">Inga arbetspass denna vecka.</div>
-        @endforelse
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="section-title mb-0">Schemalagda tider</div>
+        <div class="small-muted">{{ $shifts->count() }} pass</div>
+    </div>
+
+    <div class="table-responsive-modern">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Start</th>
+                    <th>Slut</th>
+                    <th>Roll</th>
+                    <th>Funktion</th>
+                    <th>Status</th>
+                    <th>Anteckning</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($shifts as $shift)
+                    <tr>
+                        <td>{{ \Carbon\Carbon::parse($shift->shift_date)->translatedFormat('l Y-m-d') }}</td>
+                        <td>{{ substr($shift->start_time, 0, 5) }}</td>
+                        <td>{{ $shift->end_time ? substr($shift->end_time, 0, 5) : '--:--' }}</td>
+                        <td>
+                            <span class="schedule-role-badge">
+                                {{ $shiftRoleLabels[$shift->shift_role] ?? ucfirst($shift->shift_role) }}
+                            </span>
+                        </td>
+                        <td>
+                            @if($shift->shift_function)
+                                {{ \App\Models\RestaurantFunction::label($shift->shift_function) }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>{{ $statusLabels[$shift->status] ?? ucfirst($shift->status) }}</td>
+                        <td>{{ $shift->notes ?: '-' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center muted py-4">Inga arbetspass denna vecka.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
 </div>
 
 <style>
-.staff-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-}
-
-.staff-shift-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 0.9rem;
-    background: #f8fafc;
+.schedule-role-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 0.82rem;
+    font-weight: 700;
 }
 </style>
 @endsection

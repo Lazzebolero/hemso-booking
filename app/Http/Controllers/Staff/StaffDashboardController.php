@@ -2,18 +2,24 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Http\Controllers\Admin\RestaurantBoardController;
 use App\Models\ConversationParticipant;
 use App\Models\StaffDocument;
 use App\Models\SystemMessage;
 use App\Models\WorkShift;
+use App\Support\Roles;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class StaffDashboardController extends StaffBaseController
 {
-    public function index(): View
+    public function index(RestaurantBoardController $restaurantBoard): View
     {
         $this->authorizeStaffAccess();
+
+        if (session('active_role') === Roles::RESTAURANT) {
+            return view('staff.restaurant-tours', $restaurantBoard->boardData());
+        }
 
         $user = auth()->user();
         $today = now()->toDateString();

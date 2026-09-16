@@ -30,6 +30,12 @@
             </a>
         @endif
 
+        @if(Route::has('admin.time.qr-codes'))
+            <a href="{{ route('admin.time.qr-codes') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-qr-code me-2"></i>QR-stämpling
+            </a>
+        @endif
+
     @if(Route::has('admin.time.export'))
         <a href="{{ route('admin.time.export', request()->query()) }}"
            class="btn btn-sm btn-success">

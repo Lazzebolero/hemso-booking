@@ -35,7 +35,24 @@ class VisitorDogLayoutTest extends TestCase
             ->get(route('visitor-dogs.index'))
             ->assertOk()
             ->assertSee('staff-page-stack', false)
-            ->assertSee('Mina besökshundar', false);
+            ->assertSee('Mina besökshundar', false)
+            ->assertSee(route('visitor-dogs.create'), false);
+    }
+
+    public function test_host_create_form_uses_staff_mobile_nav(): void
+    {
+        $hostRole = Role::query()->where('slug', Roles::HOST)->firstOrFail();
+        $user = User::factory()->create();
+        $user->assignRoles([$hostRole]);
+
+        $this->actingAs($user)
+            ->withSession(['active_role' => Roles::HOST])
+            ->get(route('visitor-dogs.create'))
+            ->assertOk()
+            ->assertSee('Besökshund', false)
+            ->assertSee('Starta kamera', false)
+            ->assertSee(route('visitor-dogs.index'), false)
+            ->assertSee('Entrévärd · Personalvy', false);
     }
 
     public function test_guide_create_form_uses_guide_page_header(): void
@@ -50,6 +67,8 @@ class VisitorDogLayoutTest extends TestCase
             ->assertOk()
             ->assertSee('staff-page-stack', false)
             ->assertSee('section-title', false)
-            ->assertSee('Besökshund', false);
+            ->assertSee('Besökshund', false)
+            ->assertSee('Starta kamera', false)
+            ->assertDontSee('capture="environment"', false);
     }
 }

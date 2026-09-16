@@ -5,35 +5,37 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Tour;
 use App\Models\TourType;
-use App\Models\User;
+use App\Services\DailyGuideOrderService;
 use App\Services\LogService;
+use App\Services\TourDurationSettingsService;
 use App\Support\ActiveRole;
-use App\Support\Roles;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class TourBatchController extends Controller
 {
-    public function create()
+    public function __construct(
+        private DailyGuideOrderService $dailyGuideOrderService
+    ) {}
+
+    public function create(Request $request)
     {
-        $guides = User::query()
-            ->whereHas('roles', function ($query) {
-                $query->where('slug', Roles::GUIDE);
-            })
-            ->orderBy('name')
-            ->get();
+        $tourDate = $request->filled('tour_date')
+            ? Carbon::parse($request->string('tour_date'))->toDateString()
+            : now()->toDateString();
 
-        $tourTypes = TourType::where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $this->dailyGuideOrderService->ensureInitialized($tourDate, auth()->id());
 
+        $tourTypes = TourType::activeOrdered();
         $defaultTourTypeId = TourType::where('is_default', true)->value('id');
+        $dailyGuideOrders = $this->dailyGuideOrderService->orderedForDate($tourDate);
 
-        return view('admin.tours.batch-create', compact(
-            'guides',
-            'tourTypes',
-            'defaultTourTypeId'
-        ));
+        return view('admin.tours.batch-create', [
+            'tourTypes' => $tourTypes,
+            'defaultTourTypeId' => $defaultTourTypeId,
+            'dailyGuideOrders' => $dailyGuideOrders,
+            'selectedTourDate' => $tourDate,
+        ]);
     }
 
     public function store(Request $request)
@@ -44,14 +46,15 @@ class TourBatchController extends Controller
             'last_tour' => ['required', 'date_format:H:i'],
             'interval' => ['required', 'in:60,30,15'],
             'tour_type_id' => ['nullable', 'exists:tour_types,id'],
-            'guide_id' => ['nullable', 'exists:users,id'],
             'max_participants' => ['required', 'integer', 'min:1'],
             'skip_existing' => ['nullable', 'boolean'],
+            'assign_daily_guides' => ['nullable', 'boolean'],
         ]);
 
+        $assignDailyGuides = $request->boolean('assign_daily_guides');
         $tourDate = Carbon::parse($data['tour_date'])->toDateString();
-        $start = Carbon::parse($tourDate . ' ' . $data['first_tour']);
-        $end = Carbon::parse($tourDate . ' ' . $data['last_tour']);
+        $start = Carbon::parse($tourDate.' '.$data['first_tour']);
+        $end = Carbon::parse($tourDate.' '.$data['last_tour']);
         $interval = (int) $data['interval'];
 
         if ($start->gt($end)) {
@@ -73,8 +76,15 @@ class TourBatchController extends Controller
             }
         }
 
+        $guideIds = $assignDailyGuides
+            ? $this->dailyGuideOrderService->guideIdsForDate($tourDate, auth()->id())
+            : [];
+
+        $rotationIndex = $this->dailyGuideOrderService->rotationStartIndexForDate($tourDate);
+
         $created = 0;
         $skipped = 0;
+        $assignedGuideCount = 0;
 
         while ($start->lte($end)) {
             $startTime = $start->format('H:i:s');
@@ -86,13 +96,22 @@ class TourBatchController extends Controller
             if ($exists && $request->boolean('skip_existing')) {
                 $skipped++;
                 $start->addMinutes($interval);
+
                 continue;
             }
 
-            if (!$exists) {
+            if (! $exists) {
+                $guideId = $assignDailyGuides
+                    ? $this->dailyGuideOrderService->guideIdAtRotationIndex($guideIds, $rotationIndex)
+                    : null;
+
+                if ($guideId !== null) {
+                    $assignedGuideCount++;
+                }
+
                 $title = $tourType
-                    ? trim($tourType->name . ' ' . $tourDate . ' ' . $start->format('H:i'))
-                    : 'Tur ' . $tourDate . ' ' . $start->format('H:i');
+                    ? trim($tourType->name.' '.$tourDate.' '.$start->format('H:i'))
+                    : 'Tur '.$tourDate.' '.$start->format('H:i');
 
                 $tour = Tour::create([
                     'title' => $title,
@@ -101,11 +120,12 @@ class TourBatchController extends Controller
                     'end_time' => $this->resolveEndTime(
                         $startTime,
                         null,
-                        $tourType
+                        $tourType,
+                        $tourDate,
                     ),
                     'status' => 'planned',
                     'max_participants' => (int) $data['max_participants'],
-                    'guide_id' => $data['guide_id'] ?? null,
+                    'guide_id' => $guideId,
                     'tour_type_id' => $tourTypeId,
                     'created_by' => auth()->id(),
                     'updated_by' => auth()->id(),
@@ -121,6 +141,7 @@ class TourBatchController extends Controller
                 );
 
                 $created++;
+                $rotationIndex++;
             } else {
                 $skipped++;
             }
@@ -128,30 +149,33 @@ class TourBatchController extends Controller
             $start->addMinutes($interval);
         }
 
+        $message = "Klart. {$created} turer skapades, {$skipped} hoppades över.";
+
+        if ($assignDailyGuides && $created > 0) {
+            if ($guideIds === []) {
+                $message .= ' Inga guider fanns i dagens lista — turer skapades utan guide.';
+            } else {
+                $message .= " Guider tilldelades enligt dagens ordning ({$assignedGuideCount} turer).";
+            }
+        }
+
         return redirect()
-            ->route($this->routePrefix() . '.tours.batch-create')
-            ->with('success', "Klart. {$created} turer skapades, {$skipped} hoppades över.");
+            ->route($this->routePrefix().'.tours.batch-create', ['tour_date' => $tourDate])
+            ->with('success', $message);
     }
 
-    private function resolveEndTime(?string $startTime, ?string $endTime = null, ?TourType $tourType = null): ?string
+    private function resolveEndTime(?string $startTime, ?string $endTime = null, ?TourType $tourType = null, ?string $tourDate = null): ?string
     {
-        if (!$startTime) {
+        if (! $startTime) {
             return $endTime;
         }
 
-        if (!empty($endTime)) {
+        if (! empty($endTime)) {
             return $this->normalizeTimeString($endTime);
         }
 
-        $duration = 80;
-
-        if ($tourType && !empty($tourType->default_duration_minutes)) {
-            $duration = (int) $tourType->default_duration_minutes;
-        }
-
-        return Carbon::createFromFormat('H:i:s', $this->normalizeTimeString($startTime))
-            ->addMinutes($duration)
-            ->format('H:i:s');
+        return app(TourDurationSettingsService::class)
+            ->endTimeFromStartTime($this->normalizeTimeString($startTime), $tourType?->id);
     }
 
     private function normalizeTimeString(?string $time): ?string
@@ -163,7 +187,7 @@ class TourBatchController extends Controller
         $time = trim($time);
 
         if (preg_match('/^\d{2}:\d{2}$/', $time)) {
-            return $time . ':00';
+            return $time.':00';
         }
 
         return $time;

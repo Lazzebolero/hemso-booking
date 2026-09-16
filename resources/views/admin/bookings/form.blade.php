@@ -1,5 +1,16 @@
 @php
-    $selectedLanguages = collect(old('languages', isset($booking) ? $booking->languages?->pluck('id')->all() ?? [] : []))
+    use App\Models\Language;
+
+    $defaultLanguageIds = $defaultLanguageIds ?? Language::defaultIds();
+    $existingLanguageIds = $booking->exists
+        ? $booking->languages?->pluck('id')->map(fn ($id) => (int) $id)->all() ?? []
+        : $defaultLanguageIds;
+
+    if ($booking->exists && $existingLanguageIds === []) {
+        $existingLanguageIds = $defaultLanguageIds;
+    }
+
+    $selectedLanguages = collect(old('languages', $existingLanguageIds))
         ->map(fn ($id) => (int) $id)
         ->all();
 @endphp
@@ -10,15 +21,51 @@
     <div class="row g-3">
         <div class="col-md-6">
             <label class="form-label">Tur</label>
-            <select name="tour_id" class="form-select" required>
-                @foreach($tours as $tour)
-                    <option value="{{ $tour->id }}" @selected((string) old('tour_id', $booking->tour_id) === (string) $tour->id)>
-                        {{ $tour->tour_date?->format('Y-m-d') ?? '—' }}
-                        {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '' }}
-                        – {{ $tour->title }}
-                    </option>
-                @endforeach
+            <select name="tour_id" class="form-select js-tour-select" required>
+                @php
+                    $upcomingTours = $upcomingTours ?? collect($tours ?? []);
+                    $historicalTours = $historicalTours ?? collect();
+                    $selectedTour = (string) old('tour_id', $selectedTourId ?? $booking->tour_id);
+                @endphp
+
+                @if($upcomingTours->isNotEmpty())
+                    <optgroup label="Kommande turer">
+                        @foreach($upcomingTours as $tour)
+                            @include('admin.bookings._tour-option', [
+                                'tour' => $tour,
+                                'selectedTour' => $selectedTour,
+                                'showStatus' => false,
+                            ])
+                        @endforeach
+                    </optgroup>
+                @endif
+
+                @if($historicalTours->isNotEmpty())
+                    <optgroup label="Historiska turer (retroaktiv bokning)">
+                        @foreach($historicalTours as $tour)
+                            @include('admin.bookings._tour-option', [
+                                'tour' => $tour,
+                                'selectedTour' => $selectedTour,
+                                'showStatus' => true,
+                            ])
+                        @endforeach
+                    </optgroup>
+                @endif
+
+                @if($upcomingTours->isEmpty() && $historicalTours->isEmpty())
+                    @foreach($tours ?? [] as $tour)
+                        @include('admin.bookings._tour-option', [
+                            'tour' => $tour,
+                            'selectedTour' => $selectedTour,
+                            'showStatus' => false,
+                        ])
+                    @endforeach
+                @endif
             </select>
+            @include('partials.bookings.tour-availability-warning')
+            @if(($historicalTours ?? collect())->isNotEmpty())
+                <div class="form-text">Historiska turer kan fyllas i i efterhand utan kapacitetsgräns och utan bekräftelsemail.</div>
+            @endif
         </div>
 
         <div class="col-md-6">
@@ -43,22 +90,28 @@
 
         <div class="col-md-3">
             <label class="form-label">Män</label>
-            <input type="number" min="0" name="men_count" class="form-control" value="{{ old('men_count', $booking->men_count ?? 0) }}" required>
+            <input type="number" min="0" name="men_count" class="form-control" value="{{ old('men_count', $booking->men_count ?? 0) }}">
         </div>
 
         <div class="col-md-3">
             <label class="form-label">Kvinnor</label>
-            <input type="number" min="0" name="women_count" class="form-control" value="{{ old('women_count', $booking->women_count ?? 0) }}" required>
+            <input type="number" min="0" name="women_count" class="form-control" value="{{ old('women_count', $booking->women_count ?? 0) }}">
         </div>
 
         <div class="col-md-3">
             <label class="form-label">Ungdomar</label>
-            <input type="number" min="0" name="youth_count" class="form-control" value="{{ old('youth_count', $booking->youth_count ?? 0) }}" required>
+            <input type="number" min="0" name="youth_count" class="form-control" value="{{ old('youth_count', $booking->youth_count ?? 0) }}">
         </div>
 
         <div class="col-md-3">
             <label class="form-label">Barn</label>
-            <input type="number" min="0" name="child_count" class="form-control" value="{{ old('child_count', $booking->child_count ?? 0) }}" required>
+            <input type="number" min="0" name="child_count" class="form-control" value="{{ old('child_count', $booking->child_count ?? 0) }}">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Ospecificerade</label>
+            <input type="number" min="0" name="unspecified_count" class="form-control" value="{{ old('unspecified_count', $booking->unspecified_count ?? 0) }}">
+            <div class="form-text">Använd när ni vet totalen men inte fördelningen.</div>
         </div>
 
         @if(isset($languages) && $languages->isNotEmpty())
@@ -78,8 +131,24 @@
                         </label>
                     @endforeach
                 </div>
+                <div class="form-text">Svenska är förvalt om inget annat väljs.</div>
             </div>
         @endif
+
+        @include('partials.bookings.country-select', [
+            'booking' => $booking,
+            'quickPickCountries' => $quickPickCountries ?? collect(),
+            'countries' => $countries ?? collect(),
+        ])
+
+        @include('partials.bookings.meal-select', [
+            'booking' => $booking,
+            'defaultIncludesMeal' => $defaultIncludesMeal ?? null,
+        ])
+
+        @include('partials.bookings.to-be-invoiced-checkbox', [
+            'booking' => $booking,
+        ])
 
         <div class="col-md-4">
             <label class="form-label">Status</label>
@@ -139,3 +208,26 @@
     }
 }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tourSelect = document.querySelector('select[name="tour_id"]');
+        const mealSelect = document.querySelector('select[name="includes_meal"]');
+
+        if (!tourSelect || !mealSelect) {
+            return;
+        }
+
+        const applyTourMealDefault = function () {
+            const option = tourSelect.options[tourSelect.selectedIndex];
+
+            if (!option || !option.dataset.defaultMeal) {
+                return;
+            }
+
+            mealSelect.value = option.dataset.defaultMeal === '1' ? '1' : '0';
+        };
+
+        tourSelect.addEventListener('change', applyTourMealDefault);
+    });
+</script>

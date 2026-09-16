@@ -1,11 +1,15 @@
 @extends($useGuideLayout ? 'layouts.guide' : 'layouts.app')
 
 @section('content')
+@php
+    $photoCompletionOnly = $photoCompletionOnly ?? false;
+@endphp
+
 <div class="staff-page-stack">
     <x-ui.page-header
         :guide="$useGuideLayout"
-        :title="'Redigera '.$dog->dog_name"
-        subtitle="Uppdatera uppgifter eller byt bild."
+        :title="$photoCompletionOnly ? 'Lägg till bild på '.$dog->dog_name : 'Redigera '.$dog->dog_name"
+        :subtitle="$photoCompletionOnly ? 'Komplettera någon annans registrering med foto.' : 'Uppdatera uppgifter eller byt bild.'"
         icon="bi-pencil"
     >
         <x-slot:actions>
@@ -24,6 +28,7 @@
             'cancelUrl' => \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.show', $dog, $navQuery ?? []),
             'photoUrl' => $dog->photo_path ? route('visitor-dogs.photo', $dog) : null,
             'navigationQuery' => $navQuery ?? [],
+            'photoCompletionOnly' => $photoCompletionOnly,
         ])
     </div>
 </div>

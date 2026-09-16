@@ -3,16 +3,20 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class TemplatedMail extends Mailable
+class TemplatedMail extends Mailable implements ShouldQueueAfterCommit
 {
     use Queueable, SerializesModels;
 
+    public int $tries = 3;
+
     public string $subjectLine;
+
     public string $htmlBody;
 
     public function __construct(string $subjectLine, string $htmlBody)

@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Middleware\ActivateGuideShell;
+use App\Http\Middleware\ContinueGuideShell;
 use App\Http\Middleware\EnsureActiveRole;
 use App\Http\Middleware\EnsureRestaurantStatisticsAccess;
+use App\Http\Middleware\LeaveGuideShell;
 use App\Http\Middleware\RequireActiveRole;
 use App\Http\Middleware\RequireAnyActiveRole;
 use Illuminate\Foundation\Application;
@@ -20,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'ensure.active.role' => EnsureActiveRole::class,
             'active.role' => RequireActiveRole::class,
             'active.roles' => RequireAnyActiveRole::class,
+            'guide.shell.activate' => ActivateGuideShell::class,
+            'guide.shell.continue' => ContinueGuideShell::class,
+            'guide.shell.leave' => LeaveGuideShell::class,
 
             // (valfritt) behåll endast om du inte hunnit ta bort överallt
             // 'role' => \App\Http\Middleware\RoleMiddleware::class,

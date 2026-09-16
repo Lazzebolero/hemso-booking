@@ -25,12 +25,18 @@ class TourTypeController extends Controller
             'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
             'is_active' => ['nullable', 'boolean'],
             'is_default' => ['nullable', 'boolean'],
+            'include_in_booking_sequence' => ['nullable', 'boolean'],
+            'auto_complete_enabled' => ['nullable', 'boolean'],
+            'auto_complete_grace_minutes' => ['required', 'integer', 'min:0', 'max:120'],
         ]);
 
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
         $data['default_duration_minutes'] = (int) $data['default_duration_minutes'];
         $data['is_active'] = $request->boolean('is_active');
         $data['is_default'] = $request->boolean('is_default');
+        $data['include_in_booking_sequence'] = $request->boolean('include_in_booking_sequence');
+        $data['auto_complete_enabled'] = $request->boolean('auto_complete_enabled');
+        $data['auto_complete_grace_minutes'] = (int) $data['auto_complete_grace_minutes'];
 
         // endast en default
         if ($data['is_default']) {
@@ -50,12 +56,18 @@ class TourTypeController extends Controller
             'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
             'is_active' => ['nullable', 'boolean'],
             'is_default' => ['nullable', 'boolean'],
+            'include_in_booking_sequence' => ['nullable', 'boolean'],
+            'auto_complete_enabled' => ['nullable', 'boolean'],
+            'auto_complete_grace_minutes' => ['required', 'integer', 'min:0', 'max:120'],
         ]);
 
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
         $data['default_duration_minutes'] = (int) $data['default_duration_minutes'];
         $data['is_active'] = $request->boolean('is_active');
         $data['is_default'] = $request->boolean('is_default');
+        $data['include_in_booking_sequence'] = $request->boolean('include_in_booking_sequence');
+        $data['auto_complete_enabled'] = $request->boolean('auto_complete_enabled');
+        $data['auto_complete_grace_minutes'] = (int) $data['auto_complete_grace_minutes'];
 
         // hantera default
         if ($data['is_default']) {
@@ -63,12 +75,12 @@ class TourTypeController extends Controller
         }
 
         // säkerställ att minst en default finns
-        if (!$data['is_default'] && $tourType->is_default) {
+        if (! $data['is_default'] && $tourType->is_default) {
             $hasAnotherDefault = TourType::where('id', '!=', $tourType->id)
                 ->where('is_default', true)
                 ->exists();
 
-            if (!$hasAnotherDefault) {
+            if (! $hasAnotherDefault) {
                 $data['is_default'] = true;
             }
         }

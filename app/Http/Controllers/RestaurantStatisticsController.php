@@ -2,15 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Booking;
 use App\Models\Tour;
 use App\Models\WorkShift;
+use App\Services\TourCoGuideService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class RestaurantStatisticsController extends Controller
 {
+    public function __construct(
+        private TourCoGuideService $tourCoGuideService,
+    ) {}
+
     public function loginForm(): View
     {
         return view('restaurant-statistics.login');
@@ -25,6 +32,8 @@ class RestaurantStatisticsController extends Controller
         $expectedPassword = config('services.restaurant_statistics.password');
 
         if (! $expectedPassword || ! hash_equals($expectedPassword, $data['password'])) {
+            $this->recordAccess($request, 'failed');
+
             return back()
                 ->withErrors(['password' => 'Fel lösenord.'])
                 ->withInput();
@@ -35,6 +44,7 @@ class RestaurantStatisticsController extends Controller
         ]);
 
         $request->session()->regenerate();
+        $this->recordAccess($request, 'login');
 
         return redirect()->route('restaurant-statistics.dashboard');
     }
@@ -42,38 +52,46 @@ class RestaurantStatisticsController extends Controller
     public function logout(Request $request): RedirectResponse
     {
         $request->session()->forget('restaurant_statistics_auth');
+        $this->recordAccess($request, 'logout');
 
         return redirect()->route('restaurant-statistics.login');
     }
 
-    public function dashboard(): View
+    public function dashboard(Request $request): View
     {
-        $data = $this->buildBoardData();
+        $data = $this->buildBoardData($this->mealPlanningDays($request));
 
         return view('restaurant-statistics.dashboard', $data);
     }
 
-    protected function buildBoardData(): array
+    private function recordAccess(Request $request, string $eventType): void
+    {
+        Log::info('Restaurant statistics access', [
+            'event' => $eventType,
+            'ip' => $request->ip(),
+        ]);
+    }
+
+    protected function mealPlanningDays(Request $request): int
+    {
+        $days = (int) $request->query('meal_days', 7);
+
+        return in_array($days, [7, 30], true) ? $days : 7;
+    }
+
+    protected function buildBoardData(int $mealPlanningDays = 7): array
     {
         $now = now();
         $today = $now->toDateString();
 
-        $ongoingTours = Tour::with([
-                'guide',
-                'tourType',
-                'bookings.languages',
-            ])
+        $ongoingTours = Tour::with($this->tourCoGuideService->tourDisplayRelations())
             ->whereDate('tour_date', $today)
             ->where('status', 'started')
             ->orderBy('start_time')
             ->get()
             ->map(fn (Tour $tour) => $this->decorateOngoingTour($tour));
 
-        $upcomingTours = Tour::with([
-                'guide',
-                'tourType',
-                'bookings.languages',
-            ])
+        $upcomingTours = Tour::with($this->tourCoGuideService->tourDisplayRelations())
             ->whereDate('tour_date', $today)
             ->where('status', 'planned')
             ->whereTime('start_time', '>=', $now->format('H:i:s'))
@@ -112,17 +130,69 @@ class RestaurantStatisticsController extends Controller
             ->groupBy(fn ($shift) => $shift->shift_function ?: 'ovrigt')
             ->sortKeys();
 
+        $mealPlanningEndDate = $now->copy()->addDays($mealPlanningDays - 1)->toDateString();
+
+        $upcomingMealTours = Tour::with($this->tourCoGuideService->tourDisplayRelations())
+            ->whereDate('tour_date', '>=', $today)
+            ->whereDate('tour_date', '<=', $mealPlanningEndDate)
+            ->whereIn('status', ['planned', 'started'])
+            ->where(function ($query) {
+                $query->where('default_includes_meal', true)
+                    ->orWhereHas('bookings', function ($bookingQuery) {
+                        $bookingQuery->where('includes_meal', true)
+                            ->whereNotIn('status', ['cancelled'])
+                            ->where('is_waitlist', false);
+                    });
+            })
+            ->orderBy('tour_date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn (Tour $tour) => $this->decorateMealPlanningTour($tour));
+
+        $totalUpcomingMealGuests = (int) $upcomingMealTours->sum('meal_people_count');
+        $totalTodayVisitors = $this->countTodayVisitors($today);
+
         return [
             'ongoingTours' => $ongoingTours,
             'upcomingTours' => $upcomingTours,
+            'upcomingMealTours' => $upcomingMealTours,
             'totalOngoingGuests' => $totalOngoingGuests,
             'totalUpcomingGuests' => $totalUpcomingGuests,
+            'totalTodayVisitors' => $totalTodayVisitors,
+            'totalUpcomingMealGuests' => $totalUpcomingMealGuests,
+            'mealPlanningDays' => $mealPlanningDays,
+            'mealPlanningEndDate' => $mealPlanningEndDate,
             'ongoingParticipantBreakdown' => $ongoingParticipantBreakdown,
             'todayShifts' => $todayShifts,
             'todayStaffByFunction' => $todayStaffByFunction,
             'restaurantFunctions' => $restaurantFunctions,
             'nowLabel' => $now->format('Y-m-d H:i'),
         ];
+    }
+
+    protected function countTodayVisitors(string $today): int
+    {
+        return (int) Booking::query()
+            ->where('is_waitlist', false)
+            ->whereNotIn('status', ['cancelled'])
+            ->whereHas('tour', function ($query) use ($today) {
+                $query->whereDate('tour_date', $today)
+                    ->whereNotIn('status', ['cancelled', 'started']);
+            })
+            ->sum('total_count');
+    }
+
+    protected function decorateMealPlanningTour(Tour $tour): Tour
+    {
+        $mealBookings = collect($tour->bookings ?? [])
+            ->whereNotIn('status', ['cancelled'])
+            ->where('is_waitlist', false)
+            ->where('includes_meal', true);
+
+        $tour->meal_people_count = (int) $mealBookings->sum('total_count');
+        $tour->meal_bookings_count = (int) $mealBookings->count();
+
+        return $this->tourCoGuideService->decorateTourGuideDisplay($tour);
     }
 
     protected function decorateOngoingTour(Tour $tour): Tour
@@ -142,7 +212,7 @@ class RestaurantStatisticsController extends Controller
         $tour->estimated_end_time = '-';
         $tour->remaining_to_end = '-';
 
-        if (!empty($tour->started_at) && !empty($tour->start_time) && !empty($tour->end_time)) {
+        if (! empty($tour->started_at) && ! empty($tour->start_time) && ! empty($tour->end_time)) {
             try {
                 $plannedStart = $this->timeFromString($tour->start_time);
                 $plannedEnd = $this->timeFromString($tour->end_time);
@@ -163,7 +233,7 @@ class RestaurantStatisticsController extends Controller
             }
         }
 
-        return $tour;
+        return $this->tourCoGuideService->decorateTourGuideDisplay($tour);
     }
 
     protected function decorateUpcomingTour(Tour $tour): Tour
@@ -178,9 +248,9 @@ class RestaurantStatisticsController extends Controller
         $tour->estimated_end_time = '-';
         $tour->time_until_start = '-';
 
-        if (!empty($tour->tour_date) && !empty($tour->start_time)) {
+        if (! empty($tour->tour_date) && ! empty($tour->start_time)) {
             try {
-                $startAt = Carbon::parse($tour->tour_date . ' ' . $tour->start_time);
+                $startAt = Carbon::parse($tour->tour_date.' '.$tour->start_time);
                 $tour->time_until_start = $this->formatUntilStart(
                     (int) now()->diffInMinutes($startAt, false)
                 );
@@ -189,7 +259,7 @@ class RestaurantStatisticsController extends Controller
             }
         }
 
-        if (!empty($tour->start_time) && !empty($tour->end_time)) {
+        if (! empty($tour->start_time) && ! empty($tour->end_time)) {
             try {
                 $tour->estimated_end_time = substr($this->timeFromString($tour->end_time)->format('H:i:s'), 0, 5);
             } catch (\Throwable $e) {
@@ -197,12 +267,12 @@ class RestaurantStatisticsController extends Controller
             }
         }
 
-        return $tour;
+        return $this->tourCoGuideService->decorateTourGuideDisplay($tour);
     }
 
     protected function timeFromString(string $time): Carbon
     {
-        $normalized = strlen($time) === 5 ? $time . ':00' : $time;
+        $normalized = strlen($time) === 5 ? $time.':00' : $time;
 
         return Carbon::createFromFormat('H:i:s', $normalized);
     }
@@ -214,12 +284,12 @@ class RestaurantStatisticsController extends Controller
             $restMinutes = $minutes % 60;
 
             return $restMinutes > 0
-                ? $hours . 'h ' . $restMinutes . ' min kvar'
-                : $hours . 'h kvar';
+                ? $hours.'h '.$restMinutes.' min kvar'
+                : $hours.'h kvar';
         }
 
         if ($minutes > 0) {
-            return $minutes . ' min kvar';
+            return $minutes.' min kvar';
         }
 
         if ($minutes === 0) {
@@ -236,12 +306,12 @@ class RestaurantStatisticsController extends Controller
             $restMinutes = $minutes % 60;
 
             return $restMinutes > 0
-                ? $hours . 'h ' . $restMinutes . ' min'
-                : $hours . 'h';
+                ? $hours.'h '.$restMinutes.' min'
+                : $hours.'h';
         }
 
         if ($minutes > 0) {
-            return $minutes . ' min';
+            return $minutes.' min';
         }
 
         if ($minutes === 0) {

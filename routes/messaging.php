@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'ensure.active.role'])
+Route::middleware(['auth', 'ensure.active.role', 'guide.shell.continue'])
     ->prefix('messages')
     ->name('messages.')
     ->group(function () {
@@ -23,7 +23,7 @@ Route::middleware(['auth', 'ensure.active.role'])
         Route::post('/{conversation}/read', [MessageController::class, 'markRead'])->name('read');
     });
 
-Route::middleware(['auth', 'ensure.active.role'])
+Route::middleware(['auth', 'ensure.active.role', 'guide.shell.continue'])
     ->prefix('group-chats')
     ->name('group-chats.')
     ->group(function () {

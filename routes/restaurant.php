@@ -17,6 +17,8 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:restaurant'])
         Route::get('/dashboard', [RestaurantBoardController::class, 'index'])->name('dashboard');
         Route::get('/board', [RestaurantBoardController::class, 'index'])->name('board');
         Route::get('/kiosk', [RestaurantBoardController::class, 'kiosk'])->name('kiosk');
+        Route::get('/poll', [RestaurantBoardController::class, 'poll'])->name('poll');
+        Route::get('/ferry-timetable', [RestaurantBoardController::class, 'ferryTimetable'])->name('ferry-timetable');
     });
 
 /*
@@ -30,6 +32,10 @@ Route::middleware(['auth'])
     ->group(function () {
         Route::get('/', [RestaurantBoardController::class, 'statistik'])
             ->name('dashboard');
+        Route::get('/poll', [RestaurantBoardController::class, 'poll'])
+            ->name('poll');
+        Route::get('/ferry-timetable', [RestaurantBoardController::class, 'ferryTimetable'])
+            ->name('ferry-timetable');
     });
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +47,7 @@ Route::get('/restaurant-statistics/login', [RestaurantStatisticsController::clas
     ->name('restaurant-statistics.login');
 
 Route::post('/restaurant-statistics/login', [RestaurantStatisticsController::class, 'login'])
+    ->middleware('throttle:5,1')
     ->name('restaurant-statistics.login.store');
 
 Route::post('/restaurant-statistics/logout', [RestaurantStatisticsController::class, 'logout'])
@@ -52,4 +59,6 @@ Route::middleware(['restaurant.statistics.access'])
     ->group(function () {
         Route::get('/', [RestaurantStatisticsController::class, 'dashboard'])
             ->name('dashboard');
+        Route::get('/ferry-timetable', [RestaurantBoardController::class, 'ferryTimetable'])
+            ->name('ferry-timetable');
     });

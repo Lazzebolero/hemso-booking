@@ -1,6 +1,9 @@
 @extends('layouts.guide')
 
 @section('content')
+@php
+    $maxAttachments = (int) ($maxAttachments ?? 5);
+@endphp
 <div class="page-card mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
@@ -84,15 +87,42 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label">Bild (valfritt)</label>
+                    <label class="form-label">Bilder (valfritt, högst {{ $maxAttachments }})</label>
+                    <div class="facility-report-camera mb-3">
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            <button type="button" id="facility-report-camera-start" class="btn btn-outline-primary">
+                                <i class="bi bi-camera-video me-2"></i>Starta kamera
+                            </button>
+                            <button type="button" id="facility-report-camera-capture" class="btn btn-outline-secondary" disabled>
+                                <i class="bi bi-camera me-2"></i>Ta bild
+                            </button>
+                            <button type="button" id="facility-report-camera-clear" class="btn btn-outline-secondary d-none">
+                                Rensa bilder
+                            </button>
+                        </div>
+
+                        <div id="facility-report-camera-status" class="form-text mb-2">
+                            Du kan ta flera bilder med kameran eller välja flera filer. Högst {{ $maxAttachments }} bilder.
+                        </div>
+
+                        <div id="facility-report-camera-frame" class="facility-report-camera-frame d-none">
+                            <video id="facility-report-camera-preview" class="facility-report-camera-media" autoplay playsinline muted></video>
+                            <canvas id="facility-report-camera-canvas" class="d-none"></canvas>
+                        </div>
+
+                        <div id="facility-report-photo-list" class="facility-report-photo-list mt-2"></div>
+                    </div>
+
+                    <label class="form-label fw-semibold">Eller välj befintliga bilder</label>
                     <input
                         type="file"
-                        name="attachment"
+                        name="attachments[]"
+                        id="attachments"
                         class="form-control"
                         accept="image/jpeg,image/png,image/gif,image/webp"
-                        capture="environment"
+                        multiple
                     >
-                    <div class="form-text">JPG, PNG, GIF, WebP eller HEIC (iPhone). Högst 10 MB. På mobil kan du ta foto direkt.</div>
+                    <div class="form-text">JPG, PNG, GIF eller WebP. Högst 10 MB per bild. Max {{ $maxAttachments }} bilder.</div>
                 </div>
 
                 <div class="col-12">
@@ -152,10 +182,185 @@
     min-height: 260px !important;
 }
 
+.facility-report-camera-frame {
+    background: #0f172a;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.facility-report-camera-media {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+}
+
+.facility-report-photo-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.75rem;
+}
+
+.facility-report-photo-list img {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    border: 1px solid #cbd5e1;
+}
+
 @media (max-width: 1100px) {
     .guide-report-layout {
         grid-template-columns: 1fr;
     }
 }
 </style>
+
+<script>
+(() => {
+    const maxAttachments = {{ $maxAttachments }};
+    const fileInput = document.getElementById('attachments');
+    const startButton = document.getElementById('facility-report-camera-start');
+    const captureButton = document.getElementById('facility-report-camera-capture');
+    const clearButton = document.getElementById('facility-report-camera-clear');
+    const status = document.getElementById('facility-report-camera-status');
+    const frame = document.getElementById('facility-report-camera-frame');
+    const video = document.getElementById('facility-report-camera-preview');
+    const canvas = document.getElementById('facility-report-camera-canvas');
+    const photoList = document.getElementById('facility-report-photo-list');
+    let stream = null;
+    let selectedFiles = [];
+
+    const setStatus = (message) => {
+        status.textContent = message;
+    };
+
+    const stopCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+            stream = null;
+        }
+    };
+
+    const syncFileInput = () => {
+        if (typeof DataTransfer === 'undefined') {
+            return;
+        }
+
+        const transfer = new DataTransfer();
+        selectedFiles.forEach((file) => transfer.items.add(file));
+        fileInput.files = transfer.files;
+        clearButton.classList.toggle('d-none', selectedFiles.length === 0);
+        renderPreviews();
+    };
+
+    const renderPreviews = () => {
+        photoList.innerHTML = '';
+        selectedFiles.forEach((file) => {
+            const img = document.createElement('img');
+            img.alt = file.name;
+            img.src = URL.createObjectURL(file);
+            photoList.appendChild(img);
+        });
+    };
+
+    const addFiles = (files) => {
+        const incoming = Array.from(files || []);
+        if (!incoming.length) {
+            return;
+        }
+
+        const remaining = maxAttachments - selectedFiles.length;
+        if (remaining <= 0) {
+            setStatus(`Du kan högst bifoga ${maxAttachments} bilder.`);
+            return;
+        }
+
+        const accepted = incoming.slice(0, remaining);
+        selectedFiles = selectedFiles.concat(accepted);
+        syncFileInput();
+
+        if (incoming.length > remaining) {
+            setStatus(`Endast ${maxAttachments} bilder sparas. Överskjutande filer hoppades över.`);
+            return;
+        }
+
+        setStatus(`${selectedFiles.length} bild${selectedFiles.length === 1 ? '' : 'er'} valda.`);
+    };
+
+    const startCamera = async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setStatus('Den här webbläsaren stöder inte kamerafunktionen. Välj befintliga bilder i stället.');
+            return;
+        }
+
+        try {
+            stopCamera();
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+            });
+
+            video.srcObject = stream;
+            frame.classList.remove('d-none');
+            captureButton.disabled = false;
+            setStatus('Kameran är igång. Tryck på "Ta bild" för varje foto du vill lägga till.');
+        } catch (error) {
+            setStatus('Kameran kunde inte startas. Kontrollera kamerabehörighet eller välj befintliga bilder.');
+        }
+    };
+
+    const capturePhoto = () => {
+        if (!video.videoWidth || !video.videoHeight) {
+            setStatus('Kameran är inte redo ännu.');
+            return;
+        }
+
+        if (selectedFiles.length >= maxAttachments) {
+            setStatus(`Du kan högst bifoga ${maxAttachments} bilder.`);
+            return;
+        }
+
+        const maxSize = 1280;
+        const scale = Math.min(1, maxSize / Math.max(video.videoWidth, video.videoHeight));
+        const width = Math.round(video.videoWidth * scale);
+        const height = Math.round(video.videoHeight * scale);
+
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+            if (!blob || typeof DataTransfer === 'undefined') {
+                setStatus('Bilden kunde inte skapas. Välj befintliga bilder i stället.');
+                return;
+            }
+
+            const file = new File([blob], `felrapport-${selectedFiles.length + 1}.jpg`, { type: 'image/jpeg' });
+            addFiles([file]);
+            setStatus(`Bild tillagd (${width} x ${height}px). Du kan ta fler bilder.`);
+        }, 'image/jpeg', 0.82);
+    };
+
+    const clearPhotos = () => {
+        selectedFiles = [];
+        syncFileInput();
+        setStatus('Bilderna rensades. Du kan ta nya eller välja filer.');
+    };
+
+    fileInput.addEventListener('change', () => {
+        selectedFiles = [];
+        addFiles(fileInput.files);
+    });
+
+    startButton.addEventListener('click', startCamera);
+    captureButton.addEventListener('click', capturePhoto);
+    clearButton.addEventListener('click', clearPhotos);
+    window.addEventListener('pagehide', stopCamera);
+})();
+</script>
 @endsection

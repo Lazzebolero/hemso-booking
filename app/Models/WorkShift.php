@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Support\Roles;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkShift extends Model
@@ -57,13 +58,20 @@ class WorkShift extends Model
 
     public static function restaurantFunctions(): array
     {
+        return RestaurantFunction::activeOptions();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function shiftRoles(): array
+    {
         return [
-            'kock' => 'Kock',
-            'kallskank' => 'Kallskänk',
-            'kassa' => 'Kassa',
-            'disk' => 'Disk',
-            'glassbar' => 'Glassbar',
-            'servering' => 'Servering',
+            Roles::GUIDE => 'Guide',
+            Roles::HOST => 'Värd',
+            Roles::ELEV => 'Trainee / elev',
+            Roles::RESTAURANT => 'Restaurang',
+            Roles::ADMIN => 'Admin',
         ];
     }
 }

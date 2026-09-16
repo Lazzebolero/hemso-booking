@@ -287,6 +287,92 @@
             color: var(--text-soft);
         }
 
+        .meal-panel {
+            margin-top: 16px;
+            border-color: #f59e0b;
+            background: linear-gradient(180deg, #fffdf7 0%, #ffffff 100%);
+        }
+
+        .meal-panel .panel-title {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .meal-period-form {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            margin-left: auto;
+        }
+
+        .meal-period-form label {
+            font-size: 0.82rem;
+            font-weight: 800;
+            color: var(--text-soft);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .meal-period-form select {
+            border: 1px solid var(--brand-line-soft);
+            border-radius: 10px;
+            padding: 0.45rem 0.65rem;
+            font: inherit;
+            font-weight: 700;
+            background: #fff;
+            color: var(--text-main);
+        }
+
+        .meal-panel-subtitle {
+            color: var(--text-soft);
+            font-size: 0.92rem;
+            font-weight: 600;
+            margin: -6px 0 14px;
+        }
+
+        .meal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            padding: 0.38rem 0.72rem;
+            font-size: 0.8rem;
+            font-weight: 800;
+            white-space: nowrap;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
+        }
+
+        .meal-summary {
+            margin-left: auto;
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #92400e;
+        }
+
+        .meal-count {
+            font-weight: 800;
+            color: #92400e;
+        }
+
+        .meal-tour-title {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .meal-tour-description {
+            margin-top: 6px;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+
         @media (max-width: 1350px) {
             .board-stats {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -377,9 +463,9 @@
             </div>
 
             <div class="board-stat">
-    <div class="board-stat-label">Besökare totalt idag</div>
-    <div class="board-stat-value">{{ $totalOngoingGuests + $totalUpcomingGuests }}</div>
-</div>
+                <div class="board-stat-label">Besökare totalt idag</div>
+                <div class="board-stat-value">{{ $totalTodayVisitors }}</div>
+            </div>
         </div>
 
         <div class="board-layout">
@@ -398,8 +484,8 @@
                                         @else
                                             Start {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
                                         @endif
-                                        • {{ $tour->guide?->name ?? 'Ej tilldelad' }}
                                     </div>
+                                    @include('partials.admin.tour-guide-display-block', ['tour' => $tour, 'metaClass' => 'tour-meta'])
                                 </div>
 
                                 <div class="badge">Pågående</div>
@@ -446,7 +532,7 @@
                                     <td class="fw-semibold">{{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}</td>
                                     <td>
                                         <div class="fw-semibold">{{ $tour->title }}</div>
-                                        <div class="muted">{{ $tour->guide?->name ?? 'Ej tilldelad' }}</div>
+                                        @include('partials.admin.tour-guide-display-block', ['tour' => $tour, 'metaClass' => 'muted'])
                                     </td>
                                     <td>{{ $tour->booked_people_count }}</td>
                                     <td>{{ $tour->estimated_end_time }}</td>
@@ -484,6 +570,70 @@
                     <div class="empty">Ingen restaurangpersonal schemalagd idag.</div>
                 @endforelse
             </div>
+        </div>
+
+        <div class="panel meal-panel">
+            <h2 class="panel-title">
+                <span>Matbokningar – kommande {{ $mealPlanningDays }} dagar</span>
+                @if($upcomingMealTours->isNotEmpty())
+                    <span class="meal-summary">{{ $totalUpcomingMealGuests }} gäster med mat</span>
+                @endif
+                <form method="GET" class="meal-period-form">
+                    <label for="meal_days">Period</label>
+                    <select id="meal_days" name="meal_days" onchange="this.form.submit()">
+                        <option value="7" @selected($mealPlanningDays === 7)>7 dagar</option>
+                        <option value="30" @selected($mealPlanningDays === 30)>30 dagar</option>
+                    </select>
+                </form>
+            </h2>
+            <div class="meal-panel-subtitle">
+                Turer med mat de kommande {{ $mealPlanningDays }} dagarna, {{ now()->format('Y-m-d') }}–{{ $mealPlanningEndDate }}.
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:110px;">Datum</th>
+                        <th style="width:90px;">Tid</th>
+                        <th>Tur</th>
+                        <th style="width:150px;">Guide</th>
+                        <th style="width:110px;">Bokningar</th>
+                        <th style="width:110px;">Gäster</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($upcomingMealTours as $tour)
+                        <tr>
+                            <td class="fw-semibold">
+                                {{ $tour->tour_date ? \Carbon\Carbon::parse($tour->tour_date)->format('Y-m-d') : '-' }}
+                            </td>
+                            <td class="fw-semibold">
+                                {{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}
+                            </td>
+                            <td>
+                                <div class="meal-tour-title">
+                                    <span class="fw-semibold">{{ $tour->title }}</span>
+                                    <span class="meal-badge">Med mat</span>
+                                </div>
+                                <div class="muted">{{ $tour->tourType?->name ?? '-' }}</div>
+                                @if(filled($tour->description))
+                                    <div class="meal-tour-description">{{ $tour->description }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ $tour->display_guide_name ?? ($tour->guide?->name ?? 'Ej tilldelad') }}</div>
+                                @include('partials.admin.tour-co-guides-line', ['tour' => $tour, 'class' => 'muted'])
+                            </td>
+                            <td class="meal-count">{{ $tour->meal_bookings_count }}</td>
+                            <td class="meal-count">{{ $tour->meal_people_count }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="muted">Inga turer med mat de kommande {{ $mealPlanningDays }} dagarna.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 

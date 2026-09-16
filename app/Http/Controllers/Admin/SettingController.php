@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Support\CountryCatalog;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
@@ -26,6 +27,9 @@ class SettingController extends Controller
             'staffing_goal_disk' => (int) setting('staffing_goal_disk', 0),
             'staffing_goal_glassbar' => (int) setting('staffing_goal_glassbar', 0),
             'staffing_goal_servering' => (int) setting('staffing_goal_servering', 1),
+
+            'country_quick_pick_max' => CountryCatalog::maxQuickPicks(),
+            'tour_wait_warning_minutes' => (int) setting('tour_wait_warning_minutes', 45),
         ];
 
         return view('admin.settings.index', compact('settings'));
@@ -49,6 +53,9 @@ class SettingController extends Controller
             'staffing_goal_disk' => ['nullable', 'integer', 'min:0', 'max:20'],
             'staffing_goal_glassbar' => ['nullable', 'integer', 'min:0', 'max:20'],
             'staffing_goal_servering' => ['nullable', 'integer', 'min:0', 'max:20'],
+
+            'country_quick_pick_max' => ['nullable', 'integer', 'min:1', 'max:'.CountryCatalog::ABSOLUTE_MAX_QUICK_PICKS],
+            'tour_wait_warning_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
         ]);
 
         $data['auto_generate_tour_title'] = $request->boolean('auto_generate_tour_title') ? '1' : '0';
@@ -69,6 +76,21 @@ class SettingController extends Controller
 
         foreach ($integerKeys as $key) {
             $data[$key] = (string) ((int) ($data[$key] ?? 0));
+        }
+
+        if ($request->has('tour_wait_warning_minutes')) {
+            $data['tour_wait_warning_minutes'] = (string) max(0, min(180, (int) $request->input('tour_wait_warning_minutes')));
+        } else {
+            unset($data['tour_wait_warning_minutes']);
+        }
+
+        if ($request->has('country_quick_pick_max')) {
+            $data['country_quick_pick_max'] = (string) max(
+                1,
+                min(CountryCatalog::ABSOLUTE_MAX_QUICK_PICKS, (int) $request->input('country_quick_pick_max'))
+            );
+        } else {
+            unset($data['country_quick_pick_max']);
         }
 
         foreach ($data as $key => $value) {

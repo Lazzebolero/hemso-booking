@@ -19,6 +19,8 @@ class ActiveRoleRedirect
             Roles::GUIDE => 'guide.dashboard',
             Roles::RESTAURANT => 'staff.dashboard',
             Roles::RESTAURANT_STATISTIK => 'restaurant-statistik.dashboard',
+            Roles::PRODUKTION_ADMIN => 'berg.presence',
+            Roles::PRODUKTION_PERSONAL => 'berg.presence',
             default => 'role.select',
         };
 
@@ -37,6 +39,8 @@ class ActiveRoleRedirect
             Roles::GUIDE => ['guide.dashboard', 'role.select'],
             Roles::RESTAURANT => ['staff.dashboard', 'role.select'],
             Roles::RESTAURANT_STATISTIK => ['restaurant-statistik.dashboard', 'role.select'],
+            Roles::PRODUKTION_ADMIN => ['berg.presence', 'role.select'],
+            Roles::PRODUKTION_PERSONAL => ['berg.presence', 'role.select'],
             default => ['role.select'],
         };
 
@@ -47,5 +51,35 @@ class ActiveRoleRedirect
         }
 
         return 'role.select';
+    }
+
+    /**
+     * Relativ sökväg efter roll. Kastar aldrig: produktionsroller går alltid till /berget.
+     */
+    public static function location(string $role, ?User $user = null): string
+    {
+        try {
+            if ($role === Roles::RESTAURANT_STATISTIK) {
+                return '/statistik/restaurang';
+            }
+
+            if ($role === Roles::PRODUKTION_ADMIN || $role === Roles::PRODUKTION_PERSONAL) {
+                return '/berget';
+            }
+
+            $name = self::routeNameFor($role, $user);
+
+            if ($name === 'role.select' || ! Route::has($name)) {
+                return '/select-role';
+            }
+
+            return route($name, absolute: false);
+        } catch (\Throwable) {
+            return match ($role) {
+                'produktion_admin', 'produktion_personal' => '/berget',
+                'restaurant_statistik' => '/statistik/restaurang',
+                default => '/select-role',
+            };
+        }
     }
 }

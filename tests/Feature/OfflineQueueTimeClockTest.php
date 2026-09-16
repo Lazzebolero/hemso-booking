@@ -22,6 +22,7 @@ class OfflineQueueTimeClockTest extends TestCase
         $this->actingAs($user)
             ->withSession(['active_role' => Roles::GUIDE])
             ->post(route('time.clock-in'), [
+                'clock_station' => 'entrance',
                 'client_occurred_at' => $occurredAt->toISOString(),
                 'client_tz' => 'Europe/Stockholm',
             ])

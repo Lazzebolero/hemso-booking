@@ -5,7 +5,7 @@
     <x-ui.page-header
         :guide="$useGuideLayout"
         title="Mina besökshundar"
-        subtitle="Registreringar du har lagt in. Standard: dagens datum."
+        subtitle="Dina registreringar och hundar som saknar bild och kan kompletteras av dig."
         icon="bi-heart-pulse"
     >
         <x-slot:actions>
@@ -26,7 +26,47 @@
         ])
     </div>
 
+    @if(($dogsNeedingPhoto ?? collect())->isNotEmpty())
+        <div class="{{ $useGuideLayout ? 'guide-card' : 'page-card' }}">
+            <div class="section-title mb-1">Saknar bild</div>
+            <div class="small-muted mb-3">Andras registreringar i valt intervall som du kan komplettera med foto.</div>
+
+            <div class="table-responsive-modern">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Namn</th>
+                            <th>Registrerad av</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($dogsNeedingPhoto as $dog)
+                            <tr>
+                                <td>{{ $dog->visit_date?->format('Y-m-d') }}</td>
+                                <td class="fw-semibold">
+                                    <div>{{ $dog->dog_name }}</div>
+                                    @if($dog->hasSpecialCareNeeds())
+                                        <span class="badge-soft badge-soft-warning mt-1 d-inline-block" title="Se Visa för detaljer">Särskilda behov</span>
+                                    @endif
+                                </td>
+                                <td>{{ $dog->registrar?->name ?? '?' }}</td>
+                                <td class="text-nowrap">
+                                    <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.edit', $dog, \App\Support\VisitorDogSupport::linkQueryForReturn(request(), \App\Support\VisitorDogSupport::RETURN_MINE)) }}" class="btn btn-sm btn-primary">
+                                        Lägg till bild
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     <div class="{{ $useGuideLayout ? 'guide-card' : 'page-card' }}">
+        <div class="section-title mb-3">Mina registreringar</div>
         @if($dogs->isEmpty())
             <p class="text-muted mb-0">Inga registreringar i valt intervall.</p>
         @else
@@ -44,8 +84,13 @@
                         @foreach($dogs as $dog)
                             <tr>
                                 <td>{{ $dog->visit_date?->format('Y-m-d') }}</td>
-                                <td class="fw-semibold">{{ $dog->dog_name }}</td>
-                                <td>{{ $dog->breed ?: '—' }}</td>
+                                <td class="fw-semibold">
+                                    <div>{{ $dog->dog_name }}</div>
+                                    @if($dog->hasSpecialCareNeeds())
+                                        <span class="badge-soft badge-soft-warning mt-1 d-inline-block" title="Se Visa för detaljer">Särskilda behov</span>
+                                    @endif
+                                </td>
+                                <td>{{ $dog->breed ?: '?' }}</td>
                                 <td class="text-nowrap">
                                     <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.show', $dog, \App\Support\VisitorDogSupport::linkQueryForReturn(request(), \App\Support\VisitorDogSupport::RETURN_MINE)) }}" class="btn btn-sm btn-outline-primary">Visa</a>
                                     <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.edit', $dog, \App\Support\VisitorDogSupport::linkQueryForReturn(request(), \App\Support\VisitorDogSupport::RETURN_MINE)) }}" class="btn btn-sm btn-outline-secondary">Redigera</a>

@@ -12,8 +12,15 @@
 @php
     $__offlineQueuePath = public_path('js/offline-queue.js');
     $__offlineQueueVer = is_file($__offlineQueuePath) ? (string) filemtime($__offlineQueuePath) : '0';
+    $__appPulsePath = public_path('js/app-pulse.js');
+    $__appPulseVer = is_file($__appPulsePath) ? (string) filemtime($__appPulsePath) : '0';
 @endphp
 <script src="{{ asset('js/offline-queue.js') }}?v={{ $__offlineQueueVer }}"></script>
+
+@auth
+    <meta name="app-pulse-url" content="{{ route('app.pulse') }}">
+    <script src="{{ asset('js/app-pulse.js') }}?v={{ $__appPulseVer }}" defer></script>
+@endauth
 
 <style>
     .pwa-offline-banner {
@@ -26,11 +33,33 @@
         color: #664d03;
         border-bottom: 1px solid rgba(102, 77, 3, .2);
         font-size: .9rem;
+    }
+
+    .pwa-offline-banner-inner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: .35rem;
+        max-width: 1080px;
+        margin: 0 auto;
         text-align: center;
     }
 
-    body.is-offline .pwa-offline-banner {
+    body.is-offline .pwa-offline-banner,
+    body.has-offline-pending .pwa-offline-banner {
         display: block;
+    }
+
+    body.has-offline-pending:not(.is-offline) .pwa-offline-banner {
+        background: #fff7ed;
+        color: #9a3412;
+        border-bottom-color: rgba(154, 52, 18, .2);
+    }
+
+    body.has-offline-pending .guide-header {
+        top: 3rem;
+        z-index: 2050;
     }
 
     /*
@@ -78,5 +107,14 @@
                 navigator.serviceWorker.register(@json(asset('service-worker.js'))).catch(function () {});
             });
         }
+
+        document.addEventListener('app:pulse:session-expired', function () {
+            if (window.__sessionExpiredNotified) {
+                return;
+            }
+
+            window.__sessionExpiredNotified = true;
+            document.body.classList.add('pwa-session-expired');
+        });
     })();
 </script>

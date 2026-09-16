@@ -8,6 +8,7 @@
         'admin' => 'Admin',
         'host' => 'Värd',
         'guide' => 'Guide',
+        'elev' => 'Trainee / elev',
     ];
 @endphp
 
@@ -89,6 +90,11 @@
     <div class="staffing-summary-card">
         <div class="summary-label">Restaurang</div>
         <div class="summary-value">{{ $shifts->where('shift_role', 'restaurant')->count() }}</div>
+    </div>
+
+    <div class="staffing-summary-card">
+        <div class="summary-label">Trainee / elev</div>
+        <div class="summary-value">{{ $shifts->where('shift_role', 'elev')->count() }}</div>
     </div>
 </div>
 

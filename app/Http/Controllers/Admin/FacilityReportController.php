@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\FacilityReport;
+use App\Models\FacilityReportAttachment;
 use App\Models\ReportCategory;
 use App\Models\ReportLocation;
 use App\Models\ReportPriority;
@@ -18,19 +19,38 @@ use Illuminate\Support\Facades\Storage;
 class FacilityReportController extends Controller
 {
     /**
-     * Visa bifogad bild (strömmas från disk — fungerar även utan public/storage-symlink).
+     * Visa första bifogade bilden (bakåtkompatibilitet).
      */
     public function attachment(FacilityReport $report)
     {
-        if (empty($report->attachment_path)) {
+        $first = $report->resolvedAttachments()->first();
+
+        if ($first === null) {
             abort(404);
         }
 
-        if (! Storage::disk('public')->exists($report->attachment_path)) {
+        return $this->streamAttachmentFile($first->path);
+    }
+
+    /**
+     * Visa en specifik bifogad bild.
+     */
+    public function showAttachment(FacilityReport $report, FacilityReportAttachment $attachment)
+    {
+        if ((int) $attachment->facility_report_id !== (int) $report->id) {
             abort(404);
         }
 
-        $absolutePath = Storage::disk('public')->path($report->attachment_path);
+        return $this->streamAttachmentFile($attachment->path);
+    }
+
+    protected function streamAttachmentFile(?string $path)
+    {
+        if (empty($path) || ! Storage::disk('public')->exists($path)) {
+            abort(404);
+        }
+
+        $absolutePath = Storage::disk('public')->path($path);
 
         if (! is_file($absolutePath)) {
             abort(404);
@@ -71,6 +91,7 @@ class FacilityReportController extends Controller
             'location',
             'reporter',
             'assignee',
+            'attachments',
         ]);
 
         return view('admin.reports.show', compact('report'));

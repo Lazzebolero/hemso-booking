@@ -25,6 +25,7 @@ class RouteFilesTest extends TestCase
             'guide' => ['guide.php'],
             'restaurant' => ['restaurant.php'],
             'time' => ['time.php'],
+            'daily-guide-orders' => ['daily-guide-orders.php'],
         ];
     }
 
@@ -40,6 +41,8 @@ class RouteFilesTest extends TestCase
             'dashboard',
             'time.index',
             'admin.dashboard',
+            'admin.daily-guide-orders.index',
+            'host.daily-guide-orders.index',
             'guide.dashboard',
             'host.entry',
             'visitor-dogs.index',

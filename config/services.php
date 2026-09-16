@@ -34,16 +34,25 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-	
-	'restaurant_statistics' => [
 
-    'password' => env('RESTAURANT_STATISTICS_PASSWORD'),
-],
-'security_alerts' => [
-    'email' => env('SECURITY_ALERT_EMAIL', env('MAIL_FROM_ADDRESS')),
-    'failed_threshold' => env('SECURITY_ALERT_FAILED_THRESHOLD', 8),
-    'minutes' => env('SECURITY_ALERT_MINUTES', 15),
-    'cooldown_minutes' => env('SECURITY_ALERT_COOLDOWN_MINUTES', 60),
-],
+    'restaurant_statistics' => [
+
+        'password' => env('RESTAURANT_STATISTICS_PASSWORD'),
+    ],
+    'security_alerts' => [
+        'email' => env('SECURITY_ALERT_EMAIL', env('MAIL_FROM_ADDRESS')),
+        'failed_threshold' => env('SECURITY_ALERT_FAILED_THRESHOLD', 8),
+        'minutes' => env('SECURITY_ALERT_MINUTES', 15),
+        'cooldown_minutes' => env('SECURITY_ALERT_COOLDOWN_MINUTES', 60),
+    ],
+
+    'system_health' => [
+        'report_email' => env('SYSTEM_HEALTH_REPORT_EMAIL'),
+        'daily_report_time' => env('SYSTEM_HEALTH_DAILY_REPORT_TIME', '07:00'),
+        'network_status_url' => env(
+            'SYSTEM_HEALTH_NETWORK_STATUS_URL',
+            'https://monitor.comun.se/status/hemso-fastning'
+        ),
+    ],
 
 ];

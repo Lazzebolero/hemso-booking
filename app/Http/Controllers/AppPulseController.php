@@ -17,6 +17,7 @@ class AppPulseController extends Controller
 
         return response()->json([
             'server_time' => now()->toIso8601String(),
+            'csrf_token' => csrf_token(),
             'urgent_messages' => $this->urgentMessagesCount($user),
             'unread_pm' => $this->unreadPmCount($user),
             'tours_version' => $this->toursVersion($user),
@@ -156,7 +157,6 @@ class AppPulseController extends Controller
         }
 
         $today = Carbon::today()->toDateString();
-        $nowTime = Carbon::now()->subMinutes(30)->format('H:i:s');
 
         $query = DB::table('tours');
 
@@ -171,15 +171,9 @@ class AppPulseController extends Controller
         }
 
         if (Schema::hasColumn('tours', 'tour_date') && Schema::hasColumn('tours', 'start_time')) {
-            $query->where(function ($q) use ($today, $nowTime) {
-                $q->where('tour_date', '>', $today)
-                    ->orWhere(function ($sameDay) use ($today, $nowTime) {
-                        $sameDay->where('tour_date', $today)
-                            ->where('start_time', '>=', $nowTime);
-                    });
-            })
-            ->orderBy('tour_date')
-            ->orderBy('start_time');
+            $query->whereDate('tour_date', '>=', $today)
+                ->orderBy('tour_date')
+                ->orderBy('start_time');
         } elseif (Schema::hasColumn('tours', 'start_at')) {
             $query->where('start_at', '>=', now()->subMinutes(30))
                 ->orderBy('start_at');
@@ -193,7 +187,7 @@ class AppPulseController extends Controller
             return null;
         }
 
-        $title = $tour->title ?? ('Tur #' . $tour->id);
+        $title = $tour->title ?? ('Tur #'.$tour->id);
         $status = $tour->status ?? '';
         $date = $tour->tour_date ?? null;
         $time = $tour->start_time ?? null;
@@ -213,7 +207,7 @@ class AppPulseController extends Controller
             'date_label' => $date ? Carbon::parse($date)->format('Y-m-d') : '',
             'time_label' => $time ? substr((string) $time, 0, 5) : '',
             'participants' => $participants,
-            'participants_label' => $participants . ' bokade',
+            'participants_label' => $participants.' bokade',
             'show_url' => Route::has('guide.tours.show') ? route('guide.tours.show', $tour->id) : null,
             'start_url' => Route::has('guide.tours.start') ? route('guide.tours.start', $tour->id) : null,
             'complete_url' => Route::has('guide.tours.complete') ? route('guide.tours.complete', $tour->id) : null,

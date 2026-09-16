@@ -4,28 +4,32 @@ namespace App\Listeners;
 
 use App\Events\FacilityReportCreated;
 use App\Mail\NewFacilityReportMail;
-use App\Models\User;
-use App\Support\Roles;
+use App\Services\FacilityReportNotificationService;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * Skickar e-post om ny felrapport endast till aktiva användare med admin-roll.
- * Värdar undantas medvetet — ansvaret för uppföljning ligger hos admin.
+ * Skickar e-post om ny felrapport till aktiva admin-användare
+ * samt eventuella extra adresser från inställningarna.
  */
 class SendNewFacilityReportAdminMail
 {
+    public function __construct(
+        private FacilityReportNotificationService $notifications,
+    ) {}
+
     public function handle(FacilityReportCreated $event): void
     {
-        $report = $event->report->loadMissing(['reporter', 'category', 'priority']);
+        $report = $event->report->loadMissing([
+            'reporter',
+            'category',
+            'priority',
+            'location',
+            'statusRelation',
+            'attachments',
+        ]);
 
-        User::query()
-            ->where('is_active', true)
-            ->whereNotNull('email')
-            ->whereHas('roles', function ($query): void {
-                $query->where('slug', Roles::ADMIN);
-            })
-            ->each(function (User $admin) use ($report): void {
-                Mail::to($admin->email)->send(new NewFacilityReportMail($report));
-            });
+        foreach ($this->notifications->recipientEmails() as $email) {
+            Mail::to($email)->send(new NewFacilityReportMail($report));
+        }
     }
 }

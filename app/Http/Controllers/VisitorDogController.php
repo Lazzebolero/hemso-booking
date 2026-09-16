@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreVisitorDogRequest;
 use App\Http\Requests\UpdateVisitorDogRequest;
 use App\Models\VisitorDog;
+use App\Services\VisitorDogRegistrationService;
 use App\Support\Roles;
 use App\Support\VisitorDogActivityLogger;
 use App\Support\VisitorDogSupport;
@@ -16,6 +17,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class VisitorDogController extends Controller
 {
+    public function __construct(
+        private VisitorDogRegistrationService $visitorDogRegistrations,
+    ) {}
+
     public function index(Request $request): View
     {
         $this->authorize('viewAny', VisitorDog::class);
@@ -32,8 +37,22 @@ class VisitorDogController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $dogsNeedingPhoto = VisitorDog::query()
+            ->with('registrar:id,name')
+            ->where('registered_by', '!=', $request->user()->id)
+            ->where(function ($query) {
+                $query->whereNull('photo_path')->orWhere('photo_path', '');
+            })
+            ->whereDate('visit_date', '>=', $from->toDateString())
+            ->whereDate('visit_date', '<=', $to->toDateString())
+            ->orderByDesc('visit_date')
+            ->orderByDesc('tour_start_time')
+            ->orderBy('dog_name')
+            ->get();
+
         return $this->viewForRole('visitor-dogs.mine-index', [
             'dogs' => $dogs,
+            'dogsNeedingPhoto' => $dogsNeedingPhoto,
             'fromDate' => $from->toDateString(),
             'toDate' => $to->toDateString(),
         ]);
@@ -43,12 +62,9 @@ class VisitorDogController extends Controller
     {
         $this->authorize('create', VisitorDog::class);
 
-        return $this->viewForRole(
-            session('active_role') === Roles::GUIDE
-                ? 'visitor-dogs.guide-form'
-                : 'visitor-dogs.host-form',
-            ['defaultVisitDate' => now()->format('Y-m-d')]
-        );
+        return $this->viewForRole('visitor-dogs.guide-form', [
+            'defaultVisitDate' => now()->format('Y-m-d'),
+        ]);
     }
 
     public function store(StoreVisitorDogRequest $request): RedirectResponse
@@ -60,18 +76,19 @@ class VisitorDogController extends Controller
             abort(403);
         }
 
-        $dog = VisitorDog::query()->create([
-            'dog_name' => $validated['dog_name'],
-            'breed' => $validated['breed'] ?? null,
-            'owner_phone' => $validated['owner_phone'] ?? null,
-            'visit_date' => $validated['visit_date'],
-            'tour_start_time' => $validated['tour_start_time'] ?? null,
-            'photo_path' => VisitorDogSupport::storeUploadedPhoto($request->file('photo')),
-            'registered_by' => $request->user()->id,
-            'registered_as_role' => $activeRole,
-        ]);
-
-        VisitorDogActivityLogger::logCreated($dog);
+        $dog = $this->visitorDogRegistrations->register(
+            [
+                'dog_name' => $validated['dog_name'],
+                'breed' => $validated['breed'] ?? null,
+                'owner_phone' => $validated['owner_phone'] ?? null,
+                'visit_date' => $validated['visit_date'],
+                'tour_start_time' => $validated['tour_start_time'] ?? null,
+                'care_flags' => $validated['care_flags'] ?? null,
+            ],
+            $request->user(),
+            $activeRole,
+            $request->file('photo'),
+        );
 
         return redirect()
             ->route('visitor-dogs.create')
@@ -86,6 +103,8 @@ class VisitorDogController extends Controller
             'dog' => $visitorDog,
             'backNav' => VisitorDogSupport::backNavigation($request),
             'navQuery' => VisitorDogSupport::preserveNavigationQuery($request),
+            'photoCompletionOnly' => $request->user()?->can('completePhoto', $visitorDog) === true,
+            'canDelete' => $request->user()?->can('delete', $visitorDog) === true,
         ]);
     }
 
@@ -97,6 +116,7 @@ class VisitorDogController extends Controller
             'dog' => $visitorDog,
             'backNav' => VisitorDogSupport::backNavigation($request),
             'navQuery' => VisitorDogSupport::preserveNavigationQuery($request),
+            'photoCompletionOnly' => $request->user()?->can('completePhoto', $visitorDog) === true,
         ]);
     }
 
@@ -104,7 +124,16 @@ class VisitorDogController extends Controller
     {
         $this->authorize('update', $visitorDog);
 
+        // Capture before apply: after photo save, completePhoto becomes false and show would 403.
+        $photoCompletionOnly = $request->user()?->can('completePhoto', $visitorDog) === true;
+
         VisitorDogUpdater::apply($request, $visitorDog);
+
+        if ($photoCompletionOnly) {
+            return redirect()
+                ->route('visitor-dogs.index')
+                ->with('success', 'Bilden är sparad.');
+        }
 
         return redirect()
             ->route('visitor-dogs.show', $visitorDog)

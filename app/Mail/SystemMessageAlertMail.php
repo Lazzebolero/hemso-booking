@@ -4,12 +4,15 @@ namespace App\Mail;
 
 use App\Models\SystemMessage;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class SystemMessageAlertMail extends Mailable
+class SystemMessageAlertMail extends Mailable implements ShouldQueueAfterCommit
 {
     use Queueable, SerializesModels;
+
+    public int $tries = 3;
 
     public SystemMessage $systemMessage;
 
@@ -21,7 +24,7 @@ class SystemMessageAlertMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('Systemmeddelande: ' . $this->systemMessage->title)
+            ->subject('Systemmeddelande: '.$this->systemMessage->title)
             ->view('emails.system-message-alert')
             ->with([
                 'systemMessage' => $this->systemMessage,

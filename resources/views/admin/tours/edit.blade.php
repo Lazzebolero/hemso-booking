@@ -8,7 +8,12 @@
 <div class="page-header">
     <div>
         <h2 class="page-title">Redigera tur</h2>
-        <div class="page-subtitle">Uppdatera turens uppgifter, guide och status.</div>
+        <div class="page-subtitle">
+            Uppdatera turens uppgifter, guide och status.
+            @if(($tour->status ?? null) === 'completed')
+                <span class="text-muted">(turen är avslutad — ändringar sparas för korrigering i efterhand.)</span>
+            @endif
+        </div>
     </div>
 
     <div class="page-actions">
@@ -16,7 +21,7 @@
             <i class="bi bi-eye me-2"></i>Visa tur
         </a>
 
-        <a href="{{ route($prefix . '.tours.index') }}" class="btn btn-outline-secondary">
+        <a href="{{ route($prefix . '.dashboard') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-2"></i>Tillbaka
         </a>
     </div>
@@ -34,7 +39,7 @@
                 <i class="bi bi-save me-2"></i>Spara ändringar
             </button>
 
-            <a href="{{ route($prefix . '.tours.index') }}" class="btn btn-outline-secondary">
+            <a href="{{ route($prefix . '.dashboard') }}" class="btn btn-outline-secondary">
                 Avbryt
             </a>
         </div>

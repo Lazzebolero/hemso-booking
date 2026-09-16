@@ -31,7 +31,7 @@ class TimeRouteMiddlewareTest extends TestCase
         $middleware = $route->gatherMiddleware();
 
         $this->assertContains('ensure.active.role', $middleware);
-        $this->assertContains('active.roles:guide,host,admin', $middleware);
+        $this->assertContains('active.roles:guide,host,restaurant,admin', $middleware);
     }
 
     public function test_time_index_redirects_to_role_select_without_active_role(): void
@@ -58,7 +58,7 @@ class TimeRouteMiddlewareTest extends TestCase
             ->assertOk();
     }
 
-    public function test_time_index_is_forbidden_for_restaurant_active_role(): void
+    public function test_time_index_is_accessible_for_restaurant_active_role(): void
     {
         $restaurantRole = Role::query()->where('slug', Roles::RESTAURANT)->firstOrFail();
         $user = User::factory()->create();
@@ -67,6 +67,6 @@ class TimeRouteMiddlewareTest extends TestCase
         $this->actingAs($user)
             ->withSession(['active_role' => Roles::RESTAURANT])
             ->get(route('time.index'))
-            ->assertForbidden();
+            ->assertOk();
     }
 }

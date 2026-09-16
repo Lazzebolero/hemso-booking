@@ -18,6 +18,10 @@
             </a>
         @endif
 
+        <a href="{{ url($prefix . '/daily-guide-orders') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-sort-numeric-down me-2"></i>Dagens guider
+        </a>
+
         <a href="{{ route($prefix . '.tours.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-circle me-2"></i>Ny tur
         </a>
@@ -25,20 +29,29 @@
 </div>
 
 <div class="page-card card-compact mb-3">
-    <div class="scope-switch mb-3">
-        <a
-            href="{{ route($prefix . '.tours.index', array_merge(request()->except('page', 'scope'), ['scope' => 'upcoming'])) }}"
-            class="scope-pill {{ ($scope ?? 'upcoming') === 'upcoming' ? 'scope-pill-active' : '' }}"
-        >
-            Aktiva / kommande
-        </a>
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+        <div>
+            <div class="section-title mb-1">Välj vilka turer som ska visas</div>
+            <div class="small-muted">
+                Kommande turer är arbetslistan. Genomförda och inställda turer finns i arkivet.
+            </div>
+        </div>
 
-        <a
-            href="{{ route($prefix . '.tours.index', array_merge(request()->except('page', 'scope'), ['scope' => 'archive'])) }}"
-            class="scope-pill {{ ($scope ?? 'upcoming') === 'archive' ? 'scope-pill-active' : '' }}"
-        >
-            Arkiv
-        </a>
+        <div class="d-flex flex-wrap gap-2 align-items-start">
+            <a
+                href="{{ route($prefix . '.tours.index', array_merge(request()->except('page', 'scope'), ['scope' => 'upcoming'])) }}"
+                class="btn btn-sm {{ ($scope ?? 'upcoming') === 'upcoming' ? 'btn-primary' : 'btn-outline-secondary' }}"
+            >
+                Visa aktiva och kommande turer
+            </a>
+
+            <a
+                href="{{ route($prefix . '.tours.index', array_merge(request()->except('page', 'scope'), ['scope' => 'archive'])) }}"
+                class="btn btn-sm {{ ($scope ?? 'upcoming') === 'archive' ? 'btn-primary' : 'btn-outline-secondary' }}"
+            >
+                Visa genomförda turer / arkiv
+            </a>
+        </div>
     </div>
 
     <form method="GET" action="{{ route($prefix . '.tours.index') }}" class="row g-2 align-items-end">
@@ -90,13 +103,37 @@
     </form>
 </div>
 
+@php
+    $showWaitTimes = ($scope ?? 'upcoming') === 'archive';
+    $columnCount = 8 + ($showWaitTimes ? 1 : 0);
+@endphp
+
 <div class="page-card card-compact">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <div class="section-title mb-0">Lista</div>
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div>
+            <div class="section-title mb-0">
+                {{ $showWaitTimes ? 'Genomförda turer / arkiv' : 'Aktiva och kommande turer' }}
+            </div>
+            @if($showWaitTimes)
+                <div class="small-muted">
+                    Köväntan = samma-dagsbokningar på guidade visningar som tog tidigaste tur med plats.
+                    Förbokade = senare tur trots att tidigare hade plats (t.ex. restaurang före).
+                    Bussgrupper m.m. ingår inte. Varning över {{ $waitWarningMinutes ?? 45 }} min avser bara kö.
+                </div>
+            @endif
+        </div>
         <div class="small muted">
             {{ method_exists($tours, 'total') ? $tours->total() : count($tours) }} turer
         </div>
     </div>
+
+    @if($showWaitTimes)
+        <style>
+            tr.dashboard-tour-wait-warn td {
+                background: #fff7ed;
+            }
+        </style>
+    @endif
 
     <div class="table-responsive-modern">
         <table class="table-modern dashboard-table">
@@ -104,9 +141,13 @@
                 <tr>
                     <th style="width: 130px;">Tid</th>
                     <th>Tur</th>
+                    <th style="width: 95px;">Mat</th>
                     <th style="width: 150px;">Guide</th>
                     <th style="width: 80px;">Språk</th>
                     <th style="width: 90px;">Bokade</th>
+                    @if($showWaitTimes)
+                        <th style="width: 110px;">Väntetid</th>
+                    @endif
                     <th style="width: 100px;">Status</th>
                     <th style="width: 250px;">Åtgärder</th>
                 </tr>
@@ -124,7 +165,11 @@
                             default => 'badge-soft badge-soft-warning',
                         };
 
-                        $statusLabel = match($status) {
+                        $statusLabel = $status === 'completed'
+                            ? (method_exists($tour, 'completionStatusLabel')
+                                ? $tour->completionStatusLabel()
+                                : 'Avslutad')
+                            : match($status) {
                             'planned' => 'Planerad',
                             'started' => 'Startad',
                             'completed' => 'Avslutad',
@@ -138,9 +183,11 @@
                             ->map(fn ($code) => strtoupper($code))
                             ->unique()
                             ->values();
+
+                        $waitWarn = (bool) ($tour->wait_warn ?? false);
                     @endphp
 
-                    <tr>
+                    <tr @class(['dashboard-tour-wait-warn' => $showWaitTimes && $waitWarn])>
                         <td>
                             <div class="fw-semibold">{{ !empty($tour->start_time) ? substr($tour->start_time, 0, 5) : '-' }}</div>
                             <div class="small-muted">{{ $tour->tour_date ? \Carbon\Carbon::parse($tour->tour_date)->format('Y-m-d') : '-' }}</div>
@@ -151,7 +198,14 @@
                             <div class="small-muted">{{ $tour->tourType?->name ?? '-' }}</div>
                         </td>
 
-                        <td>{{ $tour->guide?->name ?? 'Ej tilldelad' }}</td>
+                        <td>
+                            @include('partials.tours.meal-badge', ['tour' => $tour])
+                            @include('partials.tours.ferry-badge', ['tour' => $tour])
+                        </td>
+
+                        <td>
+                            @include('partials.admin.tour-guide-cell', ['tour' => $tour])
+                        </td>
 
                         <td>
                             @if($languageCodes->isEmpty())
@@ -161,7 +215,20 @@
                             @endif
                         </td>
 
-                        <td>{{ $tour->booked_people_count ?? 0 }}</td>
+                        <td>
+                            <a href="{{ route($prefix . '.tours.show', $tour) }}#tour-bookings" class="fw-bold text-decoration-none">
+                                {{ $tour->booked_people_count ?? 0 }}
+                            </a>
+                        </td>
+
+                        @if($showWaitTimes)
+                            <td>
+                                @include('partials.admin.tour-wait-time-cell', [
+                                    'tour' => $tour,
+                                    'waitWarningMinutes' => $waitWarningMinutes ?? 45,
+                                ])
+                            </td>
+                        @endif
 
                         <td>
                             <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
@@ -173,18 +240,19 @@
                                     Visa
                                 </a>
 
-                                @if(($tour->status ?? null) !== 'completed')
-                                    <a href="{{ route($prefix . '.tours.edit', $tour) }}" class="btn btn-sm btn-outline-secondary">
-                                        Redigera
-                                    </a>
-                                @endif
+                                <a href="{{ route($prefix . '.tours.show', $tour) }}#tour-bookings" class="btn btn-sm btn-outline-secondary">
+                                    Bokningar
+                                </a>
 
-                                @if(($tour->status ?? null) === 'planned' && Route::has($prefix . '.tours.start'))
-                                    <form method="POST" action="{{ route($prefix . '.tours.start', $tour) }}">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Starta</button>
-                                    </form>
-                                @endif
+                                <a href="{{ route($prefix . '.tours.edit', $tour) }}" class="btn btn-sm btn-outline-secondary">
+                                    Redigera
+                                </a>
+
+                                @include('partials.admin.tour-start-form', [
+                                    'tour' => $tour,
+                                    'prefix' => $prefix,
+                                    'buttonLabel' => 'Starta',
+                                ])
 
                                 @if(($tour->status ?? null) === 'started' && Route::has($prefix . '.tours.complete'))
                                     <form method="POST" action="{{ route($prefix . '.tours.complete', $tour) }}">
@@ -192,12 +260,17 @@
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Avsluta</button>
                                     </form>
                                 @endif
+
+                                @include('partials.admin.tour-delete-form', [
+                                    'tour' => $tour,
+                                    'bookingsCount' => $tour->bookings->count(),
+                                ])
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center muted py-4">Inga turer hittades.</td>
+                        <td colspan="{{ $columnCount }}" class="text-center muted py-4">Inga turer hittades.</td>
                     </tr>
                 @endforelse
             </tbody>

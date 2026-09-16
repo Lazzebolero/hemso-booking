@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\TimeClockController;
+use App\Http\Controllers\TimeClockScanController;
 use App\Http\Controllers\TimeEntryController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,8 +11,12 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'ensure.active.role', 'active.roles:guide,host,admin'])
+Route::middleware(['auth', 'ensure.active.role', 'active.roles:guide,host,restaurant,admin'])
     ->group(function () {
+        Route::get('/time/scan/{token}', [TimeClockScanController::class, 'show'])->name('time.scan');
+        Route::get('/time/station/{station}', [TimeClockScanController::class, 'showStation'])
+            ->where('station', 'entrance|restaurant')
+            ->name('time.station');
         Route::get('/time', [TimeEntryController::class, 'index'])->name('time.index');
         Route::post('/time/clock-in', [TimeClockController::class, 'clockIn'])->name('time.clock-in');
         Route::post('/time/clock-out', [TimeClockController::class, 'clockOut'])->name('time.clock-out');

@@ -39,7 +39,7 @@
 
 <div class="page-card mb-4">
     <form method="GET" action="{{ route($prefix . '.login-events.index') }}" class="row g-3 align-items-end">
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label">Typ</label>
             <select name="event_type" class="form-select">
                 <option value="">Alla</option>
@@ -50,11 +50,23 @@
         </div>
 
         <div class="col-md-3">
+            <label class="form-label">Användare</label>
+            <select name="user_id" class="form-select">
+                <option value="">Alla</option>
+                @foreach($users as $user)
+                    <option value="{{ $user->id }}" @selected((string) request('user_id') === (string) $user->id)>
+                        {{ $user->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="col-md-2">
             <label class="form-label">E-post</label>
             <input type="text" name="email" class="form-control" value="{{ request('email') }}">
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label">IP-adress</label>
             <input type="text" name="ip_address" class="form-control" value="{{ request('ip_address') }}">
         </div>

@@ -1,11 +1,49 @@
 @csrf
 
+@php
+    use App\Models\TourType;
+
+    $tourTypesList = isset($tourTypes) ? collect($tourTypes) : collect();
+
+    if ($tourTypesList->isEmpty()) {
+        $tourTypesList = TourType::activeOrdered();
+    }
+
+    $defaultIncludesMeal = (string) old('default_includes_meal', $tour->default_includes_meal ? '1' : '0') === '1';
+@endphp
+
 <div class="page-card">
     <div class="section-title">Turinformation</div>
 
     <div class="tour-form-grid">
         <div class="tour-form-main">
             <div class="row g-3">
+                @if($tour->exists ?? false)
+                    <div class="col-12">
+                        <div class="guide-edit-highlight">
+                            @include('admin.tours._guide-field', ['guideFieldClass' => ''])
+                            @include('admin.tours._co-guides-field')
+
+                            <div class="form-check mt-3">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    name="ripple_subsequent_guides"
+                                    value="1"
+                                    id="ripple_subsequent_guides"
+                                    @checked(old('ripple_subsequent_guides', '1') === '1')
+                                >
+                                <label class="form-check-label" for="ripple_subsequent_guides">
+                                    Uppdatera efterföljande turer samma dag enligt dagens guideordning
+                                </label>
+                                <div class="form-text">
+                                    Pågående och avslutade turer ändras inte. Gäller när du byter guide.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="col-12">
                     <label class="form-label">Namn på tur</label>
                     <input
@@ -19,15 +57,69 @@
 
                 <div class="col-md-6">
                     <label class="form-label">Turtyp</label>
-                    <select name="tour_type_id" class="form-select">
+                    <select name="tour_type_id" class="form-select" required>
                         <option value="">Välj turtyp</option>
-                        @foreach($tourTypes as $tourType)
+                        @forelse($tourTypesList as $tourType)
                             <option value="{{ $tourType->id }}"
                                 @selected(old('tour_type_id', $tour->tour_type_id ?? $defaultTourTypeId ?? '') == $tourType->id)>
                                 {{ $tourType->name }}
                             </option>
-                        @endforeach
+                        @empty
+                            <option value="" disabled>Inga turtyper hittades — skapa under Inställningar</option>
+                        @endforelse
                     </select>
+                    @if($tourTypesList->isEmpty())
+                        <div class="form-text text-danger">
+                            Lägg till minst en turtyp under Inställningar → Turtyper.
+                        </div>
+                    @endif
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Mat (standard för bokningar)</label>
+                    <select name="default_includes_meal" class="form-select">
+                        <option value="0" @selected(! $defaultIncludesMeal)>Ej mat</option>
+                        <option value="1" @selected($defaultIncludesMeal)>Med mat</option>
+                    </select>
+                    <div class="form-text">Gäller som förval när nya bokningar görs på turen. Kan ändras per bokning.</div>
+                </div>
+
+                <div class="col-12">
+                    <div class="form-check">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            name="exclude_from_booking_sequence"
+                            value="1"
+                            id="exclude_from_booking_sequence"
+                            @checked(old('exclude_from_booking_sequence', $tour->exclude_from_booking_sequence ?? false))
+                        >
+                        <label class="form-check-label" for="exclude_from_booking_sequence">
+                            Exkludera från bokningssekvens
+                        </label>
+                        <div class="form-text">
+                            Turen visas inte i bokningssekvensen även om turtypen är vald där. Endast turtyper markerade under Inställningar → Turtyper ingår i sekvensen.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="form-check">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            name="exclude_from_schedule_statistics"
+                            value="1"
+                            id="exclude_from_schedule_statistics"
+                            @checked(old('exclude_from_schedule_statistics', $tour->exclude_from_schedule_statistics ?? false))
+                        >
+                        <label class="form-check-label" for="exclude_from_schedule_statistics">
+                            Exkludera från datum- och tidsstatistik
+                        </label>
+                        <div class="form-text">
+                            Besökare räknas kvar i totaler och fördelning, men turen påverkar inte veckodagar, populära tider eller årets topplista över dagar.
+                        </div>
+                    </div>
                 </div>
 
                 <div class="col-md-6">
@@ -89,55 +181,10 @@
                     >
                 </div>
 
-                @php
-                    $prefix = \App\Support\ActiveRole::routePrefix();
-                @endphp
-
-                <div class="col-md-6">
-                    <label class="form-label">Guide</label>
-                    <select
-                        name="guide_id"
-                        id="guide_id"
-                        class="form-select"
-                        data-availability-url="{{ route($prefix . '.guides.availability') }}"
-                        data-ignore-tour-id="{{ $tour->id ?? '' }}"
-                    >
-                        <option value="">Ej tilldelad</option>
-
-                        @foreach($guides as $guide)
-                            @php
-                                $guideShift = $guide->workShifts->first();
-                                $guideLabel = $guide->name;
-
-                                if ($guideShift && !empty($guideShift->start_time)) {
-                                    $guideLabel .= ' [' . substr($guideShift->start_time, 0, 5) . ']';
-                                } else {
-                                    $guideLabel .= ' [Inget pass]';
-                                }
-                            @endphp
-
-                            <option
-                                value="{{ $guide->id }}"
-                                data-shift-start="{{ $guideShift?->start_time ? substr($guideShift->start_time, 0, 5) : '' }}"
-                                data-has-shift="{{ $guideShift ? '1' : '0' }}"
-                                data-has-conflict="0"
-                                data-conflict-text=""
-                                @selected(old('guide_id', $tour->guide_id ?? '') == $guide->id)
-                            >
-                                {{ $guideLabel }}
-                            </option>
-                        @endforeach
-                    </select>
-
-                    <div class="form-text">
-                        Alla guider visas. Schemainfo och turkrockar uppdateras när datum eller tid ändras.
-                    </div>
-
-                    <div id="guide_schedule_status" class="guide-schedule-status d-none mt-2">
-                        <span id="guide_schedule_badge" class="guide-schedule-badge"></span>
-                        <span id="guide_schedule_text" class="guide-schedule-text"></span>
-                    </div>
-                </div>
+                @unless($tour->exists ?? false)
+                    @include('admin.tours._guide-field')
+                    @include('admin.tours._co-guides-field')
+                @endunless
 
                 <div class="col-12">
                     <label class="form-label">Beskrivning</label>
@@ -174,6 +221,13 @@
     border: 1px solid var(--brand-line-soft);
     border-radius: 12px;
     padding: 0.9rem;
+}
+
+.guide-edit-highlight {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
 }
 
 .guide-schedule-status {
@@ -273,6 +327,18 @@
             return;
         }
 
+        const hasLanguageMismatch = selectedOption.dataset.hasLanguageMismatch === '1';
+        const missingLanguageCodes = selectedOption.dataset.missingLanguageCodes || '';
+
+        if (hasLanguageMismatch) {
+            badge.classList.add('guide-schedule-warn');
+            badge.textContent = 'Språkmismatch';
+            text.textContent = missingLanguageCodes
+                ? 'Guiden saknar bokade språk: ' + missingLanguageCodes + '.'
+                : 'Guiden matchar inte turprogrammets språk.';
+            return;
+        }
+
         if (!hasShift) {
             badge.classList.add('guide-schedule-danger');
             badge.textContent = 'Inget pass';
@@ -328,6 +394,10 @@
             params.append('ignore_tour_id', guideSelect.dataset.ignoreTourId);
         }
 
+        if (guideSelect.dataset.tourId) {
+            params.append('tour_id', guideSelect.dataset.tourId);
+        }
+
         try {
             const response = await fetch(url + '?' + params.toString(), {
                 headers: {
@@ -358,6 +428,8 @@
                 option.dataset.shiftStart = guide.shift_start || '';
                 option.dataset.hasConflict = guide.has_conflict ? '1' : '0';
                 option.dataset.conflictText = guide.conflict_text || '';
+                option.dataset.hasLanguageMismatch = guide.has_language_mismatch ? '1' : '0';
+                option.dataset.missingLanguageCodes = (guide.missing_language_codes || []).join(', ');
 
                 if (String(guide.id) === String(currentValue)) {
                     option.selected = true;

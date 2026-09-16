@@ -1,5 +1,29 @@
 @props(['guide' => false])
 
+@if($errors->any())
+    @if($guide)
+        <div class="system-message-banner system-message-important mb-3">
+            <div class="system-message-title">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Kunde inte spara
+            </div>
+            <ul class="mb-0 mt-2 ps-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @else
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <div class="fw-semibold mb-1">Kunde inte spara</div>
+            <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+@endif
+
 @if(session('success'))
     @if($guide)
         <div class="system-message-banner system-message-success mb-3">

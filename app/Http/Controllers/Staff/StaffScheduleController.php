@@ -34,6 +34,7 @@ class StaffScheduleController extends StaffBaseController
             'startOfWeek' => $startOfWeek,
             'endOfWeek' => $endOfWeek,
             'shifts' => $shifts,
+            'shiftRoleLabels' => WorkShift::shiftRoles(),
         ]);
     }
 }

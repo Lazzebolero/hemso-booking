@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TimeEntry;
 use App\Models\TimeEntryAudit;
 use App\Services\PayrollLockService;
+use App\Services\TimeClockStationRegistry;
 use App\Support\Roles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,9 @@ class TimeEntryController extends Controller
         $activeRole = session('active_role', $request->user()->role);
 
         $useGuideLayout = $activeRole === Roles::GUIDE;
+        $qrStations = is_string($activeRole)
+            ? TimeClockStationRegistry::stationsForRole($activeRole)
+            : [];
 
         return view('time.index', [
             'entries' => $entries,
@@ -47,6 +51,7 @@ class TimeEntryController extends Controller
             'totalFormatted' => sprintf('%dh %02dm', intdiv($totalMinutes, 60), $totalMinutes % 60),
             'activeRole' => $activeRole,
             'useGuideLayout' => $useGuideLayout,
+            'qrStations' => $qrStations,
         ]);
     }
 

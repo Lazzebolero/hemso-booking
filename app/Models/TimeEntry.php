@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\TimeClockLocationPayload;
+use App\Services\TimeClockStationRegistry;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,9 +14,13 @@ class TimeEntry extends Model
     use HasFactory;
 
     public const STATUS_OPEN = 'open';
+
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_SUBMITTED = 'submitted';
+
     public const STATUS_APPROVED = 'approved';
+
     public const STATUS_CORRECTED = 'corrected';
 
     protected $fillable = [
@@ -28,6 +34,16 @@ class TimeEntry extends Model
         'status',
         'user_comment',
         'admin_comment',
+        'clock_in_station',
+        'clock_out_station',
+        'clock_in_latitude',
+        'clock_in_longitude',
+        'clock_in_location_accuracy_m',
+        'clock_in_location_status',
+        'clock_out_latitude',
+        'clock_out_longitude',
+        'clock_out_location_accuracy_m',
+        'clock_out_location_status',
     ];
 
     protected $casts = [
@@ -37,6 +53,12 @@ class TimeEntry extends Model
         'start_at' => 'datetime',
         'end_at' => 'datetime',
         'break_minutes' => 'integer',
+        'clock_in_latitude' => 'float',
+        'clock_in_longitude' => 'float',
+        'clock_out_latitude' => 'float',
+        'clock_out_longitude' => 'float',
+        'clock_in_location_accuracy_m' => 'integer',
+        'clock_out_location_accuracy_m' => 'integer',
     ];
 
     protected $appends = [
@@ -140,6 +162,32 @@ class TimeEntry extends Model
             ->open()
             ->orderBy('clock_in_at_original')
             ->get();
+    }
+
+    public function clockInStationLabel(): ?string
+    {
+        return TimeClockStationRegistry::labelForKey($this->clock_in_station);
+    }
+
+    public function clockOutStationLabel(): ?string
+    {
+        return TimeClockStationRegistry::labelForKey($this->clock_out_station);
+    }
+
+    public function clockInDistanceFromFacilityKm(): ?float
+    {
+        return TimeClockLocationPayload::distanceFromFacilityKm(
+            $this->clock_in_latitude !== null ? (float) $this->clock_in_latitude : null,
+            $this->clock_in_longitude !== null ? (float) $this->clock_in_longitude : null,
+        );
+    }
+
+    public function clockOutDistanceFromFacilityKm(): ?float
+    {
+        return TimeClockLocationPayload::distanceFromFacilityKm(
+            $this->clock_out_latitude !== null ? (float) $this->clock_out_latitude : null,
+            $this->clock_out_longitude !== null ? (float) $this->clock_out_longitude : null,
+        );
     }
 
     public static function filterPeriod(string $filter): array

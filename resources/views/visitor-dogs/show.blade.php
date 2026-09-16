@@ -7,6 +7,8 @@
         $visitSubtitle .= ' · Turstart '.\Illuminate\Support\Str::of((string) $dog->tour_start_time)->substr(0, 5);
     }
     $cardClass = $useGuideLayout ? 'guide-card' : 'page-card';
+    $photoCompletionOnly = $photoCompletionOnly ?? false;
+    $canDelete = $canDelete ?? false;
 @endphp
 
 <div class="staff-page-stack">
@@ -17,9 +19,15 @@
         icon="bi-heart-pulse"
     >
         <x-slot:actions>
-            <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.edit', $dog, $navQuery ?? []) }}" class="btn btn-primary{{ $useGuideLayout ? ' btn-sm' : '' }}">
-                <i class="bi bi-pencil me-1"></i>Redigera
-            </a>
+            @if($photoCompletionOnly)
+                <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.edit', $dog, $navQuery ?? []) }}" class="btn btn-primary{{ $useGuideLayout ? ' btn-sm' : '' }}">
+                    <i class="bi bi-camera me-1"></i>Lägg till bild
+                </a>
+            @else
+                <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.edit', $dog, $navQuery ?? []) }}" class="btn btn-primary{{ $useGuideLayout ? ' btn-sm' : '' }}">
+                    <i class="bi bi-pencil me-1"></i>Redigera
+                </a>
+            @endif
             <a href="{{ $backNav['url'] ?? route('visitor-dogs.index') }}" class="btn btn-outline-secondary{{ $useGuideLayout ? ' btn-sm' : '' }}">
                 <i class="bi bi-arrow-left me-1"></i>{{ $backNav['label'] ?? 'Mina hundar' }}
             </a>
@@ -47,6 +55,10 @@
                     —
                 @endif
             </dd>
+            <dt class="col-sm-4 small-muted">Särskilda behov</dt>
+            <dd class="col-sm-8">
+                @include('partials.visitor-dogs.care-flags-display', ['dog' => $dog])
+            </dd>
         </dl>
     </div>
 
@@ -58,9 +70,15 @@
                  class="img-fluid rounded"
                  style="max-height: 420px; object-fit: contain;">
         @else
-            <p class="small-muted mb-0">Ingen bild bifogad.</p>
+            <p class="small-muted mb-3">Ingen bild bifogad.</p>
+            @if($photoCompletionOnly)
+                <a href="{{ \App\Support\VisitorDogSupport::routeForDog('visitor-dogs.edit', $dog, $navQuery ?? []) }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-camera me-1"></i>Lägg till bild
+                </a>
+            @endif
         @endif
 
+        @if($canDelete)
         <form method="POST"
               action="{{ route('visitor-dogs.destroy', $dog) }}"
               class="mt-4"
@@ -70,6 +88,7 @@
             @include('partials.visitor-dogs.navigation-hidden-fields', ['navigationQuery' => $navQuery ?? []])
             <button type="submit" class="btn btn-outline-danger btn-sm">Ta bort registrering</button>
         </form>
+        @endif
     </div>
 </div>
 @endsection

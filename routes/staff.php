@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'ensure.active.role'])->group(function () {
+Route::middleware(['auth', 'ensure.active.role', 'guide.shell.continue'])->group(function () {
     Route::get('/my-schedule', [MyScheduleController::class, 'index'])
         ->name('my-schedule.index');
 });
@@ -23,7 +23,7 @@ Route::middleware(['auth', 'ensure.active.role'])->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'ensure.active.role'])
+Route::middleware(['auth', 'ensure.active.role', 'guide.shell.continue'])
     ->prefix('staff')
     ->name('staff.')
     ->group(function () {

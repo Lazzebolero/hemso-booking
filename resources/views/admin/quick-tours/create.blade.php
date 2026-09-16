@@ -74,6 +74,19 @@
                     >
                 </div>
 
+                <div class="col-md-3">
+                    <label class="form-label">Ospecificerade</label>
+                    <input
+                        type="number"
+                        min="0"
+                        name="unspecified_count"
+                        class="form-control"
+                        value="{{ old('unspecified_count', 0) }}"
+                        required
+                    >
+                    <div class="form-text">När ni vet totalen men inte fördelningen ännu.</div>
+                </div>
+
                 <div class="col-12">
                     <label class="form-label">Språk</label>
 
