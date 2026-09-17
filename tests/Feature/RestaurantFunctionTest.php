@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\WorkShift;
 use App\Support\Roles;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class RestaurantFunctionTest extends TestCase
@@ -72,6 +74,39 @@ class RestaurantFunctionTest extends TestCase
             ->assertOk()
             ->assertSee('value="kok"', false)
             ->assertSee('Kök', false);
+    }
+
+    public function test_work_shift_pages_read_functions_from_database_not_stale_cache(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN);
+        $cook = $this->userWithRole(Roles::RESTAURANT);
+
+        Cache::forever(RestaurantFunction::CACHE_KEY.'.active', [
+            'kassa' => 'Kassa',
+        ]);
+
+        DB::table('restaurant_functions')->insert([
+            'slug' => 'buffe',
+            'name' => 'Buffé',
+            'sort_order' => 25,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.work-shifts.index'))
+            ->assertOk()
+            ->assertSee('value="buffe"', false)
+            ->assertSee('Buffé', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.work-shifts.person', ['user_id' => $cook->id]))
+            ->assertOk()
+            ->assertSee('value="buffe"', false)
+            ->assertSee('Buffé', false);
     }
 
     public function test_cannot_delete_restaurant_function_in_use(): void

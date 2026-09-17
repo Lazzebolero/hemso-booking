@@ -4,13 +4,23 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Models\WorkShift;
 use App\Support\CountryCatalog;
+use App\Support\ShiftCoverage;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class SettingController extends Controller
 {
-    public function index()
+    public function index(): View
     {
+        $restaurantFunctions = WorkShift::restaurantFunctions();
+        $restaurantGoals = [];
+
+        foreach (ShiftCoverage::restaurantGoalDefaults() as $key => $default) {
+            $restaurantGoals[$key] = (int) setting($key, $default);
+        }
+
         $settings = [
             'default_tour_capacity' => setting('default_tour_capacity', 25),
             'timezone' => setting('timezone', 'Europe/Stockholm'),
@@ -20,23 +30,22 @@ class SettingController extends Controller
             'staffing_goal_guides_weekday' => (int) setting('staffing_goal_guides_weekday', 2),
             'staffing_goal_guides_weekend' => (int) setting('staffing_goal_guides_weekend', 3),
             'staffing_goal_hosts' => (int) setting('staffing_goal_hosts', 1),
-
-            'staffing_goal_kock' => (int) setting('staffing_goal_kock', 1),
-            'staffing_goal_kallskank' => (int) setting('staffing_goal_kallskank', 0),
-            'staffing_goal_kassa' => (int) setting('staffing_goal_kassa', 1),
-            'staffing_goal_disk' => (int) setting('staffing_goal_disk', 0),
-            'staffing_goal_glassbar' => (int) setting('staffing_goal_glassbar', 0),
-            'staffing_goal_servering' => (int) setting('staffing_goal_servering', 1),
+            ...$restaurantGoals,
 
             'country_quick_pick_max' => CountryCatalog::maxQuickPicks(),
             'tour_wait_warning_minutes' => (int) setting('tour_wait_warning_minutes', 45),
         ];
 
-        return view('admin.settings.index', compact('settings'));
+        return view('admin.settings.index', compact('settings', 'restaurantFunctions'));
     }
 
     public function update(Request $request)
     {
+        $restaurantGoalKeys = array_keys(ShiftCoverage::restaurantGoalDefaults());
+        $restaurantGoalRules = collect($restaurantGoalKeys)
+            ->mapWithKeys(fn (string $key) => [$key => ['nullable', 'integer', 'min:0', 'max:20']])
+            ->all();
+
         $data = $request->validate([
             'default_tour_capacity' => ['required', 'integer', 'min:1', 'max:500'],
             'timezone' => ['required', 'string', 'max:100'],
@@ -46,13 +55,7 @@ class SettingController extends Controller
             'staffing_goal_guides_weekday' => ['nullable', 'integer', 'min:0', 'max:20'],
             'staffing_goal_guides_weekend' => ['nullable', 'integer', 'min:0', 'max:20'],
             'staffing_goal_hosts' => ['nullable', 'integer', 'min:0', 'max:20'],
-
-            'staffing_goal_kock' => ['nullable', 'integer', 'min:0', 'max:20'],
-            'staffing_goal_kallskank' => ['nullable', 'integer', 'min:0', 'max:20'],
-            'staffing_goal_kassa' => ['nullable', 'integer', 'min:0', 'max:20'],
-            'staffing_goal_disk' => ['nullable', 'integer', 'min:0', 'max:20'],
-            'staffing_goal_glassbar' => ['nullable', 'integer', 'min:0', 'max:20'],
-            'staffing_goal_servering' => ['nullable', 'integer', 'min:0', 'max:20'],
+            ...$restaurantGoalRules,
 
             'country_quick_pick_max' => ['nullable', 'integer', 'min:1', 'max:'.CountryCatalog::ABSOLUTE_MAX_QUICK_PICKS],
             'tour_wait_warning_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
@@ -66,12 +69,7 @@ class SettingController extends Controller
             'staffing_goal_guides_weekday',
             'staffing_goal_guides_weekend',
             'staffing_goal_hosts',
-            'staffing_goal_kock',
-            'staffing_goal_kallskank',
-            'staffing_goal_kassa',
-            'staffing_goal_disk',
-            'staffing_goal_glassbar',
-            'staffing_goal_servering',
+            ...$restaurantGoalKeys,
         ];
 
         foreach ($integerKeys as $key) {

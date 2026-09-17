@@ -157,77 +157,19 @@
                 >
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Kock</label>
-                <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    name="staffing_goal_kock"
-                    class="form-control"
-                    value="{{ old('staffing_goal_kock', $settings['staffing_goal_kock'] ?? 1) }}"
-                >
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Kallskänk</label>
-                <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    name="staffing_goal_kallskank"
-                    class="form-control"
-                    value="{{ old('staffing_goal_kallskank', $settings['staffing_goal_kallskank'] ?? 0) }}"
-                >
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Kassa</label>
-                <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    name="staffing_goal_kassa"
-                    class="form-control"
-                    value="{{ old('staffing_goal_kassa', $settings['staffing_goal_kassa'] ?? 1) }}"
-                >
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Disk</label>
-                <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    name="staffing_goal_disk"
-                    class="form-control"
-                    value="{{ old('staffing_goal_disk', $settings['staffing_goal_disk'] ?? 0) }}"
-                >
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Glassbar</label>
-                <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    name="staffing_goal_glassbar"
-                    class="form-control"
-                    value="{{ old('staffing_goal_glassbar', $settings['staffing_goal_glassbar'] ?? 0) }}"
-                >
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Servering</label>
-                <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    name="staffing_goal_servering"
-                    class="form-control"
-                    value="{{ old('staffing_goal_servering', $settings['staffing_goal_servering'] ?? 1) }}"
-                >
-            </div>
+            @foreach($restaurantFunctions as $slug => $label)
+                <div class="col-md-4">
+                    <label class="form-label">{{ $label }}</label>
+                    <input
+                        type="number"
+                        min="0"
+                        max="20"
+                        name="staffing_goal_{{ $slug }}"
+                        class="form-control"
+                        value="{{ old('staffing_goal_'.$slug, $settings['staffing_goal_'.$slug] ?? 0) }}"
+                    >
+                </div>
+            @endforeach
         </div>
 
         <div class="form-text mt-2">

@@ -17,13 +17,7 @@ class ShiftCoverage
             'staffing_goal_guides_weekday' => 2,
             'staffing_goal_guides_weekend' => 3,
             'staffing_goal_hosts' => 1,
-
-            'staffing_goal_kock' => 1,
-            'staffing_goal_kallskank' => 0,
-            'staffing_goal_kassa' => 1,
-            'staffing_goal_disk' => 0,
-            'staffing_goal_glassbar' => 0,
-            'staffing_goal_servering' => 1,
+            ...self::restaurantGoalDefaults(),
         ];
 
         $stored = DB::table('settings')
@@ -36,7 +30,7 @@ class ShiftCoverage
         $restaurantRequirements = [];
 
         foreach (WorkShift::restaurantFunctions() as $key => $label) {
-            $settingKey = 'staffing_goal_' . $key;
+            $settingKey = 'staffing_goal_'.$key;
             $minimum = (int) ($settings[$settingKey] ?? 0);
 
             if ($minimum > 0) {
@@ -105,6 +99,20 @@ class ShiftCoverage
             'overall' => $overall,
             'items' => $items,
         ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public static function restaurantGoalDefaults(): array
+    {
+        $defaults = [];
+
+        foreach (WorkShift::restaurantFunctions() as $slug => $label) {
+            $defaults['staffing_goal_'.$slug] = in_array($slug, ['kock', 'kassa', 'servering'], true) ? 1 : 0;
+        }
+
+        return $defaults;
     }
 
     private static function buildStatusItem(string $label, int $actual, int $required): array

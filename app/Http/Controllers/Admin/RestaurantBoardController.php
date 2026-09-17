@@ -134,16 +134,7 @@ class RestaurantBoardController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        $restaurantFunctions = method_exists(WorkShift::class, 'restaurantFunctions')
-            ? WorkShift::restaurantFunctions()
-            : [
-                'kock' => 'Kock',
-                'kallskank' => 'Kallskänk',
-                'kassa' => 'Kassa',
-                'disk' => 'Disk',
-                'glassbar' => 'Glassbar',
-                'servering' => 'Servering',
-            ];
+        $restaurantFunctions = WorkShift::restaurantFunctions();
 
         $todayStaffByFunction = $todayShifts
             ->groupBy(fn ($shift) => $shift->shift_function ?: 'ovrigt')
