@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Imports\HistoricalDailyVisitorsImport;
+use App\Models\HistoricalDailyVisitor;
 use App\Services\HistoricalVisitorComparisonService;
 use App\Support\StatisticsPeriod;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 
 class HistoricalVisitorStatController extends Controller
 {
@@ -43,5 +47,40 @@ class HistoricalVisitorStatController extends Controller
             'comparisonSummary' => $comparisonSummary,
             'forecastSummary' => $forecastSummary,
         ]);
+    }
+
+    public function import(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv,txt'],
+        ], [
+            'file.required' => 'Välj en Excel- eller CSV-fil.',
+            'file.mimes' => 'Filen måste vara Excel eller CSV.',
+        ]);
+
+        $import = new HistoricalDailyVisitorsImport;
+        Excel::import($import, $request->file('file'));
+
+        $message = $import->imported.' dag(ar) importerades.';
+
+        if ($import->errors !== []) {
+            return redirect()
+                ->route('admin.statistics.historical-visitors.index')
+                ->with('success', $message)
+                ->withErrors(['file' => $import->errors[0]]);
+        }
+
+        return redirect()
+            ->route('admin.statistics.historical-visitors.index')
+            ->with('success', $message);
+    }
+
+    public function destroy(HistoricalDailyVisitor $historicalDailyVisitor): RedirectResponse
+    {
+        $historicalDailyVisitor->delete();
+
+        return redirect()
+            ->route('admin.statistics.historical-visitors.index')
+            ->with('success', 'Dagen togs bort.');
     }
 }

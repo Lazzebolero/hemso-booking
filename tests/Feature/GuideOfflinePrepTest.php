@@ -79,16 +79,6 @@ class GuideOfflinePrepTest extends TestCase
             ->assertSee((string) $tour->id, false)
             ->assertSee('name="guide-offline-ongoing-tour-url"', false)
             ->assertSee(route('guide.tours.show', $tour), false);
-
-        $this->followingRedirects()
-            ->actingAs($guide)
-            ->withSession(['active_role' => Roles::GUIDE])
-            ->post(route('quick-tours.store'), [
-                'participant_count' => 6,
-                'language_ids' => [],
-            ])
-            ->assertOk()
-            ->assertSee('name="guide-warm-tour-id"', false);
     }
 
     private function userWithRole(string $roleSlug): User

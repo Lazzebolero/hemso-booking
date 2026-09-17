@@ -262,7 +262,7 @@ class VisitorDogRegistrationTest extends TestCase
                 'visit_date' => now()->toDateString(),
                 'photo' => $file,
             ])
-            ->assertRedirect(route('visitor-dogs.show', $other));
+            ->assertRedirect(route('visitor-dogs.index'));
 
         $other->refresh();
 
@@ -354,7 +354,7 @@ class VisitorDogRegistrationTest extends TestCase
                 'visit_date' => now()->toDateString(),
                 'photo' => $file,
             ])
-            ->assertRedirect(route('visitor-dogs.show', $dog));
+            ->assertRedirect(route('visitor-dogs.index'));
 
         $dog->refresh();
 

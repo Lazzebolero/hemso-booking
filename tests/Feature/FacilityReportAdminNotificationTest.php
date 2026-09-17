@@ -77,26 +77,26 @@ class FacilityReportAdminNotificationTest extends TestCase
             ])
             ->assertRedirect(route('guide.dashboard'));
 
-        Mail::assertSent(NewFacilityReportMail::class, $expectedAdminMailCount);
+        Mail::assertQueued(NewFacilityReportMail::class, $expectedAdminMailCount);
 
         $this->assertSame(
             1,
-            Mail::sent(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($adminOne->email))->count()
+            Mail::queued(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($adminOne->email))->count()
         );
         $this->assertSame(
             1,
-            Mail::sent(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($adminTwo->email))->count()
+            Mail::queued(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($adminTwo->email))->count()
         );
 
-        Mail::assertSent(NewFacilityReportMail::class, function (NewFacilityReportMail $mail) use ($adminOne): bool {
+        Mail::assertQueued(NewFacilityReportMail::class, function (NewFacilityReportMail $mail) use ($adminOne): bool {
             return $mail->hasTo($adminOne->email);
         });
 
-        Mail::assertSent(NewFacilityReportMail::class, function (NewFacilityReportMail $mail) use ($adminTwo): bool {
+        Mail::assertQueued(NewFacilityReportMail::class, function (NewFacilityReportMail $mail) use ($adminTwo): bool {
             return $mail->hasTo($adminTwo->email);
         });
 
-        Mail::assertNotSent(NewFacilityReportMail::class, $inactiveAdmin->email);
+        Mail::assertNotQueued(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($inactiveAdmin->email));
     }
 
     public function test_does_not_send_new_facility_report_mail_to_host_role_only(): void
@@ -157,9 +157,9 @@ class FacilityReportAdminNotificationTest extends TestCase
             ])
             ->assertRedirect(route('guide.dashboard'));
 
-        Mail::assertNotSent(NewFacilityReportMail::class, $hostOnly->email);
-        Mail::assertSent(NewFacilityReportMail::class, $expectedAdminMailCount);
-        Mail::assertSent(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($adminForInclusion->email));
+        Mail::assertNotQueued(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($hostOnly->email));
+        Mail::assertQueued(NewFacilityReportMail::class, $expectedAdminMailCount);
+        Mail::assertQueued(NewFacilityReportMail::class, fn (NewFacilityReportMail $mail) => $mail->hasTo($adminForInclusion->email));
     }
 
     public function test_dashboard_shows_new_facility_reports_notice_until_reports_index_is_opened(): void

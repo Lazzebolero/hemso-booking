@@ -82,6 +82,9 @@
                         <option value="1" @selected((string) old('is_active', $user->is_active ?? 1) === '1')>Ja</option>
                         <option value="0" @selected((string) old('is_active', $user->is_active ?? 1) === '0')>Nej</option>
                     </select>
+                    <div class="small-muted mt-1">
+                        Aktiv betyder att personen arbetar den här perioden. Inaktiva syns inte i schemat och kan inte logga in.
+                    </div>
                 </div>
             </div>
 

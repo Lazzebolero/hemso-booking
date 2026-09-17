@@ -44,8 +44,9 @@ class VisitorDogPolicyTest extends TestCase
             'registered_as_role' => Roles::GUIDE,
         ]);
 
-        $this->assertFalse($user->can('view', $dog));
-        $this->assertFalse($user->can('update', $dog));
+        $this->assertFalse($user->can('delete', $dog));
+        $this->assertTrue($user->can('view', $dog));
+        $this->assertTrue($user->can('completePhoto', $dog));
     }
 
     public function test_admin_can_manage_any_registration_when_active_as_admin(): void
@@ -59,8 +60,8 @@ class VisitorDogPolicyTest extends TestCase
         $dog = VisitorDog::factory()->create();
 
         $this->assertTrue($admin->can('viewAny', VisitorDog::class));
-        $this->assertTrue($admin->can('view', $dog));
-        $this->assertTrue($admin->can('delete', $dog));
+        $this->assertFalse($admin->can('view', $dog));
+        $this->assertFalse($admin->can('delete', $dog));
     }
 
     public function test_host_can_manage_registrations_when_active_as_host(): void

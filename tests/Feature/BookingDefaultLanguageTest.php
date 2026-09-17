@@ -84,12 +84,21 @@ class BookingDefaultLanguageTest extends TestCase
             'status' => 'planned',
         ]);
 
-        $this->actingAs($user)
+        $response = $this->actingAs($user)
             ->withSession(['active_role' => Roles::ADMIN])
             ->get(route('admin.bookings.create', ['tour_id' => $secondTour->id]))
-            ->assertOk()
-            ->assertSee('value="'.$secondTour->id.'" selected', false)
-            ->assertDontSee('value="'.$firstTour->id.'" selected', false);
+            ->assertOk();
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/value="'.$secondTour->id.'"\s+selected/',
+            $html,
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/value="'.$firstTour->id.'"\s+selected/',
+            $html,
+        );
     }
 
     private function createPlannedTour(): Tour

@@ -66,11 +66,11 @@ class SystemMessagePopupTest extends TestCase
             ->assertJsonPath('messages.0.id', $message->id);
     }
 
-    public function test_popup_only_message_is_visible_in_admin_dashboard_banner(): void
+    public function test_popup_only_message_is_loaded_via_forced_popup_client(): void
     {
         $admin = $this->userWithRole(Roles::ADMIN);
 
-        SystemMessage::query()->create([
+        $message = SystemMessage::query()->create([
             'title' => 'Endast popup',
             'body' => 'Detta ska synas i panelen.',
             'message_type' => 'message',
@@ -89,11 +89,16 @@ class SystemMessagePopupTest extends TestCase
             ->withSession(['active_role' => Roles::ADMIN])
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Endast popup', false)
-            ->assertSee('system-messages-panel', false)
             ->assertSee('loadForcedPopups', false)
             ->assertSee('showForcedSystemModal', false)
             ->assertSee("const tag = 'd' + 'iv'", false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->getJson(route('system-messages.force-popup-panel'))
+            ->assertOk()
+            ->assertJsonPath('messages.0.id', $message->id)
+            ->assertJsonPath('messages.0.title', 'Endast popup');
     }
 
     private function userWithRole(string $roleSlug): User

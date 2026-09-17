@@ -176,7 +176,7 @@ class GuideTourOptimisticUiTest extends TestCase
             ], false);
     }
 
-    public function test_guide_ajax_complete_on_finished_tour_returns_validation_error(): void
+    public function test_guide_ajax_complete_on_finished_tour_is_idempotent(): void
     {
         $guide = $this->userWithRole(Roles::GUIDE);
         $tour = $this->tourForGuide($guide);
@@ -188,7 +188,7 @@ class GuideTourOptimisticUiTest extends TestCase
                 'HTTP_X-Requested-With' => 'XMLHttpRequest',
                 'Accept' => 'application/json',
             ])
-            ->assertStatus(422)
+            ->assertOk()
             ->assertJsonPath('message', 'Turen är redan avslutad.');
     }
 

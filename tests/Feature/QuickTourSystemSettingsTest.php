@@ -37,8 +37,6 @@ class QuickTourSystemSettingsTest extends TestCase
             ['key' => $key],
             ['value' => $value],
         );
-
-        $this->refreshApplication();
     }
 
     private function userWithRole(string $roleSlug): User

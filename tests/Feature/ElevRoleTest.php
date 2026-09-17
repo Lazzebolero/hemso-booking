@@ -28,6 +28,21 @@ class ElevRoleTest extends TestCase
         ])->assertSessionHasErrors('email');
     }
 
+    public function test_active_elev_still_cannot_log_in(): void
+    {
+        $role = Role::query()->where('slug', Roles::ELEV)->firstOrFail();
+        $elev = User::factory()->create(['is_active' => true]);
+        $elev->assignRoles([$role]);
+
+        $this->post(route('login'), [
+            'email' => $elev->email,
+            'password' => 'password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertTrue($elev->is_active);
+        $this->assertFalse($elev->canUseApplication());
+    }
+
     public function test_admin_can_create_schedule_only_elev_without_password(): void
     {
         $admin = $this->userWithRole(Roles::ADMIN);
@@ -47,7 +62,8 @@ class ElevRoleTest extends TestCase
         $this->assertNotNull($user);
         $this->assertTrue($user->isElev());
         $this->assertTrue($user->isScheduleOnlyUser());
-        $this->assertFalse($user->is_active);
+        $this->assertTrue($user->is_active);
+        $this->assertFalse($user->canUseApplication());
         $this->assertSame([], $user->loginRoleSlugs());
     }
 
@@ -146,9 +162,7 @@ class ElevRoleTest extends TestCase
     private function userWithRole(string $roleSlug): User
     {
         $role = Role::query()->where('slug', $roleSlug)->firstOrFail();
-        $user = User::factory()->create([
-            'is_active' => $roleSlug !== Roles::ELEV,
-        ]);
+        $user = User::factory()->create();
         $user->assignRoles([$role]);
 
         return $user;

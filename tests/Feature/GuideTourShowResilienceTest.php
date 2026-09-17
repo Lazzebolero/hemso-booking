@@ -7,6 +7,7 @@ use App\Models\Tour;
 use App\Models\TourType;
 use App\Models\User;
 use App\Support\Roles;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -18,17 +19,41 @@ class GuideTourShowResilienceTest extends TestCase
             $this->markTestSkipped('tour_photos table is not present in this database.');
         }
 
-        Schema::drop('tour_photos');
+        try {
+            Schema::drop('tour_photos');
 
-        $guide = $this->userWithRole(Roles::GUIDE);
-        $tour = $this->tourForGuide($guide);
+            $guide = $this->userWithRole(Roles::GUIDE);
+            $tour = $this->tourForGuide($guide);
 
-        $this->actingAs($guide)
-            ->withSession(['active_role' => Roles::GUIDE])
-            ->get(route('guide.tours.show', $tour))
-            ->assertOk()
-            ->assertSee('data-guide-tour-root', false)
-            ->assertDontSee('Ladda upp bild', false);
+            $this->actingAs($guide)
+                ->withSession(['active_role' => Roles::GUIDE])
+                ->get(route('guide.tours.show', $tour))
+                ->assertOk()
+                ->assertSee('data-guide-tour-root', false)
+                ->assertDontSee('Ladda upp bild', false);
+        } finally {
+            $this->restoreTourPhotosTable();
+        }
+    }
+
+    private function restoreTourPhotosTable(): void
+    {
+        if (Schema::hasTable('tour_photos')) {
+            return;
+        }
+
+        Schema::create('tour_photos', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tour_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('path');
+            $table->string('image_path')->nullable();
+            $table->string('original_name')->nullable();
+            $table->string('mime_type')->nullable();
+            $table->unsignedInteger('size')->nullable();
+            $table->string('caption')->nullable();
+            $table->timestamps();
+        });
     }
 
     private function userWithRole(string $roleSlug): User

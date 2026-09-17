@@ -13,7 +13,7 @@ class QuickTourCreateTest extends TestCase
 {
     public function test_guide_sees_quick_tour_form_when_active_role_is_guide(): void
     {
-        $user = User::factory()->create();
+        $user = $this->userWithRoles([Roles::GUIDE]);
 
         $this->actingAs($user)
             ->withSession(['active_role' => Roles::GUIDE])

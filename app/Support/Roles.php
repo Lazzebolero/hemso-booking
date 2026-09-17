@@ -98,6 +98,37 @@ class Roles
         return in_array($slug, self::scheduleOnlyRoles(), true);
     }
 
+    /**
+     * Roller som kan ligga på arbetsschema (inte TV-produktion).
+     *
+     * @return list<string>
+     */
+    public static function scheduleStaffRoles(): array
+    {
+        return [
+            self::ADMIN,
+            self::HOST,
+            self::GUIDE,
+            self::ELEV,
+            self::RESTAURANT,
+        ];
+    }
+
+    /**
+     * Sorteras tillsammans med guiderna i schemamallen.
+     *
+     * @return list<string>
+     */
+    public static function schedulePriorityRoles(): array
+    {
+        return [
+            self::ADMIN,
+            self::HOST,
+            self::GUIDE,
+            self::ELEV,
+        ];
+    }
+
     public static function all(): array
     {
         return array_keys(self::labels());

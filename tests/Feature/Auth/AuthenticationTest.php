@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Role;
 use App\Models\User;
+use App\Support\Roles;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -16,7 +18,9 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
+        $role = Role::query()->where('slug', Roles::ADMIN)->firstOrFail();
         $user = User::factory()->create();
+        $user->assignRoles([$role]);
 
         $response = $this->post('/login', [
             'email' => $user->email,
@@ -24,7 +28,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('admin.dashboard', absolute: false));
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void

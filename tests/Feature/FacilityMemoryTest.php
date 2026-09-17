@@ -38,7 +38,7 @@ class FacilityMemoryTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        $this->actingAs($guide)
+        $response = $this->actingAs($guide)
             ->withSession(['active_role' => Roles::GUIDE])
             ->post(route('guide.memories.store'), [
                 'type' => FacilityMemory::TYPE_TEXT,
@@ -47,13 +47,14 @@ class FacilityMemoryTest extends TestCase
                 'era_text' => 'ca 1973',
                 'tour_id' => $tour->id,
                 'consent_given' => '1',
-            ])
-            ->assertRedirect(route('guide.tours.show', $tour))
-            ->assertSessionHas('success');
+            ]);
 
         $memory = FacilityMemory::query()->first();
 
         $this->assertNotNull($memory);
+        $response
+            ->assertRedirect(route('guide.memories.show', $memory))
+            ->assertSessionHas('success');
         $this->assertSame(FacilityMemory::TYPE_TEXT, $memory->type);
         $this->assertSame('Mansköket', $memory->location_text);
         $this->assertSame(FacilityMemory::STATUS_SUBMITTED, $memory->status);
@@ -78,12 +79,12 @@ class FacilityMemoryTest extends TestCase
                 'consent_given' => '1',
             ]);
 
-        $response->assertRedirectToRoute('guide.dashboard');
-        $response->assertSessionHas('success');
-
         $memory = FacilityMemory::query()->first();
 
         $this->assertNotNull($memory);
+        $response
+            ->assertRedirect(route('guide.memories.show', $memory))
+            ->assertSessionHas('success');
         $this->assertSame(FacilityMemory::TYPE_AUDIO, $memory->type);
         $this->assertSame(FacilityMemory::CONSENT_RECORDED, $memory->consent_type);
         $this->assertNotNull($memory->audio_path);
@@ -121,7 +122,9 @@ class FacilityMemoryTest extends TestCase
                 'tour_id' => $tour->id,
                 'consent_given' => '1',
             ])
-            ->assertForbidden();
+            ->assertSessionHasErrors('tour_id');
+
+        $this->assertDatabaseCount('facility_memories', 0);
     }
 
     public function test_admin_can_view_memory_inbox_and_detail(): void

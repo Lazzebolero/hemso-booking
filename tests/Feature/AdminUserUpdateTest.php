@@ -105,6 +105,22 @@ class AdminUserUpdateTest extends TestCase
             ->assertSee('Visa bara aktiva', false);
     }
 
+    public function test_inactive_staff_cannot_log_in(): void
+    {
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+        $guide = User::factory()->create([
+            'is_active' => false,
+        ]);
+        $guide->assignRoles([$guideRole]);
+
+        $this->post(route('login'), [
+            'email' => $guide->email,
+            'password' => 'password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
     private function userWithRole(string $roleSlug): User
     {
         $role = Role::query()->where('slug', $roleSlug)->firstOrFail();

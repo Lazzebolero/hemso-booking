@@ -36,6 +36,9 @@ class DatabaseMigrationsTest extends TestCase
             'activity_logs',
             'tour_types',
             'tour_booking_pages',
+            'tour_photos',
+            'login_events',
+            'historical_daily_visitors',
         ];
 
         $missing = array_values(array_filter(

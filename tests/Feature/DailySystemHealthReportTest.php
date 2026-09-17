@@ -40,7 +40,7 @@ class DailySystemHealthReportTest extends TestCase
         ]);
 
         $this->artisan('system-health:send-daily-report')
-            ->assertSuccessful()
+            ->assertFailed()
             ->expectsOutputToContain('SYSTEM_HEALTH_REPORT_EMAIL saknas');
 
         Mail::assertNothingSent();

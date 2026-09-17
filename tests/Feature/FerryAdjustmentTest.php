@@ -20,7 +20,7 @@ class FerryAdjustmentTest extends TestCase
             ->get(route('admin.ferry-adjustments.index'))
             ->assertOk()
             ->assertSee('Färjekorrigering', false)
-            ->assertSee('Justera starttider', false);
+            ->assertSee('Justera start- och sluttider', false);
     }
 
     public function test_admin_can_shift_planned_tour_forward_by_ten_minutes(): void
@@ -180,15 +180,15 @@ class FerryAdjustmentTest extends TestCase
     public function test_dashboard_shows_ferry_adjusted_badge(): void
     {
         $admin = $this->userWithRole(Roles::ADMIN);
-        $date = now()->toDateString();
+        $start = now()->addHour()->seconds(0);
 
         Tour::query()->create([
             'title' => 'Korrigerad tur',
-            'tour_date' => $date,
-            'start_time' => '11:10:00',
-            'end_time' => '12:30:00',
-            'original_start_time' => '11:00:00',
-            'original_end_time' => '12:20:00',
+            'tour_date' => $start->toDateString(),
+            'start_time' => $start->format('H:i:s'),
+            'end_time' => $start->copy()->addHour()->addMinutes(20)->format('H:i:s'),
+            'original_start_time' => $start->copy()->subMinutes(10)->format('H:i:s'),
+            'original_end_time' => $start->copy()->addHour()->addMinutes(10)->format('H:i:s'),
             'ferry_adjusted_at' => now(),
             'max_participants' => 30,
             'status' => 'planned',

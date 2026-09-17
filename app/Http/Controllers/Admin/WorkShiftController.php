@@ -6,16 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\Tour;
 use App\Models\User;
 use App\Models\WorkShift;
+use App\Services\WorkShiftStaffDirectory;
 use App\Support\ActiveRole;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class WorkShiftController extends Controller
 {
+    public function __construct(
+        private WorkShiftStaffDirectory $directory,
+    ) {}
+
     public function index(Request $request): View
     {
         $date = $request->filled('date')
@@ -29,10 +35,7 @@ class WorkShiftController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        $users = User::with('roles')
-            ->withoutProductionRoles()
-            ->orderBy('name')
-            ->get();
+        $users = $this->directory->forTemplate();
 
         $workShift = new WorkShift([
             'shift_date' => $date->toDateString(),
@@ -63,10 +66,7 @@ class WorkShiftController extends Controller
             $selectedUser = User::with('roles')->find($request->get('user_id'));
         }
 
-        $users = User::with('roles')
-            ->withoutProductionRoles()
-            ->orderBy('name')
-            ->get();
+        $users = $this->directory->forTemplate();
 
         $upcomingShifts = collect();
 
@@ -185,10 +185,7 @@ class WorkShiftController extends Controller
 
     public function edit(WorkShift $workShift): View
     {
-        $users = User::with('roles')
-            ->withoutProductionRoles()
-            ->orderBy('name')
-            ->get();
+        $users = $this->scheduleUsersForForm($workShift->user);
 
         return view('admin.work-shifts.edit', [
             'workShift' => $workShift,
@@ -272,7 +269,22 @@ class WorkShiftController extends Controller
 
     private function ensureUserCanWorkAs(User $user, string $shiftRole): void
     {
+        abort_unless($user->is_active, 422, 'Personen är inte aktiv den här perioden.');
         abort_unless($user->hasRole($shiftRole), 422, 'Användaren har inte denna roll.');
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function scheduleUsersForForm(?User $current = null): Collection
+    {
+        $users = $this->directory->forTemplate();
+
+        if ($current && ! $users->contains('id', $current->id)) {
+            $users = $users->prepend($current)->values();
+        }
+
+        return $users;
     }
 
     private function statuses(): array

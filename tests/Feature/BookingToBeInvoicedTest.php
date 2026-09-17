@@ -54,7 +54,7 @@ class BookingToBeInvoicedTest extends TestCase
         $this->assertTrue($booking->to_be_invoiced);
         $this->assertSame('Faktureras', $booking->invoiceLabel());
 
-        Mail::assertSent(BookingInvoiceRequestMail::class, function (BookingInvoiceRequestMail $mail) use ($booking): bool {
+        Mail::assertQueued(BookingInvoiceRequestMail::class, function (BookingInvoiceRequestMail $mail) use ($booking): bool {
             return $mail->hasTo('ekonomi@hemso.test')
                 && $mail->booking->is($booking);
         });
@@ -85,7 +85,7 @@ class BookingToBeInvoicedTest extends TestCase
         $this->assertNotNull($booking);
         $this->assertFalse($booking->to_be_invoiced);
 
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_no_economics_email_is_sent_when_address_is_missing(): void
@@ -113,7 +113,7 @@ class BookingToBeInvoicedTest extends TestCase
 
         $this->assertTrue(Booking::query()->where('booking_name', 'Utan ekonomi-adress')->value('to_be_invoiced'));
 
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_admin_can_update_booking_invoice_flag_without_sending_email(): void
@@ -151,7 +151,7 @@ class BookingToBeInvoicedTest extends TestCase
 
         $this->assertTrue($booking->fresh()->to_be_invoiced);
 
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_booking_form_shows_invoice_checkbox(): void
@@ -209,7 +209,7 @@ class BookingToBeInvoicedTest extends TestCase
         $this->assertNotNull($booking);
         $this->assertTrue($booking->to_be_invoiced);
 
-        Mail::assertSent(BookingInvoiceRequestMail::class, function (BookingInvoiceRequestMail $mail) use ($booking): bool {
+        Mail::assertQueued(BookingInvoiceRequestMail::class, function (BookingInvoiceRequestMail $mail) use ($booking): bool {
             return $mail->hasTo('ekonomi@hemso.test')
                 && $mail->booking->is($booking);
         });
@@ -338,18 +338,14 @@ class BookingToBeInvoicedTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['active_role' => Roles::ADMIN])
-            ->put(route('admin.settings.update'), [
-                'default_tour_capacity' => 25,
-                'timezone' => 'Europe/Stockholm',
-                'staffing_goal_guides_weekday' => 2,
-                'staffing_goal_guides_weekend' => 3,
-                'staffing_goal_hosts' => 1,
-                'staffing_goal_kock' => 1,
-                'staffing_goal_kallskank' => 0,
-                'staffing_goal_kassa' => 1,
-                'staffing_goal_disk' => 0,
-                'staffing_goal_glassbar' => 0,
-                'staffing_goal_servering' => 1,
+            ->put(route('admin.economy-settings.update'), [
+                'economy_guide_hourly_cost' => 0,
+                'economy_restaurant_hourly_cost' => 0,
+                'economy_ob_hourly_amount' => 0,
+                'economy_price_adult' => 0,
+                'economy_price_youth' => 0,
+                'economy_price_child' => 0,
+                'economy_child_under4_percent' => 0,
                 'economics_notification_email' => 'ny-ekonomi@hemso.test',
             ])
             ->assertRedirect()

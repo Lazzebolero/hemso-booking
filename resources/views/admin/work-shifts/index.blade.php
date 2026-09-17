@@ -35,6 +35,12 @@
             Lägg in bemanning per dag. Välj roll, person, eventuell restaurangfunktion och arbetstid.
         </div>
     </div>
+    <div class="page-actions">
+        @if($prefix === 'admin')
+            <a href="{{ route('admin.work-shifts.template') }}" class="btn btn-outline-secondary">Ladda ner mall</a>
+            <a href="{{ route('admin.work-shifts.import') }}" class="btn btn-outline-secondary">Importera schema</a>
+        @endif
+    </div>
 </div>
 
 @if(session('success'))

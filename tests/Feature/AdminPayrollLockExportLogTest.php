@@ -64,7 +64,9 @@ class AdminPayrollLockExportLogTest extends TestCase
 
         $this->actingAs($worker)
             ->withSession(['active_role' => Roles::GUIDE])
-            ->post(route('time.clock-in'))
+            ->post(route('time.clock-in'), [
+                'clock_station' => 'entrance',
+            ])
             ->assertForbidden();
     }
 

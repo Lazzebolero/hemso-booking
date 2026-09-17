@@ -22,7 +22,7 @@ class AdminTourDeletionTest extends TestCase
         $this->actingAs($admin)
             ->withSession(['active_role' => Roles::ADMIN])
             ->delete(route('admin.tours.destroy', $tour))
-            ->assertRedirect(route('admin.tours.index'))
+            ->assertRedirect(route('admin.tours.index', ['scope' => 'upcoming']))
             ->assertSessionHas('success');
 
         $bookingIds = $tour->bookings->pluck('id')->all();
@@ -92,7 +92,7 @@ class AdminTourDeletionTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['active_role' => Roles::ADMIN])
-            ->get(route('admin.tours.index'))
+            ->get(route('admin.tours.index', ['scope' => 'archive']))
             ->assertOk()
             ->assertSee(route('admin.tours.destroy', $tour), false)
             ->assertSee('Ta bort', false);

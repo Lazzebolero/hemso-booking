@@ -79,7 +79,7 @@ class PwaAssetsTest extends TestCase
         $this->assertFileExists($path);
         $content = (string) file_get_contents($path);
 
-        $this->assertStringContainsString('hemso-pwa-v22', $content);
+        $this->assertStringContainsString('hemso-pwa-v24', $content);
         $this->assertStringContainsString('isGuideTourShowPath', $content);
         $this->assertStringContainsString('isGuideShellOfflinePath', $content);
         $this->assertStringContainsString('matchCachedPathSuffix', $content);

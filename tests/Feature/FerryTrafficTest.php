@@ -113,7 +113,7 @@ class FerryTrafficTest extends TestCase
         Config::set('trafikverket.api_key', null);
 
         $this->artisan('ferry:sync-traffic')
-            ->assertSuccessful();
+            ->assertFailed();
     }
 
     public function test_sync_command_shows_api_error_message(): void

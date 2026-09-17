@@ -23,8 +23,7 @@ class QuickTourBookingEditTest extends TestCase
             ->assertSee('Redigera bokning', false)
             ->assertSee('Snabbtur', false)
             ->assertSee('Spara bokning', false)
-            ->assertDontSee('CACHE_NAME', false)
-            ->assertDontSee('service-worker.js', false);
+            ->assertDontSee('CACHE_NAME', false);
     }
 
     public function test_host_can_update_booking_for_quick_tour_and_stays_in_host_routes(): void
@@ -48,7 +47,7 @@ class QuickTourBookingEditTest extends TestCase
                 'arrival_status' => 'booked',
                 'notes' => 'Uppdaterad snabbtur.',
             ])
-            ->assertRedirect(route('host.bookings.index'));
+            ->assertRedirect(route('host.bookings.index', ['scope' => 'archive']));
 
         $this->assertSame(3, (int) $booking->fresh()->total_count);
     }

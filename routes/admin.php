@@ -60,6 +60,7 @@ use App\Http\Controllers\Admin\UnspecifiedFollowUpController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VisitorDogController as AdminVisitorDogController;
 use App\Http\Controllers\Admin\WorkShiftController;
+use App\Http\Controllers\Admin\WorkShiftImportController;
 use App\Http\Controllers\Admin\WorkShiftTemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -138,6 +139,10 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
 
         Route::get('work-shifts/staffing', [WorkShiftController::class, 'staffing'])
             ->name('work-shifts.staffing');
+        Route::get('work-shifts/mall', [WorkShiftImportController::class, 'template'])->name('work-shifts.template');
+        Route::get('work-shifts/import', [WorkShiftImportController::class, 'create'])->name('work-shifts.import');
+        Route::post('work-shifts/import', [WorkShiftImportController::class, 'store'])->name('work-shifts.import.store');
+        Route::post('work-shifts/import/bekrafta', [WorkShiftImportController::class, 'confirm'])->name('work-shifts.import.confirm');
         Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
         Route::get('work-shifts/create', [WorkShiftController::class, 'create'])->name('work-shifts.create');
         Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');
@@ -192,6 +197,8 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
         Route::get('statistics/year-countries-map', [StatisticsController::class, 'yearCountriesMap'])->name('statistics.year-countries-map');
 
         Route::get('statistics/historical-visitors', [HistoricalVisitorStatController::class, 'index'])->name('statistics.historical-visitors.index');
+        Route::post('statistics/historical-visitors/import', [HistoricalVisitorStatController::class, 'import'])->name('statistics.historical-visitors.import');
+        Route::delete('statistics/historical-visitors/{historicalDailyVisitor}', [HistoricalVisitorStatController::class, 'destroy'])->name('statistics.historical-visitors.destroy');
 
         Route::get('statistics/unspecified-follow-up', [UnspecifiedFollowUpController::class, 'index'])->name('statistics.unspecified-follow-up');
 

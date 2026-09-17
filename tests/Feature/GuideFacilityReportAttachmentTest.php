@@ -28,7 +28,7 @@ class GuideFacilityReportAttachmentTest extends TestCase
             ->assertOk()
             ->assertSee('Starta kamera', false)
             ->assertSee('navigator.mediaDevices.getUserMedia', false)
-            ->assertSee('name="attachment"', false)
+            ->assertSee('name="attachments[]"', false)
             ->assertDontSee('capture="environment"', false);
     }
 

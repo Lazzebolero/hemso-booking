@@ -257,10 +257,6 @@ class UserController extends Controller
 
         $data = $request->validate($rules);
 
-        if ($this->isScheduleOnlyRoleSelection($data['roles'] ?? [])) {
-            $data['is_active'] = false;
-        }
-
         return $data;
     }
 
