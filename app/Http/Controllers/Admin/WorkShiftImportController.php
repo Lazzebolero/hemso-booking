@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Exports\WorkShiftTemplateExport;
 use App\Http\Controllers\Controller;
-use App\Imports\WorkShiftSpreadsheet;
+use App\Services\WorkShiftGridBuilder;
 use App\Services\WorkShiftImportService;
 use App\Services\WorkShiftStaffDirectory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -18,19 +19,44 @@ class WorkShiftImportController extends Controller
     public function __construct(
         private WorkShiftStaffDirectory $directory,
         private WorkShiftImportService $import,
+        private WorkShiftGridBuilder $builder,
     ) {}
 
-    public function template(): BinaryFileResponse
+    public function template(Request $request): BinaryFileResponse|RedirectResponse
     {
-        $filename = 'arbetsschema-mall-'.now()->format('Y-m-d').'.xlsx';
+        $from = $request->filled('from')
+            ? Carbon::parse($request->string('from')->toString())->startOfDay()
+            : now()->startOfMonth();
+        $to = $request->filled('to')
+            ? Carbon::parse($request->string('to')->toString())->startOfDay()
+            : now()->addMonths(2)->endOfMonth();
 
-        return Excel::download(new WorkShiftTemplateExport($this->directory), $filename);
+        if ($from->gt($to)) {
+            return back()->withErrors([
+                'from' => 'Till-datum måste vara samma dag eller senare än från-datum.',
+            ]);
+        }
+
+        if ($from->diffInDays($to) > 150) {
+            return back()->withErrors([
+                'to' => 'Perioden får vara högst 150 dagar.',
+            ]);
+        }
+
+        $filename = 'arbetsschema-mall-'.$from->toDateString().'-'.$to->toDateString().'.xlsx';
+
+        return Excel::download(
+            new WorkShiftTemplateExport($from, $to, $this->directory, $this->builder),
+            $filename,
+        );
     }
 
     public function create(): View
     {
         return view('admin.work-shifts.import', [
             'staffCount' => $this->directory->forTemplate()->count(),
+            'templateFrom' => now()->startOfMonth()->toDateString(),
+            'templateTo' => now()->addMonths(2)->endOfMonth()->toDateString(),
         ]);
     }
 
@@ -43,16 +69,15 @@ class WorkShiftImportController extends Controller
             'file.mimes' => 'Filen måste vara Excel eller CSV.',
         ]);
 
-        $sheets = Excel::toCollection(new WorkShiftSpreadsheet, $request->file('file'));
-        $rows = $sheets->first() ?? collect();
+        $path = $request->file('file')?->getRealPath();
 
-        if ($rows->isEmpty()) {
+        if (! is_string($path) || $path === '') {
             return back()->withErrors([
-                'file' => 'Filen innehåller inga rader i fliken Arbetspass.',
+                'file' => 'Filen kunde inte läsas.',
             ]);
         }
 
-        $preview = $this->import->preview($rows);
+        $preview = $this->import->previewUploaded($path);
 
         $request->session()->put('work_shift_import', [
             'ready' => $preview['ready'],

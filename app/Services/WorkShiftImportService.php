@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class WorkShiftImportService
@@ -79,6 +80,74 @@ class WorkShiftImportService
 
             $ready[] = $parsed;
         }
+
+        return [
+            'ready' => $ready,
+            'errors' => $errors,
+            'skipped' => $skipped,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     ready: list<array{
+     *         user_id: int,
+     *         shift_date: string,
+     *         start_time: string,
+     *         end_time: ?string,
+     *         shift_role: string,
+     *         shift_function: ?string,
+     *         status: string,
+     *         notes: ?string,
+     *         person_name: string
+     *     }>,
+     *     errors: list<string>,
+     *     skipped: int
+     * }
+     */
+    public function previewUploaded(string $path): array
+    {
+        $spreadsheet = IOFactory::load($path);
+
+        $ready = [];
+        $errors = [];
+        $skipped = 0;
+        $seenInFile = [];
+
+        $usersById = User::query()
+            ->with('roles')
+            ->where('is_active', true)
+            ->withoutProductionRoles()
+            ->get()
+            ->keyBy('id');
+
+        foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
+            $title = $sheet->getTitle();
+
+            if (Str::lower(trim($title)) === 'instruktion') {
+                continue;
+            }
+
+            $rows = $sheet->toArray(null, true, false, false);
+
+            if ($this->isGridRows($rows)) {
+                $part = $this->previewGrid($title, $rows, $usersById, $seenInFile);
+                $ready = array_merge($ready, $part['ready']);
+                $errors = array_merge($errors, $part['errors']);
+                $skipped += $part['skipped'];
+
+                continue;
+            }
+
+            if ($this->isListRows($rows)) {
+                $part = $this->preview($this->listRowsToCollection($rows));
+                $ready = array_merge($ready, $part['ready']);
+                $errors = array_merge($errors, $part['errors']);
+                $skipped += $part['skipped'];
+            }
+        }
+
+        $spreadsheet->disconnectWorksheets();
 
         return [
             'ready' => $ready,
@@ -365,7 +434,451 @@ class WorkShiftImportService
             }
         }
 
+        foreach ($this->functionAliases($raw) as $candidate) {
+            if (array_key_exists($candidate, $options)) {
+                return $candidate;
+            }
+        }
+
         throw new \InvalidArgumentException('Ogiltig restaurangfunktion.');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function functionAliases(string $raw): array
+    {
+        $normalized = Str::lower(trim($raw));
+
+        return match ($normalized) {
+            'kök', 'kok', 'kock' => ['kok', 'kock'],
+            'buffé', 'buffe' => ['buffe'],
+            'glassbaren', 'glassbar', 'glass' => ['glassbar'],
+            default => [],
+        };
+    }
+
+    /**
+     * @param  list<array<int, mixed>>  $rows
+     */
+    private function isGridRows(array $rows): bool
+    {
+        foreach ($rows as $row) {
+            if (Str::lower($this->cellString($row[0] ?? null)) === WorkShiftGridBuilder::ID_ROW_LABEL) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<array<int, mixed>>  $rows
+     */
+    private function isListRows(array $rows): bool
+    {
+        foreach ($rows as $row) {
+            $headers = collect($row)
+                ->map(fn ($value) => Str::slug(trim((string) $value), '_'))
+                ->filter()
+                ->all();
+
+            if ($headers === []) {
+                continue;
+            }
+
+            $hasDate = in_array('datum', $headers, true) || in_array('date', $headers, true);
+            $hasEmail = in_array('e_post', $headers, true) || in_array('epost', $headers, true) || in_array('email', $headers, true);
+
+            return $hasDate && $hasEmail;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<array<int, mixed>>  $rows
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function listRowsToCollection(array $rows): Collection
+    {
+        $header = null;
+        $data = collect();
+
+        foreach ($rows as $row) {
+            $values = $this->normalizeRow(is_array($row) ? $row : []);
+
+            if ($this->rowIsEmpty($values)) {
+                continue;
+            }
+
+            if ($header === null) {
+                $header = [];
+
+                foreach (array_values($row) as $index => $value) {
+                    $header[$index] = Str::slug(trim((string) $value), '_');
+                }
+
+                continue;
+            }
+
+            $assoc = [];
+
+            foreach ($header as $index => $key) {
+                if ($key === '') {
+                    continue;
+                }
+
+                $assoc[$key] = array_values($row)[$index] ?? null;
+            }
+
+            $data->push($assoc);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  list<array<int, mixed>>  $rows
+     * @param  Collection<int, User>  $usersById
+     * @param  array<string, true>  $seenInFile
+     * @return array{ready: list<array<string, mixed>>, errors: list<string>, skipped: int}
+     */
+    private function previewGrid(string $sheetTitle, array $rows, Collection $usersById, array &$seenInFile): array
+    {
+        $ready = [];
+        $errors = [];
+        $skipped = 0;
+        $idRow = $roleRow = $functionRow = $timeRow = null;
+
+        foreach ($rows as $row) {
+            $label = Str::lower($this->cellString($row[0] ?? null));
+
+            if ($label === WorkShiftGridBuilder::ID_ROW_LABEL) {
+                $idRow = $row;
+            } elseif ($label === WorkShiftGridBuilder::ROLE_ROW_LABEL) {
+                $roleRow = $row;
+            } elseif ($label === WorkShiftGridBuilder::FUNCTION_ROW_LABEL) {
+                $functionRow = $row;
+            } elseif ($label === WorkShiftGridBuilder::TIME_ROW_LABEL) {
+                $timeRow = $row;
+            }
+        }
+
+        if ($idRow === null) {
+            return [
+                'ready' => [],
+                'errors' => ["Fliken {$sheetTitle} saknar id-rad. Ladda ner en ny mall."],
+                'skipped' => 0,
+            ];
+        }
+
+        $columns = [];
+
+        foreach ($idRow as $col => $value) {
+            if ((int) $col === 0) {
+                continue;
+            }
+
+            $userId = (int) $this->cellString($value);
+
+            if ($userId <= 0) {
+                continue;
+            }
+
+            $columns[(int) $col] = [
+                'user_id' => $userId,
+                'role' => $this->cellString($roleRow[$col] ?? null),
+                'function' => $this->cellString($functionRow[$col] ?? null),
+                'time' => $this->cellString($timeRow[$col] ?? null),
+            ];
+        }
+
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 1;
+            $label = $this->cellString($row[0] ?? null);
+
+            if ($this->isGridMetaLabel($label) || $this->isGridStructureRow($label)) {
+                continue;
+            }
+
+            try {
+                $date = $this->parseGridDate($label);
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+
+            foreach ($columns as $col => $column) {
+                $cell = $row[$col] ?? null;
+
+                if ($this->cellString($cell) === '' && ! (is_numeric($cell) && (float) $cell > 0)) {
+                    continue;
+                }
+
+                $location = "{$sheetTitle} rad {$rowNumber}";
+
+                try {
+                    $parsed = $this->parseGridAssignment($cell, $column, $date, $usersById);
+                } catch (\InvalidArgumentException $exception) {
+                    $errors[] = $location.': '.$exception->getMessage();
+
+                    continue;
+                }
+
+                if ($parsed === null) {
+                    continue;
+                }
+
+                $fileKey = $this->dedupKey($parsed);
+
+                if (isset($seenInFile[$fileKey])) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $seenInFile[$fileKey] = true;
+
+                if ($this->shiftExists($parsed)) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $ready[] = $parsed;
+            }
+        }
+
+        return [
+            'ready' => $ready,
+            'errors' => $errors,
+            'skipped' => $skipped,
+        ];
+    }
+
+    /**
+     * @param  array{user_id: int, role: string, function: string, time: string}  $column
+     * @param  Collection<int, User>  $usersById
+     * @return array{
+     *     user_id: int,
+     *     shift_date: string,
+     *     start_time: string,
+     *     end_time: ?string,
+     *     shift_role: string,
+     *     shift_function: ?string,
+     *     status: string,
+     *     notes: ?string,
+     *     person_name: string
+     * }|null
+     */
+    private function parseGridAssignment(mixed $cell, array $column, string $date, Collection $usersById): ?array
+    {
+        $parsedCell = $this->parseGridCell($cell);
+
+        if ($parsedCell === null) {
+            return null;
+        }
+
+        $user = $usersById->get($column['user_id']);
+
+        if (! $user) {
+            throw new \InvalidArgumentException('Ingen aktiv Hemsö-person med id '.$column['user_id'].'.');
+        }
+
+        $shiftRole = $parsedCell['role'] ?? null;
+
+        if (is_string($shiftRole) && $shiftRole !== '' && ! in_array($shiftRole, Roles::scheduleStaffRoles(), true)) {
+            $shiftRole = $this->parseRole($shiftRole);
+        }
+
+        if (! is_string($shiftRole) || $shiftRole === '') {
+            $shiftRole = $this->parseRole($column['role']);
+        }
+        $functionValue = $parsedCell['function'] ?? ($column['function'] !== '' ? $column['function'] : null);
+        $times = $this->parseTimeRange($parsedCell['start'] ?? null, $parsedCell['end'] ?? null, $column['time']);
+
+        if ($functionValue !== null && $functionValue !== '') {
+            $shiftRole = Roles::RESTAURANT;
+        }
+
+        if (! $user->hasRole($shiftRole)) {
+            throw new \InvalidArgumentException($user->name.' har inte rollen '.$this->roleLabel($shiftRole).'.');
+        }
+
+        $function = $this->parseFunction($shiftRole, $functionValue);
+
+        return [
+            'user_id' => $user->id,
+            'shift_date' => $date,
+            'start_time' => $times['start'],
+            'end_time' => $times['end'],
+            'shift_role' => $shiftRole,
+            'shift_function' => $function,
+            'status' => 'planned',
+            'notes' => null,
+            'person_name' => $user->name,
+        ];
+    }
+
+    /**
+     * @return array{start: ?string, end: ?string, function: ?string, role: ?string}|null
+     */
+    private function parseGridCell(mixed $value): ?array
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return [
+                'start' => Carbon::instance($value)->format('H:i'),
+                'end' => null,
+                'function' => null,
+                'role' => null,
+            ];
+        }
+
+        if (is_numeric($value) && (float) $value > 0 && (float) $value < 1.5) {
+            return [
+                'start' => Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->format('H:i'),
+                'end' => null,
+                'function' => null,
+                'role' => null,
+            ];
+        }
+
+        $text = trim(str_replace(['–', '—'], '-', $this->cellString($value)));
+
+        if ($text === '' || $this->isSkippedGridCell($text)) {
+            return null;
+        }
+
+        if (preg_match('/^(\d{1,2})[.:](\d{2})(?:\s*-\s*(\d{1,2})[.:](\d{2}))?(?:\s+(.+))?$/u', $text, $matches)) {
+            $start = sprintf('%02d:%02d', (int) $matches[1], (int) $matches[2]);
+            $end = ($matches[3] ?? '') !== ''
+                ? sprintf('%02d:%02d', (int) $matches[3], (int) $matches[4])
+                : null;
+            $rest = trim((string) ($matches[5] ?? ''));
+
+            return [
+                'start' => $start,
+                'end' => $end,
+                'function' => $rest !== '' && $this->looksLikeFunction($rest) ? $rest : null,
+                'role' => $rest !== '' && ! $this->looksLikeFunction($rest) ? $rest : null,
+            ];
+        }
+
+        if ($this->looksLikeFunction($text)) {
+            return [
+                'start' => null,
+                'end' => null,
+                'function' => $text,
+                'role' => null,
+            ];
+        }
+
+        try {
+            return [
+                'start' => null,
+                'end' => null,
+                'function' => null,
+                'role' => $this->parseRole($text),
+            ];
+        } catch (\InvalidArgumentException) {
+            throw new \InvalidArgumentException('Ogiltigt värde "'.$text.'".');
+        }
+    }
+
+    /**
+     * @return array{start: string, end: ?string}
+     */
+    private function parseTimeRange(?string $start, ?string $end, string $columnDefault): array
+    {
+        if ($start !== null) {
+            return ['start' => $start, 'end' => $end];
+        }
+
+        $default = trim(str_replace(['–', '—'], '-', $columnDefault));
+
+        if (preg_match('/^(\d{1,2})[.:](\d{2})(?:\s*-\s*(\d{1,2})[.:](\d{2}))?$/', $default, $matches)) {
+            return [
+                'start' => sprintf('%02d:%02d', (int) $matches[1], (int) $matches[2]),
+                'end' => ($matches[3] ?? '') !== ''
+                    ? sprintf('%02d:%02d', (int) $matches[3], (int) $matches[4])
+                    : null,
+            ];
+        }
+
+        throw new \InvalidArgumentException('Starttid saknas.');
+    }
+
+    private function parseGridDate(string $label): string
+    {
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $label, $matches)) {
+            return $matches[1];
+        }
+
+        throw new \InvalidArgumentException('Datum saknas.');
+    }
+
+    private function isGridMetaLabel(string $label): bool
+    {
+        return in_array(Str::lower($label), [
+            '',
+            WorkShiftGridBuilder::ID_ROW_LABEL,
+            WorkShiftGridBuilder::ROLE_ROW_LABEL,
+            WorkShiftGridBuilder::FUNCTION_ROW_LABEL,
+            WorkShiftGridBuilder::TIME_ROW_LABEL,
+        ], true);
+    }
+
+    private function isGridStructureRow(string $label): bool
+    {
+        $upper = mb_strtoupper($label);
+
+        if (preg_match('/^V:\s*\d+/i', $label)) {
+            return true;
+        }
+
+        return in_array($upper, [
+            'JANUARI', 'FEBRUARI', 'MARS', 'APRIL', 'MAJ', 'JUNI',
+            'JULI', 'AUGUSTI', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DECEMBER',
+            'GUIDER', 'KÖK', 'KOK',
+        ], true);
+    }
+
+    private function isSkippedGridCell(string $text): bool
+    {
+        $normalized = Str::lower($text);
+        $normalized = str_replace(['é', 'ä', 'ö', 'å'], ['e', 'a', 'o', 'a'], $normalized);
+
+        foreach (['utbild', 'ubild', 'sjuk', 'slutar', 'borjar', 'stangt', 'midsommar'] as $token) {
+            if ($normalized === $token || str_starts_with($normalized, $token)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function looksLikeFunction(string $value): bool
+    {
+        try {
+            $this->parseFunction(Roles::RESTAURANT, $value);
+
+            return true;
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
+    }
+
+    private function cellString(mixed $value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value)->format('H:i');
+        }
+
+        if ($value === null) {
+            return '';
+        }
+
+        return trim((string) $value);
     }
 
     private function nullableString(mixed $value): ?string

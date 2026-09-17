@@ -5,11 +5,16 @@
     <div>
         <h2 class="page-title">Importera arbetsschema</h2>
         <div class="page-subtitle">
-            Planera i Excel och ladda upp när filen är klar. {{ $staffCount }} aktiva personer finns i mallen just nu.
+            Ladda ner mallen för en period, fyll i rutnätet och ladda upp. {{ $staffCount }} aktiva personer finns i mallen just nu.
         </div>
     </div>
     <div class="page-actions">
-        <a href="{{ route('admin.work-shifts.template') }}" class="btn btn-outline-secondary">Ladda ner mall</a>
+        @include('admin.work-shifts.partials.template-download', [
+            'templateFrom' => $templateFrom,
+            'templateTo' => $templateTo,
+            'fromId' => 'import-template-from',
+            'toId' => 'import-template-to',
+        ])
         <a href="{{ route('admin.work-shifts.index') }}" class="btn btn-outline-secondary">Tillbaka</a>
     </div>
 </div>
@@ -24,7 +29,7 @@
 
 <div class="page-card">
     <p class="small-muted mb-3">
-        Använd mallen. Första fliken är arbetspassen. E-post måste tillhöra en aktiv person (admin, värd, guide, trainee eller restaurang). TV-produktion ingår inte.
+        Använd mallen. Guider och kök har varsin flik. Namn syns, id ligger dolt. Tom cell = ledigt. Skriv tid, funktion (Kök, Kassa, Disk, Buffé, Glassbar) eller båda. TV-produktion ingår inte.
     </p>
     <form method="POST" action="{{ route('admin.work-shifts.import.store') }}" enctype="multipart/form-data">
         @csrf

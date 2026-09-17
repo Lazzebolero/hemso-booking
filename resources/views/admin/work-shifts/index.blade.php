@@ -37,7 +37,12 @@
     </div>
     <div class="page-actions">
         @if($prefix === 'admin')
-            <a href="{{ route('admin.work-shifts.template') }}" class="btn btn-outline-secondary">Ladda ner mall</a>
+            @include('admin.work-shifts.partials.template-download', [
+                'templateFrom' => now()->startOfMonth()->toDateString(),
+                'templateTo' => now()->addMonths(2)->endOfMonth()->toDateString(),
+                'fromId' => 'template-from',
+                'toId' => 'template-to',
+            ])
             <a href="{{ route('admin.work-shifts.import') }}" class="btn btn-outline-secondary">Importera schema</a>
         @endif
     </div>

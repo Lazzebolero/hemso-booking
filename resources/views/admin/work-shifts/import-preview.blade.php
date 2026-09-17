@@ -41,6 +41,7 @@
                         <th>Datum</th>
                         <th>Person</th>
                         <th>Roll</th>
+                        <th>Funktion</th>
                         <th>Tid</th>
                     </tr>
                 </thead>
@@ -50,6 +51,7 @@
                             <td>{{ $row['shift_date'] }}</td>
                             <td>{{ $row['person_name'] }}</td>
                             <td>{{ \App\Support\Roles::labels()[$row['shift_role']] ?? $row['shift_role'] }}</td>
+                            <td>{{ $row['shift_function'] ? \App\Models\RestaurantFunction::label($row['shift_function']) : '–' }}</td>
                             <td>
                                 {{ $row['start_time'] }}
                                 @if($row['end_time'])

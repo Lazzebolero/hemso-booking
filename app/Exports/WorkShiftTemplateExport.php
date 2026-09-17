@@ -3,132 +3,97 @@
 namespace App\Exports;
 
 use App\Models\RestaurantFunction;
-use App\Models\User;
+use App\Services\WorkShiftGridBuilder;
 use App\Services\WorkShiftStaffDirectory;
-use App\Support\Roles;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Concerns\Export;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class WorkShiftTemplateExport implements Export, WithMultipleSheets
 {
     public function __construct(
+        private Carbon $from,
+        private Carbon $to,
         private WorkShiftStaffDirectory $directory,
+        private WorkShiftGridBuilder $builder,
     ) {}
 
     public function sheets(): array
     {
-        $staff = $this->directory->forTemplate();
-
         return [
-            new WorkShiftTemplateShiftsSheet,
-            new WorkShiftTemplateStaffSheet($staff, $this->directory),
+            new WorkShiftGridSheet(
+                'Guider',
+                $this->builder->rows('Guider', $this->directory->forGuideSheet(), $this->from, $this->to),
+            ),
+            new WorkShiftGridSheet(
+                'Kök',
+                $this->builder->rows('Kök', $this->directory->forKitchenSheet(), $this->from, $this->to),
+            ),
             new WorkShiftTemplateInstructionsSheet,
         ];
     }
 }
 
-class WorkShiftTemplateShiftsSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
-{
-    public function title(): string
-    {
-        return 'Arbetspass';
-    }
-
-    public function headings(): array
-    {
-        return [
-            'Datum',
-            'E-post',
-            'Namn',
-            'Roll',
-            'Funktion',
-            'Starttid',
-            'Sluttid',
-            'Status',
-            'Anteckning',
-        ];
-    }
-
-    public function collection(): Collection
-    {
-        return collect();
-    }
-}
-
-class WorkShiftTemplateStaffSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
+class WorkShiftGridSheet implements FromArray, ShouldAutoSize, WithStyles, WithTitle
 {
     /**
-     * @param  Collection<int, User>  $staff
+     * @param  list<list<string>>  $rows
      */
     public function __construct(
-        private Collection $staff,
-        private WorkShiftStaffDirectory $directory,
+        private string $title,
+        private array $rows,
     ) {}
 
     public function title(): string
     {
-        return 'Personal';
+        return $this->title;
     }
 
-    public function headings(): array
+    /**
+     * @return list<list<string>>
+     */
+    public function array(): array
     {
-        return [
-            'Namn',
-            'E-post',
-            'Roller',
-            'Grupp',
-        ];
+        return $this->rows;
     }
 
-    public function collection(): Collection
+    public function styles(Worksheet $sheet): array
     {
-        return $this->staff->map(function (User $user) {
-            $roleLabels = $user->roles
-                ->whereIn('slug', Roles::scheduleStaffRoles())
-                ->sortBy('name')
-                ->pluck('name')
-                ->values()
-                ->implode(', ');
+        foreach ([3, 4, 5, 6] as $row) {
+            $sheet->getRowDimension($row)->setVisible(false);
+        }
 
-            return [
-                $user->name,
-                $user->email,
-                $roleLabels,
-                $this->directory->templateGroupLabel($user),
-            ];
-        });
+        return [];
     }
 }
 
-class WorkShiftTemplateInstructionsSheet implements FromCollection, ShouldAutoSize, WithTitle
+class WorkShiftTemplateInstructionsSheet implements FromArray, ShouldAutoSize, WithTitle
 {
     public function title(): string
     {
         return 'Instruktion';
     }
 
-    public function collection(): Collection
+    public function array(): array
     {
         $functions = collect(RestaurantFunction::activeOptions())
             ->map(fn (string $name, string $slug) => $name.' ('.$slug.')')
             ->implode(', ');
 
-        return collect([
-            ['Planera i fliken Arbetspass. Kopiera e-post från fliken Personal.'],
-            ['Lägg in personal under Användare och markera dem som aktiva innan du laddar ner en ny mall.'],
+        return [
+            ['Välj period när du laddar ner mallen. Datumraderna är redan ifyllda.'],
+            ['Fliken Guider: admin, värd, guide och trainee. Fliken Kök: restaurangpersonal.'],
+            ['Namn syns i kolumnen. Raderna id, roll, funktion och tid är dolda — ta inte bort dem.'],
+            ['Tom cell = jobbar inte. Skriv tid (10:00 eller 10:00-16:00), funktion (Kök, Kassa, Disk, Buffé, Glassbar) eller båda (10:00 Kassa).'],
+            ['Utbild, Sjuk och SLUTAR importeras inte.'],
+            ['Lägg in ny personal under Användare och markera dem som aktiva innan du laddar ner en ny mall.'],
             ['TV-produktionens användare ingår inte.'],
-            [''],
-            ['Kolumner i Arbetspass: Datum, E-post, Namn, Roll, Funktion, Starttid, Sluttid, Status, Anteckning.'],
-            ['E-post måste matcha en aktiv person i systemet. Namn är bara till för dig som planerar.'],
-            ['Roll: Admin, Värd, Guide, Trainee / elev eller Restaurang.'],
-            ['Funktion krävs bara för restaurang: '.$functions],
-            ['Tider som 09:00. Status tom = Planerat. Andra: Bekräftat, Ändrat, Inställt.'],
-            ['Samma person, datum, roll och starttid som redan finns hoppas över vid import.'],
-        ]);
+            ['Funktioner i systemet: '.$functions],
+        ];
     }
 }
