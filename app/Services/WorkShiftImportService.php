@@ -124,7 +124,7 @@ class WorkShiftImportService
         foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
             $title = $sheet->getTitle();
 
-            if (Str::lower(trim($title)) === 'instruktion') {
+            if (in_array(Str::lower(trim($title)), ['instruktion', 'listor'], true)) {
                 continue;
             }
 
@@ -939,7 +939,7 @@ class WorkShiftImportService
         return in_array($upper, [
             'JANUARI', 'FEBRUARI', 'MARS', 'APRIL', 'MAJ', 'JUNI',
             'JULI', 'AUGUSTI', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DECEMBER',
-            'GUIDER', 'KÖK', 'KOK',
+            'GUIDER', 'KÖK', 'KOK', 'LISTOR',
         ], true);
     }
 

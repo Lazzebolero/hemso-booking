@@ -29,7 +29,7 @@
 
 <div class="page-card">
     <p class="small-muted mb-3">
-        Använd mallen. Varje person har två kolumner: tid och roll. Kök-bladet har alla med restaurangrollen, även de som också guidar. Tomma celler = ledigt. TV-produktion ingår inte.
+        Använd mallen. Varje person har två kolumner: tid och roll. Roll-listan har personens roller, på kök även station (Kassa, Disk …). Tomma celler = ledigt. TV-produktion ingår inte.
     </p>
     <form method="POST" action="{{ route('admin.work-shifts.import.store') }}" enctype="multipart/form-data">
         @csrf

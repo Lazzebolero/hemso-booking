@@ -75,7 +75,7 @@ class WorkShiftImportTest extends TestCase
             ->get(route('admin.work-shifts.import'))
             ->assertOk()
             ->assertSee('två kolumner', false)
-            ->assertSee('alla med restaurangrollen', false);
+            ->assertSee('Roll-listan har personens roller', false);
 
         Excel::fake();
 
@@ -96,6 +96,7 @@ class WorkShiftImportTest extends TestCase
             $guideNameIndex = array_search('Greta Guide', $guideNames, true);
             $kitchenOptions = $sheets[1]->people()[0]['options'] ?? [];
             $bellaOptions = collect($sheets[0]->people())->firstWhere('name', 'Bella Båda')['options'] ?? [];
+            $kitchenBella = collect($sheets[1]->people())->firstWhere('name', 'Bella Båda')['options'] ?? [];
             $kitchenNameIndex = array_search('Bella Båda', $kitchenNames, true);
             $kitchenRoles = $sheets[1]->array()[4];
 
@@ -119,6 +120,11 @@ class WorkShiftImportTest extends TestCase
                 && in_array('Disk', $kitchenOptions, true)
                 && in_array('Kock', $kitchenOptions, true)
                 && in_array('Buffé', $kitchenOptions, true)
+                && in_array('Restaurang', $kitchenOptions, true)
+                && in_array('Guide', $kitchenBella, true)
+                && in_array('Restaurang', $kitchenBella, true)
+                && $sheets[2]->title() === 'Listor'
+                && str_contains((string) ($sheets[1]->people()[0]['list_range'] ?? ''), 'Listor!')
                 && in_array('Guide', $bellaOptions, true)
                 && in_array('Restaurang', $bellaOptions, true);
         });
@@ -143,7 +149,8 @@ class WorkShiftImportTest extends TestCase
         $this->assertFalse($worksheet->getRowDimension(4)->getVisible());
         $this->assertArrayHasKey('B2:C2', $worksheet->getMergeCells());
         $this->assertSame(DataValidation::TYPE_LIST, $worksheet->getDataValidation('C8')->getType());
-        $this->assertStringContainsString('Guide', $worksheet->getDataValidation('C8')->getFormula1());
+        $this->assertStringContainsString('Listor!', $worksheet->getDataValidation('C8')->getFormula1());
+        $this->assertContains('Guide', $guideSheet->people()[0]['options']);
     }
 
     public function test_admin_can_preview_and_import_work_shifts_from_csv(): void

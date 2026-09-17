@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class WorkShiftGridBuilder
 {
@@ -30,6 +31,8 @@ class WorkShiftGridBuilder
     public const HIDDEN_ROWS = [4, 5, 6, 7];
 
     public const FIRST_DAY_ROW = 8;
+
+    public const LIST_SHEET_TITLE = 'Listor';
 
     public function __construct(
         private WorkShiftStaffDirectory $directory,
@@ -123,6 +126,65 @@ class WorkShiftGridBuilder
             'rows' => $rows,
             'people' => $people,
         ];
+    }
+
+    /**
+     * @param  list<array{name: string, time_col: int, role_col: int, options: list<string>}>  $guidePeople
+     * @param  list<array{name: string, time_col: int, role_col: int, options: list<string>}>  $kitchenPeople
+     * @return array{
+     *     rows: list<list<string>>,
+     *     guides: list<array{name: string, time_col: int, role_col: int, options: list<string>, list_range: ?string}>,
+     *     kitchen: list<array{name: string, time_col: int, role_col: int, options: list<string>, list_range: ?string}>
+     * }
+     */
+    public function choiceLists(array $guidePeople, array $kitchenPeople): array
+    {
+        $header = [];
+        $columns = [];
+
+        $guides = $this->assignListRanges($guidePeople, $header, $columns);
+        $kitchen = $this->assignListRanges($kitchenPeople, $header, $columns);
+
+        $rows = [$header === [] ? [''] : $header];
+        $height = $columns === [] ? 0 : max(array_map('count', $columns));
+
+        for ($index = 0; $index < $height; $index++) {
+            $row = [];
+
+            foreach ($columns as $column) {
+                $row[] = $column[$index] ?? '';
+            }
+
+            $rows[] = $row;
+        }
+
+        return [
+            'rows' => $rows,
+            'guides' => $guides,
+            'kitchen' => $kitchen,
+        ];
+    }
+
+    /**
+     * @param  list<array{name: string, time_col: int, role_col: int, options: list<string>}>  $people
+     * @param  list<string>  $header
+     * @param  list<list<string>>  $columns
+     * @return list<array{name: string, time_col: int, role_col: int, options: list<string>, list_range: ?string}>
+     */
+    private function assignListRanges(array $people, array &$header, array &$columns): array
+    {
+        foreach ($people as $index => $person) {
+            $columnIndex = count($header);
+            $letter = Coordinate::stringFromColumnIndex($columnIndex + 1);
+            $count = count($person['options']);
+            $header[] = $person['name'];
+            $columns[] = $person['options'];
+            $people[$index]['list_range'] = $count === 0
+                ? null
+                : self::LIST_SHEET_TITLE.'!$'.$letter.'$2:$'.$letter.'$'.($count + 1);
+        }
+
+        return $people;
     }
 
     private function defaultFunctionLabel(User $user, string $sheet): string

@@ -117,17 +117,13 @@ class WorkShiftStaffDirectory
      */
     public function roleChoices(User $user, string $sheet): array
     {
-        if ($sheet === 'Kök') {
-            return array_values(RestaurantFunction::activeOptions());
-        }
-
         $choices = [];
 
         foreach ($this->scheduleRoleSlugs($user) as $slug) {
             $choices[] = Roles::labels()[$slug] ?? $slug;
         }
 
-        if ($user->hasRole(Roles::RESTAURANT)) {
+        if ($sheet === 'Kök' || $user->hasRole(Roles::RESTAURANT)) {
             foreach (RestaurantFunction::activeOptions() as $label) {
                 if (! in_array($label, $choices, true)) {
                     $choices[] = $label;
