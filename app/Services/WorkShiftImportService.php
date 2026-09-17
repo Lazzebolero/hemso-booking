@@ -573,26 +573,7 @@ class WorkShiftImportService
             ];
         }
 
-        $columns = [];
-
-        foreach ($idRow as $col => $value) {
-            if ((int) $col === 0) {
-                continue;
-            }
-
-            $userId = (int) $this->cellString($value);
-
-            if ($userId <= 0) {
-                continue;
-            }
-
-            $columns[(int) $col] = [
-                'user_id' => $userId,
-                'role' => $this->cellString($roleRow[$col] ?? null),
-                'function' => $this->cellString($functionRow[$col] ?? null),
-                'time' => $this->cellString($timeRow[$col] ?? null),
-            ];
-        }
+        $columns = $this->gridColumns($idRow, $roleRow, $functionRow, $timeRow);
 
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 1;
@@ -608,17 +589,20 @@ class WorkShiftImportService
                 continue;
             }
 
-            foreach ($columns as $col => $column) {
-                $cell = $row[$col] ?? null;
+            foreach ($columns as $column) {
+                $timeCell = $row[$column['time_col']] ?? null;
+                $roleCell = $column['role_col'] !== null
+                    ? ($row[$column['role_col']] ?? null)
+                    : null;
 
-                if ($this->cellString($cell) === '' && ! (is_numeric($cell) && (float) $cell > 0)) {
+                if (! $this->gridCellsHaveContent($timeCell, $roleCell)) {
                     continue;
                 }
 
                 $location = "{$sheetTitle} rad {$rowNumber}";
 
                 try {
-                    $parsed = $this->parseGridAssignment($cell, $column, $date, $usersById);
+                    $parsed = $this->parseGridAssignment($timeCell, $roleCell, $column, $date, $usersById);
                 } catch (\InvalidArgumentException $exception) {
                     $errors[] = $location.': '.$exception->getMessage();
 
@@ -657,7 +641,65 @@ class WorkShiftImportService
     }
 
     /**
-     * @param  array{user_id: int, role: string, function: string, time: string}  $column
+     * @param  array<int, mixed>|null  $idRow
+     * @param  array<int, mixed>|null  $roleRow
+     * @param  array<int, mixed>|null  $functionRow
+     * @param  array<int, mixed>|null  $timeRow
+     * @return list<array{user_id: int, time_col: int, role_col: ?int, role: string, function: string, time: string}>
+     */
+    private function gridColumns(?array $idRow, ?array $roleRow, ?array $functionRow, ?array $timeRow): array
+    {
+        $columns = [];
+        $idRow = $idRow ?? [];
+        $count = count($idRow);
+
+        for ($col = 1; $col < $count; $col++) {
+            $userId = (int) $this->cellString($idRow[$col] ?? null);
+
+            if ($userId <= 0) {
+                continue;
+            }
+
+            $nextId = (int) $this->cellString($idRow[$col + 1] ?? null);
+            $isPair = $nextId <= 0;
+
+            $columns[] = [
+                'user_id' => $userId,
+                'time_col' => $col,
+                'role_col' => $isPair ? $col + 1 : null,
+                'role' => $this->cellString($roleRow[$col] ?? null),
+                'function' => $this->cellString($functionRow[$col] ?? null),
+                'time' => $this->cellString($timeRow[$col] ?? null),
+            ];
+
+            if ($isPair) {
+                $col++;
+            }
+        }
+
+        return $columns;
+    }
+
+    private function gridCellsHaveContent(mixed $timeCell, mixed $roleCell): bool
+    {
+        return $this->cellIsFilled($timeCell) || $this->cellIsFilled($roleCell);
+    }
+
+    private function cellIsFilled(mixed $value): bool
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return true;
+        }
+
+        if (is_numeric($value) && (float) $value > 0) {
+            return true;
+        }
+
+        return $this->cellString($value) !== '';
+    }
+
+    /**
+     * @param  array{user_id: int, time_col: int, role_col: ?int, role: string, function: string, time: string}  $column
      * @param  Collection<int, User>  $usersById
      * @return array{
      *     user_id: int,
@@ -671,9 +713,21 @@ class WorkShiftImportService
      *     person_name: string
      * }|null
      */
-    private function parseGridAssignment(mixed $cell, array $column, string $date, Collection $usersById): ?array
+    private function parseGridAssignment(mixed $timeCell, mixed $roleCell, array $column, string $date, Collection $usersById): ?array
     {
-        $parsedCell = $this->parseGridCell($cell);
+        $roleText = $this->cellString($roleCell);
+
+        if ($this->cellIsFilled($timeCell) && $this->isSkippedGridCell($this->cellString($timeCell))) {
+            return null;
+        }
+
+        if ($roleText !== '' && $this->isSkippedGridCell($roleText)) {
+            return null;
+        }
+
+        $parsedCell = $this->cellIsFilled($timeCell)
+            ? $this->parseGridCell($timeCell)
+            : ['start' => null, 'end' => null, 'function' => null, 'role' => null];
 
         if ($parsedCell === null) {
             return null;
@@ -685,21 +739,26 @@ class WorkShiftImportService
             throw new \InvalidArgumentException('Ingen aktiv Hemsö-person med id '.$column['user_id'].'.');
         }
 
-        $shiftRole = $parsedCell['role'] ?? null;
+        $dayChoice = $this->parseDayRoleChoice($roleText);
+        $shiftRole = $dayChoice['role'] ?? $parsedCell['role'] ?? null;
 
         if (is_string($shiftRole) && $shiftRole !== '' && ! in_array($shiftRole, Roles::scheduleStaffRoles(), true)) {
             $shiftRole = $this->parseRole($shiftRole);
         }
 
-        if (! is_string($shiftRole) || $shiftRole === '') {
-            $shiftRole = $this->parseRole($column['role']);
-        }
-        $functionValue = $parsedCell['function'] ?? ($column['function'] !== '' ? $column['function'] : null);
-        $times = $this->parseTimeRange($parsedCell['start'] ?? null, $parsedCell['end'] ?? null, $column['time']);
+        $functionValue = $dayChoice['function']
+            ?? $parsedCell['function']
+            ?? ($column['function'] !== '' ? $column['function'] : null);
 
         if ($functionValue !== null && $functionValue !== '') {
             $shiftRole = Roles::RESTAURANT;
         }
+
+        if (! is_string($shiftRole) || $shiftRole === '') {
+            $shiftRole = $this->resolveGridRole($user, $column['role']);
+        }
+
+        $times = $this->parseTimeRange($parsedCell['start'] ?? null, $parsedCell['end'] ?? null, $column['time']);
 
         if (! $user->hasRole($shiftRole)) {
             throw new \InvalidArgumentException($user->name.' har inte rollen '.$this->roleLabel($shiftRole).'.');
@@ -718,6 +777,47 @@ class WorkShiftImportService
             'notes' => null,
             'person_name' => $user->name,
         ];
+    }
+
+    /**
+     * @return array{role: ?string, function: ?string}
+     */
+    private function parseDayRoleChoice(string $text): array
+    {
+        if ($text === '') {
+            return ['role' => null, 'function' => null];
+        }
+
+        if ($this->looksLikeFunction($text)) {
+            return ['role' => Roles::RESTAURANT, 'function' => $text];
+        }
+
+        return ['role' => $this->parseRole($text), 'function' => null];
+    }
+
+    private function resolveGridRole(User $user, string $columnDefault): string
+    {
+        $owned = array_values(array_filter(
+            Roles::scheduleStaffRoles(),
+            fn (string $slug) => $user->hasRole($slug),
+        ));
+
+        if (count($owned) === 1) {
+            return $owned[0];
+        }
+
+        if ($columnDefault !== '') {
+            try {
+                $fallback = $this->parseRole($columnDefault);
+
+                if ($user->hasRole($fallback) && count($owned) <= 1) {
+                    return $fallback;
+                }
+            } catch (\InvalidArgumentException) {
+            }
+        }
+
+        throw new \InvalidArgumentException('Välj roll för '.$user->name.'.');
     }
 
     /**

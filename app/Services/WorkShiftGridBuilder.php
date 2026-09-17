@@ -18,30 +18,76 @@ class WorkShiftGridBuilder
 
     public const TIME_ROW_LABEL = 'tid';
 
+    public const TIME_HEADER = 'Tid';
+
+    public const ROLE_HEADER = 'Roll';
+
+    /**
+     * Excel-rader (1-baserat) som ska vara dolda: id, standardroll, funktion, tid.
+     *
+     * @var list<int>
+     */
+    public const HIDDEN_ROWS = [4, 5, 6, 7];
+
+    public const FIRST_DAY_ROW = 8;
+
     public function __construct(
         private WorkShiftStaffDirectory $directory,
     ) {}
 
     /**
      * @param  Collection<int, User>  $staff
-     * @return list<list<string>>
+     * @return array{
+     *     rows: list<list<string>>,
+     *     people: list<array{name: string, time_col: int, role_col: int, options: list<string>}>
+     * }
      */
-    public function rows(string $title, Collection $staff, Carbon $from, Carbon $to): array
+    public function grid(string $title, Collection $staff, Carbon $from, Carbon $to): array
     {
         $from = $from->copy()->startOfDay();
         $to = $to->copy()->startOfDay();
 
+        $nameRow = [''];
+        $pairHeader = [''];
+        $idRow = [self::ID_ROW_LABEL];
+        $roleRow = [self::ROLE_ROW_LABEL];
+        $functionRow = [self::FUNCTION_ROW_LABEL];
+        $timeRow = [self::TIME_ROW_LABEL];
+        $people = [];
+
+        foreach ($staff as $user) {
+            $timeCol = count($nameRow);
+            $roleCol = $timeCol + 1;
+
+            $nameRow[] = $user->name;
+            $nameRow[] = '';
+            $pairHeader[] = self::TIME_HEADER;
+            $pairHeader[] = self::ROLE_HEADER;
+            $idRow[] = (string) $user->id;
+            $idRow[] = '';
+            $roleRow[] = Roles::labels()[$this->directory->defaultShiftRole($user, $title)] ?? '';
+            $roleRow[] = '';
+            $functionRow[] = $this->defaultFunctionLabel($user, $title);
+            $functionRow[] = '';
+            $timeRow[] = $this->directory->defaultTimeRange($user, $title);
+            $timeRow[] = '';
+
+            $people[] = [
+                'name' => $user->name,
+                'time_col' => $timeCol,
+                'role_col' => $roleCol,
+                'options' => $this->directory->roleChoices($user, $title),
+            ];
+        }
+
         $rows = [
             [$title, $from->toDateString(), $to->toDateString()],
-            array_merge([''], $staff->map(fn (User $user) => $user->name)->all()),
-            array_merge([self::ID_ROW_LABEL], $staff->map(fn (User $user) => (string) $user->id)->all()),
-            array_merge([self::ROLE_ROW_LABEL], $staff->map(fn (User $user) => Roles::labels()[$this->directory->defaultShiftRole($user)] ?? '')->all()),
-            array_merge([self::FUNCTION_ROW_LABEL], $staff->map(function (User $user) {
-                $slug = $this->directory->defaultFunction($user);
-
-                return $slug ? (RestaurantFunction::label($slug) ?: $slug) : '';
-            })->all()),
-            array_merge([self::TIME_ROW_LABEL], $staff->map(fn (User $user) => $this->directory->defaultTimeRange($user))->all()),
+            $nameRow,
+            $pairHeader,
+            $idRow,
+            $roleRow,
+            $functionRow,
+            $timeRow,
         ];
 
         $cursor = $from->copy();
@@ -66,13 +112,24 @@ class WorkShiftGridBuilder
 
             foreach ($staff as $user) {
                 $dayRow[] = '';
+                $dayRow[] = '';
             }
 
             $rows[] = $dayRow;
             $cursor->addDay();
         }
 
-        return $rows;
+        return [
+            'rows' => $rows,
+            'people' => $people,
+        ];
+    }
+
+    private function defaultFunctionLabel(User $user, string $sheet): string
+    {
+        $slug = $this->directory->defaultFunction($user, $sheet);
+
+        return $slug ? (RestaurantFunction::label($slug) ?: $slug) : '';
     }
 
     private function monthLabel(int $month): string

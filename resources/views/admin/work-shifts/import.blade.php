@@ -29,7 +29,7 @@
 
 <div class="page-card">
     <p class="small-muted mb-3">
-        Använd mallen. Guider och kök har varsin flik. Namn syns, id ligger dolt. Tom cell = ledigt. Skriv tid, funktion (Kök, Kassa, Disk, Buffé, Glassbar) eller båda. TV-produktion ingår inte.
+        Använd mallen. Varje person har två kolumner: tid och roll. Kök-bladet har alla med restaurangrollen, även de som också guidar. Tomma celler = ledigt. TV-produktion ingår inte.
     </p>
     <form method="POST" action="{{ route('admin.work-shifts.import.store') }}" enctype="multipart/form-data">
         @csrf

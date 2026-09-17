@@ -54,12 +54,16 @@ class WorkShiftStaffDirectory
     public function forKitchenSheet(): Collection
     {
         return $this->forTemplate()
-            ->filter(fn (User $user) => $user->hasRole(Roles::RESTAURANT) && ! $user->hasAnyRole(Roles::schedulePriorityRoles()))
+            ->filter(fn (User $user) => $user->hasRole(Roles::RESTAURANT))
             ->values();
     }
 
-    public function defaultShiftRole(User $user): string
+    public function defaultShiftRole(User $user, string $sheet = ''): string
     {
+        if ($sheet === 'Kök' && $user->hasRole(Roles::RESTAURANT)) {
+            return Roles::RESTAURANT;
+        }
+
         foreach ([...Roles::schedulePriorityRoles(), Roles::RESTAURANT] as $slug) {
             if ($user->hasRole($slug)) {
                 return $slug;
@@ -69,9 +73,13 @@ class WorkShiftStaffDirectory
         return Roles::GUIDE;
     }
 
-    public function defaultFunction(User $user): ?string
+    public function defaultFunction(User $user, string $sheet = ''): ?string
     {
-        if ($user->hasAnyRole(Roles::schedulePriorityRoles()) || ! $user->hasRole(Roles::RESTAURANT)) {
+        if (! $user->hasRole(Roles::RESTAURANT)) {
+            return null;
+        }
+
+        if ($sheet !== 'Kök' && $user->hasAnyRole(Roles::schedulePriorityRoles())) {
             return null;
         }
 
@@ -86,8 +94,47 @@ class WorkShiftStaffDirectory
         return array_key_first($options);
     }
 
-    public function defaultTimeRange(User $user): string
+    public function defaultTimeRange(User $user, string $sheet = ''): string
     {
-        return $this->defaultFunction($user) ? '10:00-16:00' : '10:00';
+        return $this->defaultFunction($user, $sheet) ? '10:00-16:00' : '10:00';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function scheduleRoleSlugs(User $user): array
+    {
+        return array_values(array_filter(
+            Roles::scheduleStaffRoles(),
+            fn (string $slug) => $user->hasRole($slug),
+        ));
+    }
+
+    /**
+     * Val i Excel-listan för rollcellen.
+     *
+     * @return list<string>
+     */
+    public function roleChoices(User $user, string $sheet): array
+    {
+        if ($sheet === 'Kök') {
+            return array_values(RestaurantFunction::activeOptions());
+        }
+
+        $choices = [];
+
+        foreach ($this->scheduleRoleSlugs($user) as $slug) {
+            $choices[] = Roles::labels()[$slug] ?? $slug;
+        }
+
+        if ($user->hasRole(Roles::RESTAURANT)) {
+            foreach (RestaurantFunction::activeOptions() as $label) {
+                if (! in_array($label, $choices, true)) {
+                    $choices[] = $label;
+                }
+            }
+        }
+
+        return $choices;
     }
 }
