@@ -19,8 +19,9 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $includeInactive = $request->boolean('inactive');
         $relations = ['roles'];
 
         if ($this->guideLanguagesEnabled()) {
@@ -29,10 +30,15 @@ class UserController extends Controller
 
         $users = User::with($relations)
             ->withoutProductionRoles()
+            ->when(! $includeInactive, fn ($query) => $query->where('is_active', true))
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', [
+            'users' => $users,
+            'includeInactive' => $includeInactive,
+        ]);
     }
 
     public function create(): View

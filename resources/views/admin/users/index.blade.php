@@ -8,6 +8,15 @@
     </div>
 
     <div class="page-actions">
+        @if($includeInactive)
+            <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary">
+                Visa bara aktiva
+            </a>
+        @else
+            <a href="{{ route('admin.users.index', ['inactive' => 1]) }}" class="btn btn-outline-secondary">
+                Visa även inaktiva
+            </a>
+        @endif
         <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
             <i class="bi bi-person-plus me-2"></i>Ny användare
         </a>
@@ -18,7 +27,8 @@
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div class="section-title mb-0">Lista</div>
         <div class="small-muted">
-            {{ method_exists($users, 'total') ? $users->total() : count($users) }} användare
+            {{ method_exists($users, 'total') ? $users->total() : count($users) }}
+            {{ $includeInactive ? 'användare' : 'aktiva användare' }}
         </div>
     </div>
 
@@ -85,7 +95,7 @@
                 @empty
                     <tr>
                         <td colspan="7" class="text-center muted py-4">
-                            Inga användare hittades.
+                            {{ $includeInactive ? 'Inga användare hittades.' : 'Inga aktiva användare hittades.' }}
                         </td>
                     </tr>
                 @endforelse

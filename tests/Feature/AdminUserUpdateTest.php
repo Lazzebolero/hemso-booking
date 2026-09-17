@@ -71,6 +71,40 @@ class AdminUserUpdateTest extends TestCase
             ->assertSessionHasErrors('password');
     }
 
+    public function test_admin_users_index_hides_inactive_until_toggled(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN);
+        $guideRole = Role::query()->where('slug', Roles::GUIDE)->firstOrFail();
+
+        $active = User::factory()->create([
+            'name' => 'Aktiv Guide',
+            'is_active' => true,
+        ]);
+        $active->assignRoles([$guideRole]);
+
+        $inactive = User::factory()->create([
+            'name' => 'Inaktiv Guide',
+            'is_active' => false,
+        ]);
+        $inactive->assignRoles([$guideRole]);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.users.index'))
+            ->assertOk()
+            ->assertSee('Aktiv Guide', false)
+            ->assertDontSee('Inaktiv Guide', false)
+            ->assertSee('Visa även inaktiva', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.users.index', ['inactive' => 1]))
+            ->assertOk()
+            ->assertSee('Aktiv Guide', false)
+            ->assertSee('Inaktiv Guide', false)
+            ->assertSee('Visa bara aktiva', false);
+    }
+
     private function userWithRole(string $roleSlug): User
     {
         $role = Role::query()->where('slug', $roleSlug)->firstOrFail();
