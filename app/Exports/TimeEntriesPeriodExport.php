@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Models\TimeEntry;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -12,7 +13,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class TimeEntriesPeriodExport implements WithMultipleSheets
+class TimeEntriesPeriodExport implements Export, WithMultipleSheets
 {
     use Exportable;
 

@@ -52,4 +52,12 @@ class DatabaseMigrationsTest extends TestCase
             'Migrations did not create expected tables: '.implode(', ', $missing),
         );
     }
+
+    public function test_tour_photos_and_login_events_migrations_are_safe_when_tables_already_exist(): void
+    {
+        $this->assertTrue(Schema::hasTable('tour_photos'));
+        $this->assertTrue(Schema::hasTable('login_events'));
+
+        $this->artisan('migrate', ['--force' => true])->assertSuccessful();
+    }
 }

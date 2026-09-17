@@ -7,13 +7,14 @@ use App\Models\User;
 use App\Services\WorkShiftStaffDirectory;
 use App\Support\Roles;
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class WorkShiftTemplateExport implements WithMultipleSheets
+class WorkShiftTemplateExport implements Export, WithMultipleSheets
 {
     public function __construct(
         private WorkShiftStaffDirectory $directory,

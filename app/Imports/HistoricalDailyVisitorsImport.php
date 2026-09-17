@@ -6,11 +6,12 @@ use App\Models\HistoricalDailyVisitor;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Concerns\Import;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
-class HistoricalDailyVisitorsImport implements ToCollection, WithHeadingRow
+class HistoricalDailyVisitorsImport implements Import, ToCollection, WithHeadingRow
 {
     public int $imported = 0;
 
