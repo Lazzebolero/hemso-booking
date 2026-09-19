@@ -75,7 +75,7 @@ class WorkShiftImportTest extends TestCase
             ->get(route('admin.work-shifts.import'))
             ->assertOk()
             ->assertSee('två kolumner', false)
-            ->assertSee('Roll-listan har personens roller', false);
+            ->assertSee('Redan sparade pass för perioden följer med', false);
 
         Excel::fake();
 
@@ -151,6 +151,87 @@ class WorkShiftImportTest extends TestCase
         $this->assertSame(DataValidation::TYPE_LIST, $worksheet->getDataValidation('C8')->getType());
         $this->assertStringContainsString('Listor!', $worksheet->getDataValidation('C8')->getFormula1());
         $this->assertContains('Guide', $guideSheet->people()[0]['options']);
+    }
+
+    public function test_template_fills_saved_shifts_for_the_selected_period(): void
+    {
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+        $cook = $this->userWithRole(Roles::RESTAURANT, 'Kalle Kock', true);
+        $both = $this->userWithRoles([Roles::GUIDE, Roles::RESTAURANT], 'Bella Båda', true);
+
+        WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '11:00',
+            'end_time' => '16:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+        WorkShift::query()->create([
+            'user_id' => $cook->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '10:00',
+            'end_time' => '16:00',
+            'shift_role' => Roles::RESTAURANT,
+            'shift_function' => 'kassa',
+            'status' => 'planned',
+        ]);
+        WorkShift::query()->create([
+            'user_id' => $both->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '10:00',
+            'end_time' => null,
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+        WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-16',
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'cancelled',
+        ]);
+
+        $export = new WorkShiftTemplateExport(
+            Carbon::parse('2026-06-15'),
+            Carbon::parse('2026-06-16'),
+            app(WorkShiftStaffDirectory::class),
+            app(WorkShiftGridBuilder::class),
+        );
+        $guideRows = $export->sheets()[0]->array();
+        $kitchenRows = $export->sheets()[1]->array();
+        $guideNames = $guideRows[1];
+        $kitchenNames = $kitchenRows[1];
+        $guideDay = collect($guideRows)->first(
+            fn (array $row) => str_starts_with((string) ($row[0] ?? ''), '2026-06-15'),
+        );
+        $guideOff = collect($guideRows)->first(
+            fn (array $row) => str_starts_with((string) ($row[0] ?? ''), '2026-06-16'),
+        );
+        $kitchenDay = collect($kitchenRows)->first(
+            fn (array $row) => str_starts_with((string) ($row[0] ?? ''), '2026-06-15'),
+        );
+
+        $gretaCol = array_search('Greta Guide', $guideNames, true);
+        $bellaCol = array_search('Bella Båda', $guideNames, true);
+        $kalleCol = array_search('Kalle Kock', $kitchenNames, true);
+        $bellaKitchenCol = array_search('Bella Båda', $kitchenNames, true);
+
+        $this->assertIsArray($guideDay);
+        $this->assertIsArray($guideOff);
+        $this->assertIsArray($kitchenDay);
+        $this->assertNotFalse($gretaCol);
+        $this->assertSame('11:00-16:00', $guideDay[$gretaCol]);
+        $this->assertSame('Guide', $guideDay[$gretaCol + 1]);
+        $this->assertSame('10:00', $guideDay[$bellaCol]);
+        $this->assertSame('Guide', $guideDay[$bellaCol + 1]);
+        $this->assertSame('', $guideOff[$gretaCol]);
+        $this->assertSame('', $guideOff[$gretaCol + 1]);
+        $this->assertSame('10:00-16:00', $kitchenDay[$kalleCol]);
+        $this->assertSame('Kassa', $kitchenDay[$kalleCol + 1]);
+        $this->assertSame('', $kitchenDay[$bellaKitchenCol]);
+        $this->assertSame('', $kitchenDay[$bellaKitchenCol + 1]);
     }
 
     public function test_admin_can_preview_and_import_work_shifts_from_csv(): void

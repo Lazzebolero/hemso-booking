@@ -163,7 +163,7 @@ class WorkShiftTemplateInstructionsSheet implements FromArray, ShouldAutoSize, W
             ->implode(', ');
 
         return [
-            ['Välj period när du laddar ner mallen. Datumraderna är redan ifyllda.'],
+            ['Välj period när du laddar ner mallen. Datumraderna är ifyllda, och redan sparade pass ligger i cellerna.'],
             ['Varje person har två kolumner: Tid och Roll. Namnet ligger ovanför båda.'],
             ['Fliken Guider: admin, värd, guide och trainee. Fliken Kök: alla med restaurangrollen — även de som också är guide eller värd.'],
             ['På kök och guider väljer du roll i listan. Kök har personens roller plus alla restaurangstationer (Kök, Kassa, Disk, Buffé …).'],

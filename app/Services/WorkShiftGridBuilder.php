@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\RestaurantFunction;
 use App\Models\User;
+use App\Models\WorkShift;
 use App\Support\Roles;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -83,6 +84,8 @@ class WorkShiftGridBuilder
             ];
         }
 
+        $shifts = $this->existingShifts($staff, $from, $to, $title);
+
         $rows = [
             [$title, $from->toDateString(), $to->toDateString()],
             $nameRow,
@@ -112,10 +115,20 @@ class WorkShiftGridBuilder
             }
 
             $dayRow = [$cursor->toDateString().' '.$this->weekdayLabel($cursor->dayOfWeekIso)];
+            $date = $cursor->toDateString();
 
             foreach ($staff as $user) {
-                $dayRow[] = '';
-                $dayRow[] = '';
+                $shift = $shifts->get($user->id.'|'.$date);
+
+                if (! $shift) {
+                    $dayRow[] = '';
+                    $dayRow[] = '';
+
+                    continue;
+                }
+
+                $dayRow[] = $this->shiftTimeLabel($shift);
+                $dayRow[] = $this->shiftRoleCell($shift, $title);
             }
 
             $rows[] = $dayRow;
@@ -185,6 +198,53 @@ class WorkShiftGridBuilder
         }
 
         return $people;
+    }
+
+    /**
+     * @param  Collection<int, User>  $staff
+     * @return Collection<string, WorkShift>
+     */
+    private function existingShifts(Collection $staff, Carbon $from, Carbon $to, string $sheet): Collection
+    {
+        if ($staff->isEmpty()) {
+            return collect();
+        }
+
+        $roles = $sheet === 'Kök'
+            ? [Roles::RESTAURANT]
+            : Roles::schedulePriorityRoles();
+
+        return WorkShift::query()
+            ->whereNotIn('status', ['cancelled'])
+            ->whereIn('user_id', $staff->pluck('id'))
+            ->whereIn('shift_role', $roles)
+            ->whereDate('shift_date', '>=', $from->toDateString())
+            ->whereDate('shift_date', '<=', $to->toDateString())
+            ->orderBy('id')
+            ->get()
+            ->unique(fn (WorkShift $shift) => $shift->user_id.'|'.$shift->shift_date->toDateString())
+            ->keyBy(fn (WorkShift $shift) => $shift->user_id.'|'.$shift->shift_date->toDateString());
+    }
+
+    private function shiftTimeLabel(WorkShift $shift): string
+    {
+        $start = substr(trim((string) $shift->start_time), 0, 5);
+        $end = substr(trim((string) $shift->end_time), 0, 5);
+
+        if ($start === '') {
+            return '';
+        }
+
+        return $end !== '' ? $start.'-'.$end : $start;
+    }
+
+    private function shiftRoleCell(WorkShift $shift, string $sheet): string
+    {
+        if ($sheet === 'Kök' && filled($shift->shift_function)) {
+            return RestaurantFunction::label($shift->shift_function) ?: $shift->shift_function;
+        }
+
+        return Roles::labels()[$shift->shift_role] ?? $shift->shift_role;
     }
 
     private function defaultFunctionLabel(User $user, string $sheet): string
