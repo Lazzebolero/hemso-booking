@@ -396,6 +396,88 @@ class WorkShiftImportTest extends TestCase
         $this->assertSame(1, WorkShift::query()->where('user_id', $guide->id)->count());
     }
 
+    public function test_import_asks_to_update_when_person_already_has_a_shift_that_day(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+
+        $shift = WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+
+        $csv = implode("\n", [
+            'Datum,E-post,Namn,Roll,Funktion,Starttid,Sluttid,Status,Anteckning',
+            '2026-06-15,'.$guide->email.',Greta,Guide,,11:00,16:00,Planerat,',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('schema.csv', $csv);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('Redan bokade', false)
+            ->assertSee('vill du ändra', false)
+            ->assertSee('09:00', false)
+            ->assertSee('11:00', false)
+            ->assertSee('Inga nya arbetspass att skapa.', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.confirm'), ['update' => [$shift->id]])
+            ->assertRedirect(route('admin.work-shifts.index'));
+
+        $this->assertSame(1, WorkShift::query()->where('user_id', $guide->id)->count());
+        $updated = WorkShift::query()->whereKey($shift->id)->first();
+        $this->assertNotNull($updated);
+        $this->assertSame('11:00', substr((string) $updated->start_time, 0, 5));
+        $this->assertSame('16:00', substr((string) $updated->end_time, 0, 5));
+        $this->assertSame('changed', $updated->status);
+    }
+
+    public function test_import_keeps_existing_shift_when_update_is_not_selected(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+
+        WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+
+        $csv = implode("\n", [
+            'Datum,E-post,Namn,Roll,Funktion,Starttid,Sluttid,Status,Anteckning',
+            '2026-06-15,'.$guide->email.',Greta,Guide,,11:00,16:00,Planerat,',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('schema.csv', $csv);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('Redan bokade', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.confirm'))
+            ->assertRedirect(route('admin.work-shifts.index'));
+
+        $this->assertSame(1, WorkShift::query()->where('user_id', $guide->id)->count());
+        $kept = WorkShift::query()->where('user_id', $guide->id)->first();
+        $this->assertSame('09:00', substr((string) $kept->start_time, 0, 5));
+        $this->assertSame('planned', $kept->status);
+    }
+
     public function test_host_cannot_import_work_shifts(): void
     {
         $host = $this->userWithRole(Roles::HOST, 'Vera Värd', true);

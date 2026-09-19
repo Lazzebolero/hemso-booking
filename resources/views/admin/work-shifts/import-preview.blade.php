@@ -1,13 +1,28 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $formatTime = function (array $row, string $startKey, string $endKey): string {
+        $start = $row[$startKey] ?? '';
+        $end = $row[$endKey] ?? '';
+
+        return $end ? $start.' – '.$end : $start;
+    };
+    $roleName = fn (?string $slug) => \App\Support\Roles::labels()[$slug] ?? ($slug ?: '–');
+    $functionName = fn (?string $slug) => $slug ? \App\Models\RestaurantFunction::label($slug) : '–';
+    $canImport = count($ready) > 0 || count($changes) > 0;
+@endphp
+
 <div class="page-header">
     <div>
         <h2 class="page-title">Förhandsgranska import</h2>
         <div class="page-subtitle">
-            {{ count($ready) }} pass skapas
+            {{ count($ready) }} nya pass
+            @if(count($changes) > 0)
+                · {{ count($changes) }} redan bokade
+            @endif
             @if($skipped > 0)
-                · {{ $skipped }} hoppas över
+                · {{ $skipped }} oförändrade
             @endif
             @if(count($rowErrors) > 0)
                 · {{ count($rowErrors) }} rader med fel
@@ -30,49 +45,121 @@
     </div>
 @endif
 
-<div class="page-card mb-4">
-    @if(count($ready) === 0)
-        <div class="muted py-3">Inga nya arbetspass att skapa.</div>
-    @else
-        <div class="table-responsive-modern">
-            <table class="table-modern">
-                <thead>
-                    <tr>
-                        <th>Datum</th>
-                        <th>Person</th>
-                        <th>Roll</th>
-                        <th>Funktion</th>
-                        <th>Tid</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach(array_slice($ready, 0, 50) as $row)
-                        <tr>
-                            <td>{{ $row['shift_date'] }}</td>
-                            <td>{{ $row['person_name'] }}</td>
-                            <td>{{ \App\Support\Roles::labels()[$row['shift_role']] ?? $row['shift_role'] }}</td>
-                            <td>{{ $row['shift_function'] ? \App\Models\RestaurantFunction::label($row['shift_function']) : '–' }}</td>
-                            <td>
-                                {{ $row['start_time'] }}
-                                @if($row['end_time'])
-                                    – {{ $row['end_time'] }}
-                                @endif
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        @if(count($ready) > 50)
-            <div class="small-muted mt-2">Visar de 50 första av {{ count($ready) }} pass.</div>
-        @endif
-    @endif
-</div>
-
-@if(count($ready) > 0)
-    <form method="POST" action="{{ route('admin.work-shifts.import.confirm') }}">
-        @csrf
-        <button class="btn btn-primary" type="submit">Importera {{ count($ready) }} arbetspass</button>
-    </form>
+@if(count($changes) > 0)
+    <div class="alert alert-warning mb-4">
+        {{ count($changes) }} {{ count($changes) === 1 ? 'person är' : 'personer är' }}
+        redan bokade den dagen. Två pass samma dag skapas inte. Bocka i dem du vill uppdatera.
+    </div>
 @endif
+
+<form method="POST" action="{{ route('admin.work-shifts.import.confirm') }}">
+    @csrf
+
+    <div class="page-card mb-4">
+        <h3 class="h6 mb-3">Nya pass</h3>
+        @if(count($ready) === 0)
+            <div class="muted py-3">Inga nya arbetspass att skapa.</div>
+        @else
+            <div class="table-responsive-modern">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Person</th>
+                            <th>Roll</th>
+                            <th>Funktion</th>
+                            <th>Tid</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(array_slice($ready, 0, 50) as $row)
+                            <tr>
+                                <td>{{ $row['shift_date'] }}</td>
+                                <td>{{ $row['person_name'] }}</td>
+                                <td>{{ $roleName($row['shift_role']) }}</td>
+                                <td>{{ $functionName($row['shift_function'] ?? null) }}</td>
+                                <td>{{ $formatTime($row, 'start_time', 'end_time') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if(count($ready) > 50)
+                <div class="small-muted mt-2">Visar de 50 första av {{ count($ready) }} pass.</div>
+            @endif
+        @endif
+    </div>
+
+    @if(count($changes) > 0)
+        <div class="page-card mb-4">
+            <h3 class="h6 mb-3">Redan bokade – vill du ändra?</h3>
+            <div class="table-responsive-modern">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Datum</th>
+                            <th>Person</th>
+                            <th>Nuvarande</th>
+                            <th>Nytt i filen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(array_slice($changes, 0, 50) as $row)
+                            <tr>
+                                <td>
+                                    <div class="form-check mb-0">
+                                        <input
+                                            class="form-check-input"
+                                            type="checkbox"
+                                            name="update[]"
+                                            id="update-{{ $row['work_shift_id'] }}"
+                                            value="{{ $row['work_shift_id'] }}"
+                                            checked
+                                        >
+                                    </div>
+                                </td>
+                                <td>{{ $row['shift_date'] }}</td>
+                                <td>
+                                    <label class="form-check-label" for="update-{{ $row['work_shift_id'] }}">
+                                        {{ $row['person_name'] }}
+                                    </label>
+                                </td>
+                                <td>
+                                    {{ $roleName($row['current_shift_role'] ?? null) }}
+                                    @if(! empty($row['current_shift_function']))
+                                        · {{ $functionName($row['current_shift_function']) }}
+                                    @endif
+                                    · {{ $formatTime($row, 'current_start_time', 'current_end_time') }}
+                                </td>
+                                <td>
+                                    {{ $roleName($row['shift_role']) }}
+                                    @if(! empty($row['shift_function']))
+                                        · {{ $functionName($row['shift_function']) }}
+                                    @endif
+                                    · {{ $formatTime($row, 'start_time', 'end_time') }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if(count($changes) > 50)
+                <div class="small-muted mt-2">Visar de 50 första av {{ count($changes) }} ändringar.</div>
+            @endif
+        </div>
+    @endif
+
+    @if($canImport)
+        <button class="btn btn-primary" type="submit">
+            @if(count($ready) > 0 && count($changes) > 0)
+                Importera {{ count($ready) }} nya och uppdatera valda pass
+            @elseif(count($changes) > 0)
+                Uppdatera valda pass
+            @else
+                Importera {{ count($ready) }} arbetspass
+            @endif
+        </button>
+    @endif
+</form>
 @endsection

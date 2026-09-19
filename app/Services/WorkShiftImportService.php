@@ -28,64 +28,21 @@ class WorkShiftImportService
      *         notes: ?string,
      *         person_name: string
      *     }>,
+     *     changes: list<array<string, mixed>>,
      *     errors: list<string>,
      *     skipped: int
      * }
      */
     public function preview(Collection $rows): array
     {
-        $ready = [];
-        $errors = [];
-        $skipped = 0;
         $seenInFile = [];
+        $collected = $this->collectListAssignments($rows, $seenInFile);
 
-        $users = User::query()
-            ->with('roles')
-            ->where('is_active', true)
-            ->withoutProductionRoles()
-            ->get()
-            ->keyBy(fn (User $user) => mb_strtolower($user->email));
-
-        foreach ($rows as $index => $row) {
-            $rowNumber = $index + 2;
-            $values = $this->normalizeRow(collect($row)->toArray());
-
-            if ($this->rowIsEmpty($values)) {
-                continue;
-            }
-
-            try {
-                $parsed = $this->parseRow($values, $users);
-            } catch (\InvalidArgumentException $exception) {
-                $errors[] = "Rad {$rowNumber}: ".$exception->getMessage();
-
-                continue;
-            }
-
-            $fileKey = $this->dedupKey($parsed);
-
-            if (isset($seenInFile[$fileKey])) {
-                $skipped++;
-
-                continue;
-            }
-
-            $seenInFile[$fileKey] = true;
-
-            if ($this->shiftExists($parsed)) {
-                $skipped++;
-
-                continue;
-            }
-
-            $ready[] = $parsed;
-        }
-
-        return [
-            'ready' => $ready,
-            'errors' => $errors,
-            'skipped' => $skipped,
-        ];
+        return $this->classifyAgainstDatabase(
+            $collected['assignments'],
+            $collected['errors'],
+            $collected['skipped'],
+        );
     }
 
     /**
@@ -101,6 +58,7 @@ class WorkShiftImportService
      *         notes: ?string,
      *         person_name: string
      *     }>,
+     *     changes: list<array<string, mixed>>,
      *     errors: list<string>,
      *     skipped: int
      * }
@@ -109,7 +67,7 @@ class WorkShiftImportService
     {
         $spreadsheet = IOFactory::load($path);
 
-        $ready = [];
+        $assignments = [];
         $errors = [];
         $skipped = 0;
         $seenInFile = [];
@@ -131,8 +89,8 @@ class WorkShiftImportService
             $rows = $sheet->toArray(null, true, false, false);
 
             if ($this->isGridRows($rows)) {
-                $part = $this->previewGrid($title, $rows, $usersById, $seenInFile);
-                $ready = array_merge($ready, $part['ready']);
+                $part = $this->collectGridAssignments($title, $rows, $usersById, $seenInFile);
+                $assignments = array_merge($assignments, $part['assignments']);
                 $errors = array_merge($errors, $part['errors']);
                 $skipped += $part['skipped'];
 
@@ -140,8 +98,8 @@ class WorkShiftImportService
             }
 
             if ($this->isListRows($rows)) {
-                $part = $this->preview($this->listRowsToCollection($rows));
-                $ready = array_merge($ready, $part['ready']);
+                $part = $this->collectListAssignments($this->listRowsToCollection($rows), $seenInFile);
+                $assignments = array_merge($assignments, $part['assignments']);
                 $errors = array_merge($errors, $part['errors']);
                 $skipped += $part['skipped'];
             }
@@ -149,11 +107,7 @@ class WorkShiftImportService
 
         $spreadsheet->disconnectWorksheets();
 
-        return [
-            'ready' => $ready,
-            'errors' => $errors,
-            'skipped' => $skipped,
-        ];
+        return $this->classifyAgainstDatabase($assignments, $errors, $skipped);
     }
 
     /**
@@ -167,15 +121,18 @@ class WorkShiftImportService
      *     status: string,
      *     notes: ?string,
      *     person_name: string
-     * }>  $ready
+     * @param  list<array<string, mixed>>  $ready
+     * @param  list<array<string, mixed>>  $updates
+     * @return array{created: int, updated: int}
      */
-    public function commit(array $ready, User $recordedBy): int
+    public function commit(array $ready, array $updates, User $recordedBy): array
     {
-        return (int) DB::transaction(function () use ($ready, $recordedBy) {
+        return DB::transaction(function () use ($ready, $updates, $recordedBy) {
             $created = 0;
+            $updated = 0;
 
             foreach ($ready as $row) {
-                if ($this->shiftExists($row)) {
+                if ($this->activeShiftForDay($row['user_id'], $row['shift_date'])) {
                     continue;
                 }
 
@@ -195,8 +152,93 @@ class WorkShiftImportService
                 $created++;
             }
 
-            return $created;
+            foreach ($updates as $row) {
+                $shift = WorkShift::query()
+                    ->whereKey($row['work_shift_id'])
+                    ->where('user_id', $row['user_id'])
+                    ->whereDate('shift_date', $row['shift_date'])
+                    ->first();
+
+                if (! $shift) {
+                    continue;
+                }
+
+                $shift->update([
+                    'start_time' => $row['start_time'],
+                    'end_time' => $row['end_time'],
+                    'shift_role' => $row['shift_role'],
+                    'shift_function' => $row['shift_function'],
+                    'status' => 'changed',
+                    'updated_by' => $recordedBy->id,
+                ]);
+
+                $updated++;
+            }
+
+            return [
+                'created' => $created,
+                'updated' => $updated,
+            ];
         });
+    }
+
+    /**
+     * @param  array<string, array{fingerprint: string, location: string}>  $seenInFile
+     * @return array{assignments: list<array<string, mixed>>, errors: list<string>, skipped: int}
+     */
+    private function collectListAssignments(Collection $rows, array &$seenInFile): array
+    {
+        $assignments = [];
+        $errors = [];
+        $skipped = 0;
+
+        $users = User::query()
+            ->with('roles')
+            ->where('is_active', true)
+            ->withoutProductionRoles()
+            ->get()
+            ->keyBy(fn (User $user) => mb_strtolower($user->email));
+
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+            $values = $this->normalizeRow(collect($row)->toArray());
+
+            if ($this->rowIsEmpty($values)) {
+                continue;
+            }
+
+            $location = 'Rad '.$rowNumber;
+
+            try {
+                $parsed = $this->parseRow($values, $users);
+            } catch (\InvalidArgumentException $exception) {
+                $errors[] = $location.': '.$exception->getMessage();
+
+                continue;
+            }
+
+            $result = $this->registerInFile($parsed, $location, $seenInFile);
+
+            if ($result === 'skip') {
+                $skipped++;
+
+                continue;
+            }
+
+            if ($result !== 'keep') {
+                $errors[] = $location.': '.$result;
+
+                continue;
+            }
+
+            $assignments[] = $parsed;
+        }
+
+        return [
+            'assignments' => $assignments,
+            'errors' => $errors,
+            'skipped' => $skipped,
+        ];
     }
 
     /**
@@ -540,13 +582,12 @@ class WorkShiftImportService
 
     /**
      * @param  list<array<int, mixed>>  $rows
-     * @param  Collection<int, User>  $usersById
-     * @param  array<string, true>  $seenInFile
-     * @return array{ready: list<array<string, mixed>>, errors: list<string>, skipped: int}
+     * @param  array<string, array{fingerprint: string, location: string}>  $seenInFile
+     * @return array{assignments: list<array<string, mixed>>, errors: list<string>, skipped: int}
      */
-    private function previewGrid(string $sheetTitle, array $rows, Collection $usersById, array &$seenInFile): array
+    private function collectGridAssignments(string $sheetTitle, array $rows, Collection $usersById, array &$seenInFile): array
     {
-        $ready = [];
+        $assignments = [];
         $errors = [];
         $skipped = 0;
         $idRow = $roleRow = $functionRow = $timeRow = null;
@@ -567,7 +608,7 @@ class WorkShiftImportService
 
         if ($idRow === null) {
             return [
-                'ready' => [],
+                'assignments' => [],
                 'errors' => ["Fliken {$sheetTitle} saknar id-rad. Ladda ner en ny mall."],
                 'skipped' => 0,
             ];
@@ -613,28 +654,26 @@ class WorkShiftImportService
                     continue;
                 }
 
-                $fileKey = $this->dedupKey($parsed);
+                $result = $this->registerInFile($parsed, $location, $seenInFile);
 
-                if (isset($seenInFile[$fileKey])) {
+                if ($result === 'skip') {
                     $skipped++;
 
                     continue;
                 }
 
-                $seenInFile[$fileKey] = true;
-
-                if ($this->shiftExists($parsed)) {
-                    $skipped++;
+                if ($result !== 'keep') {
+                    $errors[] = $location.': '.$result;
 
                     continue;
                 }
 
-                $ready[] = $parsed;
+                $assignments[] = $parsed;
             }
         }
 
         return [
-            'ready' => $ready,
+            'assignments' => $assignments,
             'errors' => $errors,
             'skipped' => $skipped,
         ];
@@ -989,37 +1028,156 @@ class WorkShiftImportService
     }
 
     /**
-     * @param  array{user_id: int, shift_date: string, start_time: string, shift_role: string, shift_function: ?string}  $row
+     * @param  list<array<string, mixed>>  $assignments
+     * @param  list<string>  $errors
+     * @return array{
+     *     ready: list<array<string, mixed>>,
+     *     changes: list<array<string, mixed>>,
+     *     errors: list<string>,
+     *     skipped: int
+     * }
      */
-    private function dedupKey(array $row): string
+    private function classifyAgainstDatabase(array $assignments, array $errors, int $skipped): array
+    {
+        $ready = [];
+        $changes = [];
+
+        if ($assignments === []) {
+            return [
+                'ready' => [],
+                'changes' => [],
+                'errors' => $errors,
+                'skipped' => $skipped,
+            ];
+        }
+
+        $userIds = array_values(array_unique(array_map(
+            fn (array $row) => $row['user_id'],
+            $assignments,
+        )));
+        $dates = array_map(fn (array $row) => $row['shift_date'], $assignments);
+
+        $existing = WorkShift::query()
+            ->whereNotIn('status', ['cancelled'])
+            ->whereIn('user_id', $userIds)
+            ->whereDate('shift_date', '>=', min($dates))
+            ->whereDate('shift_date', '<=', max($dates))
+            ->orderBy('id')
+            ->get()
+            ->groupBy(fn (WorkShift $shift) => $shift->user_id.'|'.$shift->shift_date->toDateString());
+
+        foreach ($assignments as $parsed) {
+            $shift = $existing->get($this->dayKey($parsed))?->first();
+
+            if (! $shift) {
+                $ready[] = $parsed;
+
+                continue;
+            }
+
+            if ($this->sameAssignment($shift, $parsed)) {
+                $skipped++;
+
+                continue;
+            }
+
+            $changes[] = array_merge($parsed, [
+                'work_shift_id' => $shift->id,
+                'current_start_time' => $this->timeKey($shift->start_time),
+                'current_end_time' => $this->timeKey($shift->end_time),
+                'current_shift_role' => $shift->shift_role,
+                'current_shift_function' => $shift->shift_function,
+            ]);
+        }
+
+        return [
+            'ready' => $ready,
+            'changes' => $changes,
+            'errors' => $errors,
+            'skipped' => $skipped,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $parsed
+     * @param  array<string, array{fingerprint: string, location: string}>  $seenInFile
+     */
+    private function registerInFile(array $parsed, string $location, array &$seenInFile): string
+    {
+        $key = $this->dayKey($parsed);
+        $fingerprint = $this->assignmentFingerprint($parsed);
+
+        if (! isset($seenInFile[$key])) {
+            $seenInFile[$key] = [
+                'fingerprint' => $fingerprint,
+                'location' => $location,
+            ];
+
+            return 'keep';
+        }
+
+        if ($seenInFile[$key]['fingerprint'] === $fingerprint) {
+            return 'skip';
+        }
+
+        return $parsed['person_name'].' finns redan '.$parsed['shift_date'].' i filen ('.$seenInFile[$key]['location'].'). En person kan bara ha ett pass per dag.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function dayKey(array $row): string
+    {
+        return $row['user_id'].'|'.$row['shift_date'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function assignmentFingerprint(array $row): string
     {
         return implode('|', [
-            $row['user_id'],
-            $row['shift_date'],
             $row['shift_role'],
-            $row['start_time'],
+            $this->timeKey($row['start_time'] ?? null),
+            $this->timeKey($row['end_time'] ?? null),
             $row['shift_function'] ?? '',
         ]);
     }
 
     /**
-     * @param  array{user_id: int, shift_date: string, start_time: string, shift_role: string, shift_function: ?string}  $row
+     * @param  array<string, mixed>  $row
      */
-    private function shiftExists(array $row): bool
+    private function sameAssignment(WorkShift $shift, array $row): bool
+    {
+        return $this->assignmentFingerprint([
+            'shift_role' => $shift->shift_role,
+            'start_time' => $shift->start_time,
+            'end_time' => $shift->end_time,
+            'shift_function' => $shift->shift_function,
+        ]) === $this->assignmentFingerprint($row);
+    }
+
+    private function timeKey(mixed $time): string
+    {
+        if ($time instanceof \DateTimeInterface) {
+            return Carbon::instance($time)->format('H:i');
+        }
+
+        $string = trim((string) $time);
+
+        if ($string === '') {
+            return '';
+        }
+
+        return substr($string, 0, 5);
+    }
+
+    private function activeShiftForDay(int $userId, string $date): bool
     {
         return WorkShift::query()
-            ->where('user_id', $row['user_id'])
-            ->whereDate('shift_date', $row['shift_date'])
-            ->where('shift_role', $row['shift_role'])
-            ->where(function ($query) use ($row) {
-                $query->where('start_time', $row['start_time'])
-                    ->orWhere('start_time', $row['start_time'].':00');
-            })
-            ->when(
-                $row['shift_function'] === null,
-                fn ($query) => $query->whereNull('shift_function'),
-                fn ($query) => $query->where('shift_function', $row['shift_function']),
-            )
+            ->where('user_id', $userId)
+            ->whereDate('shift_date', $date)
+            ->whereNotIn('status', ['cancelled'])
             ->exists();
     }
 

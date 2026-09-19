@@ -81,12 +81,14 @@ class WorkShiftImportController extends Controller
 
         $request->session()->put('work_shift_import', [
             'ready' => $preview['ready'],
+            'changes' => $preview['changes'],
             'errors' => $preview['errors'],
             'skipped' => $preview['skipped'],
         ]);
 
         return view('admin.work-shifts.import-preview', [
             'ready' => $preview['ready'],
+            'changes' => $preview['changes'],
             'rowErrors' => $preview['errors'],
             'skipped' => $preview['skipped'],
         ]);
@@ -95,17 +97,43 @@ class WorkShiftImportController extends Controller
     public function confirm(Request $request): RedirectResponse
     {
         $payload = $request->session()->pull('work_shift_import');
+        $ready = is_array($payload) ? ($payload['ready'] ?? []) : [];
+        $changes = is_array($payload) ? ($payload['changes'] ?? []) : [];
 
-        if (! is_array($payload) || ! isset($payload['ready']) || $payload['ready'] === []) {
+        if ($ready === [] && $changes === []) {
             return redirect()
                 ->route('admin.work-shifts.import')
                 ->withErrors(['file' => 'Ingen import att bekräfta. Ladda upp filen igen.']);
         }
 
-        $created = $this->import->commit($payload['ready'], $request->user());
+        $selectedIds = collect($request->input('update', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values();
+
+        $updates = array_values(array_filter(
+            $changes,
+            fn (array $change) => $selectedIds->contains((int) ($change['work_shift_id'] ?? 0)),
+        ));
+
+        $result = $this->import->commit($ready, $updates, $request->user());
+
+        $parts = [];
+
+        if ($result['created'] > 0) {
+            $parts[] = $result['created'].' arbetspass importerades';
+        }
+
+        if ($result['updated'] > 0) {
+            $parts[] = $result['updated'].' uppdaterades';
+        }
+
+        $message = $parts === []
+            ? 'Inga arbetspass importerades.'
+            : implode(', ', $parts).'.';
 
         return redirect()
             ->route('admin.work-shifts.index')
-            ->with('success', $created.' arbetspass importerades.');
+            ->with('success', $message);
     }
 }
