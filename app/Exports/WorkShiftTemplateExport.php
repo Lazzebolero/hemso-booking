@@ -167,7 +167,7 @@ class WorkShiftTemplateInstructionsSheet implements FromArray, ShouldAutoSize, W
             ['Varje person har två kolumner: Tid och Roll. Namnet ligger ovanför båda.'],
             ['Fliken Guider: admin, värd, guide och trainee. Fliken Kök: alla med restaurangrollen — även de som också är guide eller värd.'],
             ['På kök och guider väljer du roll i listan. Kök har personens roller plus alla restaurangstationer (Kök, Kassa, Disk, Buffé …).'],
-            ['Tom tid och tom roll = jobbar inte. Bara tid räcker om personen har en roll. Annars måste rollen väljas.'],
+            ['Tom tid och tom roll = jobbar inte. Vid ny uppladdning får du frågan om du vill ta bort ett redan sparat pass.'],
             ['På kök räcker rollen (t.ex. Kassa) — standardtiden används. Eller fyll i tid och lämna rollen tom för standardrollen i köket.'],
             ['Raderna id, roll, funktion och tid är dolda — ta inte bort dem.'],
             ['Utbild, Sjuk och SLUTAR importeras inte.'],

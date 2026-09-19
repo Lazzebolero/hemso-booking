@@ -86,6 +86,7 @@ class WorkShiftImportController extends Controller
         $request->session()->put('work_shift_import', [
             'ready' => $preview['ready'],
             'changes' => $preview['changes'],
+            'removals' => $preview['removals'],
             'errors' => $preview['errors'],
             'skipped' => $preview['skipped'],
         ]);
@@ -93,6 +94,7 @@ class WorkShiftImportController extends Controller
         return view('admin.work-shifts.import-preview', [
             'ready' => $preview['ready'],
             'changes' => $preview['changes'],
+            'removals' => $preview['removals'],
             'rowErrors' => $preview['errors'],
             'skipped' => $preview['skipped'],
         ]);
@@ -103,24 +105,35 @@ class WorkShiftImportController extends Controller
         $payload = $request->session()->pull('work_shift_import');
         $ready = is_array($payload) ? ($payload['ready'] ?? []) : [];
         $changes = is_array($payload) ? ($payload['changes'] ?? []) : [];
+        $removals = is_array($payload) ? ($payload['removals'] ?? []) : [];
 
-        if ($ready === [] && $changes === []) {
+        if ($ready === [] && $changes === [] && $removals === []) {
             return redirect()
                 ->route('admin.work-shifts.import')
                 ->withErrors(['file' => 'Ingen import att bekräfta. Ladda upp filen igen.']);
         }
 
-        $selectedIds = collect($request->input('update', []))
+        $selectedUpdateIds = collect($request->input('update', []))
             ->map(fn ($id) => (int) $id)
             ->filter()
             ->values();
 
         $updates = array_values(array_filter(
             $changes,
-            fn (array $change) => $selectedIds->contains((int) ($change['work_shift_id'] ?? 0)),
+            fn (array $change) => $selectedUpdateIds->contains((int) ($change['work_shift_id'] ?? 0)),
         ));
 
-        $result = $this->import->commit($ready, $updates, $request->user());
+        $selectedRemoveIds = collect($request->input('remove', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values();
+
+        $toDelete = array_values(array_filter(
+            $removals,
+            fn (array $removal) => $selectedRemoveIds->contains((int) ($removal['work_shift_id'] ?? 0)),
+        ));
+
+        $result = $this->import->commit($ready, $updates, $request->user(), $toDelete);
 
         $parts = [];
 
@@ -130,6 +143,10 @@ class WorkShiftImportController extends Controller
 
         if ($result['updated'] > 0) {
             $parts[] = $result['updated'].' uppdaterades';
+        }
+
+        if ($result['deleted'] > 0) {
+            $parts[] = $result['deleted'].' togs bort';
         }
 
         $message = $parts === []

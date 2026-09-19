@@ -597,6 +597,194 @@ class WorkShiftImportTest extends TestCase
         $this->assertSame('planned', $kept->status);
     }
 
+    public function test_import_asks_to_remove_when_saved_shift_is_cleared_in_grid(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+
+        $shift = WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+
+        $path = $this->storeGridWorkbook(
+            [
+                ['Guider', '2026-06-15', '2026-06-16'],
+                ['', $guide->name],
+                ['', 'Tid', 'Roll'],
+                ['id', $guide->id],
+                ['roll', 'Guide'],
+                ['funktion', ''],
+                ['tid', '10:00'],
+                ['2026-06-15 mån', '', ''],
+                ['2026-06-16 tis', '', ''],
+            ],
+            [
+                ['Kök', '2026-06-15', '2026-06-16'],
+                ['id'],
+            ],
+        );
+
+        $file = new UploadedFile($path, 'schema.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('vill du ta bort', false)
+            ->assertSee('Greta Guide', false)
+            ->assertSee('09:00', false)
+            ->assertSee('Inga nya arbetspass att skapa.', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.confirm'), ['remove' => [$shift->id]])
+            ->assertRedirect(route('admin.work-shifts.index'))
+            ->assertSessionHas('success', '1 togs bort.');
+
+        $this->assertSame(0, WorkShift::query()->where('user_id', $guide->id)->count());
+
+        @unlink($path);
+    }
+
+    public function test_import_keeps_shift_when_removal_is_not_selected(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+
+        WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+
+        $path = $this->storeGridWorkbook(
+            [
+                ['Guider', '2026-06-15', '2026-06-16'],
+                ['', $guide->name],
+                ['', 'Tid', 'Roll'],
+                ['id', $guide->id],
+                ['roll', 'Guide'],
+                ['funktion', ''],
+                ['tid', '10:00'],
+                ['2026-06-15 mån', '', ''],
+            ],
+            [
+                ['Kök', '2026-06-15', '2026-06-16'],
+                ['id'],
+            ],
+        );
+
+        $file = new UploadedFile($path, 'schema.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('vill du ta bort', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.confirm'))
+            ->assertRedirect(route('admin.work-shifts.index'));
+
+        $this->assertSame(1, WorkShift::query()->where('user_id', $guide->id)->count());
+        $kept = WorkShift::query()->where('user_id', $guide->id)->first();
+        $this->assertSame('09:00', substr((string) $kept->start_time, 0, 5));
+
+        @unlink($path);
+    }
+
+    public function test_import_does_not_remove_when_dual_role_person_is_filled_on_other_sheet(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $both = $this->userWithRoles([Roles::GUIDE, Roles::RESTAURANT], 'Bella Båda', true);
+
+        WorkShift::query()->create([
+            'user_id' => $both->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '10:00',
+            'end_time' => null,
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+
+        $path = $this->storeGridWorkbook(
+            [
+                ['Guider', '2026-06-15', '2026-06-16'],
+                ['', $both->name],
+                ['', 'Tid', 'Roll'],
+                ['id', $both->id],
+                ['roll', 'Guide'],
+                ['funktion', ''],
+                ['tid', '10:00'],
+                ['2026-06-15 mån', '', ''],
+            ],
+            [
+                ['Kök', '2026-06-15', '2026-06-16'],
+                ['', $both->name],
+                ['', 'Tid', 'Roll'],
+                ['id', $both->id],
+                ['roll', 'Restaurang'],
+                ['funktion', 'Kock'],
+                ['tid', '10:00-16:00'],
+                ['2026-06-15 mån', '10:00-16:00', 'Kassa'],
+            ],
+        );
+
+        $file = new UploadedFile($path, 'schema.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('vill du ändra', false)
+            ->assertDontSee('vill du ta bort', false);
+
+        $this->assertSame(1, WorkShift::query()->where('user_id', $both->id)->count());
+
+        @unlink($path);
+    }
+
+    public function test_list_import_does_not_remove_shifts_missing_from_csv(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+        $cook = $this->userWithRole(Roles::RESTAURANT, 'Kalle Kock', true);
+
+        WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+
+        $csv = implode("\n", [
+            'Datum,E-post,Namn,Roll,Funktion,Starttid,Sluttid,Status,Anteckning',
+            '2026-06-15,'.$cook->email.',Kalle,Restaurang,kassa,08:00,16:00,,',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('schema.csv', $csv);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('Kalle Kock', false)
+            ->assertDontSee('vill du ta bort', false);
+
+        $this->assertSame(1, WorkShift::query()->where('user_id', $guide->id)->count());
+    }
+
     public function test_host_cannot_import_work_shifts(): void
     {
         $host = $this->userWithRole(Roles::HOST, 'Vera Värd', true);
@@ -628,5 +816,26 @@ class WorkShiftImportTest extends TestCase
         $user->assignRoles($roles->all());
 
         return $user;
+    }
+
+    /**
+     * @param  list<list<mixed>>  $guideRows
+     * @param  list<list<mixed>>  $kitchenRows
+     */
+    private function storeGridWorkbook(array $guideRows, array $kitchenRows): string
+    {
+        $spreadsheet = new Spreadsheet;
+        $guideSheet = $spreadsheet->getActiveSheet();
+        $guideSheet->setTitle('Guider');
+        $guideSheet->fromArray($guideRows);
+
+        $kitchenSheet = $spreadsheet->createSheet();
+        $kitchenSheet->setTitle('Kök');
+        $kitchenSheet->fromArray($kitchenRows);
+
+        $path = sys_get_temp_dir().DIRECTORY_SEPARATOR.'schema-grid-'.uniqid().'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+
+        return $path;
     }
 }

@@ -29,6 +29,7 @@ class WorkShiftImportService
      *         person_name: string
      *     }>,
      *     changes: list<array<string, mixed>>,
+     *     removals: list<array<string, mixed>>,
      *     errors: list<string>,
      *     skipped: int
      * }
@@ -59,6 +60,7 @@ class WorkShiftImportService
      *         person_name: string
      *     }>,
      *     changes: list<array<string, mixed>>,
+     *     removals: list<array<string, mixed>>,
      *     errors: list<string>,
      *     skipped: int
      * }
@@ -71,6 +73,8 @@ class WorkShiftImportService
         $errors = [];
         $skipped = 0;
         $seenInFile = [];
+        $coveredDays = [];
+        $erroredDays = [];
 
         $usersById = User::query()
             ->with('roles')
@@ -93,6 +97,8 @@ class WorkShiftImportService
                 $assignments = array_merge($assignments, $part['assignments']);
                 $errors = array_merge($errors, $part['errors']);
                 $skipped += $part['skipped'];
+                $coveredDays = array_merge($coveredDays, $part['covered']);
+                $erroredDays = array_merge($erroredDays, $part['errored']);
 
                 continue;
             }
@@ -107,29 +113,21 @@ class WorkShiftImportService
 
         $spreadsheet->disconnectWorksheets();
 
-        return $this->classifyAgainstDatabase($assignments, $errors, $skipped);
+        return $this->classifyAgainstDatabase($assignments, $errors, $skipped, $coveredDays, $erroredDays);
     }
 
     /**
-     * @param  list<array{
-     *     user_id: int,
-     *     shift_date: string,
-     *     start_time: string,
-     *     end_time: ?string,
-     *     shift_role: string,
-     *     shift_function: ?string,
-     *     status: string,
-     *     notes: ?string,
-     *     person_name: string
      * @param  list<array<string, mixed>>  $ready
      * @param  list<array<string, mixed>>  $updates
-     * @return array{created: int, updated: int}
+     * @param  list<array<string, mixed>>  $removals
+     * @return array{created: int, updated: int, deleted: int}
      */
-    public function commit(array $ready, array $updates, User $recordedBy): array
+    public function commit(array $ready, array $updates, User $recordedBy, array $removals = []): array
     {
-        return DB::transaction(function () use ($ready, $updates, $recordedBy) {
+        return DB::transaction(function () use ($ready, $updates, $recordedBy, $removals) {
             $created = 0;
             $updated = 0;
+            $deleted = 0;
 
             foreach ($ready as $row) {
                 if ($this->activeShiftForDay($row['user_id'], $row['shift_date'])) {
@@ -175,9 +173,21 @@ class WorkShiftImportService
                 $updated++;
             }
 
+            foreach ($removals as $row) {
+                $deleted += WorkShift::query()
+                    ->whereKey($row['work_shift_id'])
+                    ->where('user_id', $row['user_id'])
+                    ->whereDate('shift_date', $row['shift_date'])
+                    ->where(function ($query) {
+                        $query->whereNull('status')->orWhere('status', '!=', 'cancelled');
+                    })
+                    ->delete();
+            }
+
             return [
                 'created' => $created,
                 'updated' => $updated,
+                'deleted' => $deleted,
             ];
         });
     }
@@ -583,13 +593,21 @@ class WorkShiftImportService
     /**
      * @param  list<array<int, mixed>>  $rows
      * @param  array<string, array{fingerprint: string, location: string}>  $seenInFile
-     * @return array{assignments: list<array<string, mixed>>, errors: list<string>, skipped: int}
+     * @return array{
+     *     assignments: list<array<string, mixed>>,
+     *     errors: list<string>,
+     *     skipped: int,
+     *     covered: array<string, string>,
+     *     errored: array<string, true>
+     * }
      */
     private function collectGridAssignments(string $sheetTitle, array $rows, Collection $usersById, array &$seenInFile): array
     {
         $assignments = [];
         $errors = [];
         $skipped = 0;
+        $covered = [];
+        $errored = [];
         $idRow = $roleRow = $functionRow = $timeRow = null;
 
         foreach ($rows as $row) {
@@ -611,6 +629,8 @@ class WorkShiftImportService
                 'assignments' => [],
                 'errors' => ["Fliken {$sheetTitle} saknar id-rad. Ladda ner en ny mall."],
                 'skipped' => 0,
+                'covered' => [],
+                'errored' => [],
             ];
         }
 
@@ -631,6 +651,10 @@ class WorkShiftImportService
             }
 
             foreach ($columns as $column) {
+                $key = $column['user_id'].'|'.$date;
+                $user = $usersById->get($column['user_id']);
+                $covered[$key] = $user?->name ?? '#'.$column['user_id'];
+
                 $timeCell = $row[$column['time_col']] ?? null;
                 $roleCell = $column['role_col'] !== null
                     ? ($row[$column['role_col']] ?? null)
@@ -645,6 +669,7 @@ class WorkShiftImportService
                 try {
                     $parsed = $this->parseGridAssignment($timeCell, $roleCell, $column, $date, $usersById);
                 } catch (\InvalidArgumentException $exception) {
+                    $errored[$key] = true;
                     $errors[] = $location.': '.$exception->getMessage();
 
                     continue;
@@ -663,6 +688,7 @@ class WorkShiftImportService
                 }
 
                 if ($result !== 'keep') {
+                    $errored[$key] = true;
                     $errors[] = $location.': '.$result;
 
                     continue;
@@ -676,6 +702,8 @@ class WorkShiftImportService
             'assignments' => $assignments,
             'errors' => $errors,
             'skipped' => $skipped,
+            'covered' => $covered,
+            'errored' => $errored,
         ];
     }
 
@@ -1030,35 +1058,56 @@ class WorkShiftImportService
     /**
      * @param  list<array<string, mixed>>  $assignments
      * @param  list<string>  $errors
+     * @param  array<string, string>  $coveredDays
+     * @param  array<string, true>  $erroredDays
      * @return array{
      *     ready: list<array<string, mixed>>,
      *     changes: list<array<string, mixed>>,
+     *     removals: list<array<string, mixed>>,
      *     errors: list<string>,
      *     skipped: int
      * }
      */
-    private function classifyAgainstDatabase(array $assignments, array $errors, int $skipped): array
-    {
+    private function classifyAgainstDatabase(
+        array $assignments,
+        array $errors,
+        int $skipped,
+        array $coveredDays = [],
+        array $erroredDays = [],
+    ): array {
         $ready = [];
         $changes = [];
+        $removals = [];
+        $assignmentKeys = [];
 
-        if ($assignments === []) {
+        foreach ($assignments as $parsed) {
+            $assignmentKeys[$this->dayKey($parsed)] = true;
+        }
+
+        $userIds = array_values(array_unique(array_merge(
+            array_map(fn (array $row) => $row['user_id'], $assignments),
+            array_map(fn (string $key) => (int) explode('|', $key, 2)[0], array_keys($coveredDays)),
+        )));
+        $dates = array_values(array_unique(array_merge(
+            array_map(fn (array $row) => $row['shift_date'], $assignments),
+            array_map(fn (string $key) => explode('|', $key, 2)[1] ?? '', array_keys($coveredDays)),
+        )));
+        $dates = array_values(array_filter($dates));
+
+        if ($userIds === [] || $dates === []) {
             return [
                 'ready' => [],
                 'changes' => [],
+                'removals' => [],
                 'errors' => $errors,
                 'skipped' => $skipped,
             ];
         }
 
-        $userIds = array_values(array_unique(array_map(
-            fn (array $row) => $row['user_id'],
-            $assignments,
-        )));
-        $dates = array_map(fn (array $row) => $row['shift_date'], $assignments);
-
         $existing = WorkShift::query()
-            ->whereNotIn('status', ['cancelled'])
+            ->where(function ($query) {
+                $query->whereNull('status')->orWhere('status', '!=', 'cancelled');
+            })
             ->whereIn('user_id', $userIds)
             ->whereDate('shift_date', '>=', min($dates))
             ->whereDate('shift_date', '<=', max($dates))
@@ -1090,9 +1139,33 @@ class WorkShiftImportService
             ]);
         }
 
+        foreach ($coveredDays as $key => $personName) {
+            if (isset($assignmentKeys[$key]) || isset($erroredDays[$key])) {
+                continue;
+            }
+
+            $shift = $existing->get($key)?->first();
+
+            if (! $shift) {
+                continue;
+            }
+
+            $removals[] = [
+                'work_shift_id' => $shift->id,
+                'user_id' => $shift->user_id,
+                'shift_date' => $shift->shift_date->toDateString(),
+                'person_name' => $personName,
+                'current_start_time' => $this->timeKey($shift->start_time),
+                'current_end_time' => $this->timeKey($shift->end_time),
+                'current_shift_role' => $shift->shift_role,
+                'current_shift_function' => $shift->shift_function,
+            ];
+        }
+
         return [
             'ready' => $ready,
             'changes' => $changes,
+            'removals' => $removals,
             'errors' => $errors,
             'skipped' => $skipped,
         ];
