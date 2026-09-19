@@ -668,7 +668,7 @@ class WorkShiftImportService
                 $location = "{$sheetTitle} rad {$rowNumber}";
 
                 try {
-                    $parsed = $this->parseGridAssignment($timeCell, $roleCell, $column, $date, $usersById);
+                    $parsed = $this->parseGridAssignment($timeCell, $roleCell, $column, $date, $usersById, $sheetTitle);
                 } catch (\InvalidArgumentException $exception) {
                     $errored[$key] = true;
                     $errors[] = $location.': '.$exception->getMessage();
@@ -789,7 +789,7 @@ class WorkShiftImportService
      *     person_name: string
      * }|null
      */
-    private function parseGridAssignment(mixed $timeCell, mixed $roleCell, array $column, string $date, Collection $usersById): ?array
+    private function parseGridAssignment(mixed $timeCell, mixed $roleCell, array $column, string $date, Collection $usersById, string $sheetTitle = ''): ?array
     {
         $roleText = $this->cellString($roleCell);
 
@@ -826,16 +826,37 @@ class WorkShiftImportService
             $shiftRole = $this->parseRole($shiftRole);
         }
 
-        $functionValue = $dayChoice['function']
-            ?? $parsedCell['function']
-            ?? ($column['function'] !== '' ? $column['function'] : null);
+        $functionValue = $dayChoice['function'] ?? $parsedCell['function'] ?? null;
+
+        if (
+            ($functionValue === null || $functionValue === '')
+            && $this->shouldUseHiddenKitchenFunction($user, $sheetTitle, $roleText)
+        ) {
+            $functionValue = $column['function'] !== '' ? $column['function'] : null;
+        }
 
         if ($functionValue !== null && $functionValue !== '') {
             $shiftRole = Roles::RESTAURANT;
         }
 
         if (! is_string($shiftRole) || $shiftRole === '') {
+            if ($sheetTitle === 'Kök' && $this->hasMultipleScheduleRoles($user)) {
+                return null;
+            }
+
             $shiftRole = $this->resolveGridRole($user, $column['role']);
+        }
+
+        if ($sheetTitle === 'Kök' && $shiftRole !== Roles::RESTAURANT) {
+            return null;
+        }
+
+        if (
+            $shiftRole === Roles::RESTAURANT
+            && ($functionValue === null || $functionValue === '')
+            && $this->hasMultipleScheduleRoles($user)
+        ) {
+            return null;
         }
 
         $function = $this->parseFunction($shiftRole, $functionValue);
@@ -861,6 +882,30 @@ class WorkShiftImportService
             'notes' => null,
             'person_name' => $user->name,
         ];
+    }
+
+    private function shouldUseHiddenKitchenFunction(User $user, string $sheet, string $roleText): bool
+    {
+        if ($sheet !== 'Kök' || $roleText !== '') {
+            return false;
+        }
+
+        if ($this->hasMultipleScheduleRoles($user)) {
+            return false;
+        }
+
+        return $user->hasRole(Roles::RESTAURANT)
+            && ! $user->hasAnyRole(Roles::schedulePriorityRoles());
+    }
+
+    private function hasMultipleScheduleRoles(User $user): bool
+    {
+        $owned = array_values(array_filter(
+            Roles::scheduleStaffRoles(),
+            fn (string $slug) => $user->hasRole($slug),
+        ));
+
+        return count($owned) > 1;
     }
 
     /**

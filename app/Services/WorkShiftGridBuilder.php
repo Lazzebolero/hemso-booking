@@ -84,7 +84,7 @@ class WorkShiftGridBuilder
             ];
         }
 
-        $shifts = $this->existingShifts($staff, $from, $to);
+        $shifts = $this->existingShifts($staff, $from, $to, $title);
 
         $rows = [
             [$title, $from->toDateString(), $to->toDateString()],
@@ -217,17 +217,22 @@ class WorkShiftGridBuilder
      * @param  Collection<int, User>  $staff
      * @return Collection<string, WorkShift>
      */
-    private function existingShifts(Collection $staff, Carbon $from, Carbon $to): Collection
+    private function existingShifts(Collection $staff, Carbon $from, Carbon $to, string $sheet): Collection
     {
         if ($staff->isEmpty()) {
             return collect();
         }
+
+        $roles = $sheet === 'Kök'
+            ? [Roles::RESTAURANT]
+            : Roles::schedulePriorityRoles();
 
         return WorkShift::query()
             ->where(function ($query) {
                 $query->whereNull('status')->orWhere('status', '!=', 'cancelled');
             })
             ->whereIn('user_id', $staff->pluck('id'))
+            ->whereIn('shift_role', $roles)
             ->whereBetween('shift_date', [$from->toDateString(), $to->toDateString()])
             ->orderBy('id')
             ->get()
