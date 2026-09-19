@@ -84,7 +84,7 @@ class WorkShiftGridBuilder
             ];
         }
 
-        $shifts = $this->existingShifts($staff, $from, $to, $title);
+        $shifts = $this->existingShifts($staff, $from, $to);
 
         $rows = [
             [$title, $from->toDateString(), $to->toDateString()],
@@ -139,6 +139,19 @@ class WorkShiftGridBuilder
             'rows' => $rows,
             'people' => $people,
         ];
+    }
+
+    /**
+     * Standardperiod för mallnedladdning: månaden runt angivet datum plus två månader.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public static function defaultPeriod(?Carbon $around = null): array
+    {
+        $from = ($around ?? now())->copy()->startOfMonth()->startOfDay();
+        $to = $from->copy()->addMonths(2)->endOfMonth()->startOfDay();
+
+        return [$from, $to];
     }
 
     /**
@@ -204,38 +217,68 @@ class WorkShiftGridBuilder
      * @param  Collection<int, User>  $staff
      * @return Collection<string, WorkShift>
      */
-    private function existingShifts(Collection $staff, Carbon $from, Carbon $to, string $sheet): Collection
+    private function existingShifts(Collection $staff, Carbon $from, Carbon $to): Collection
     {
         if ($staff->isEmpty()) {
             return collect();
         }
 
-        $roles = $sheet === 'Kök'
-            ? [Roles::RESTAURANT]
-            : Roles::schedulePriorityRoles();
-
         return WorkShift::query()
-            ->whereNotIn('status', ['cancelled'])
+            ->where(function ($query) {
+                $query->whereNull('status')->orWhere('status', '!=', 'cancelled');
+            })
             ->whereIn('user_id', $staff->pluck('id'))
-            ->whereIn('shift_role', $roles)
-            ->whereDate('shift_date', '>=', $from->toDateString())
-            ->whereDate('shift_date', '<=', $to->toDateString())
+            ->whereBetween('shift_date', [$from->toDateString(), $to->toDateString()])
             ->orderBy('id')
             ->get()
-            ->unique(fn (WorkShift $shift) => $shift->user_id.'|'.$shift->shift_date->toDateString())
-            ->keyBy(fn (WorkShift $shift) => $shift->user_id.'|'.$shift->shift_date->toDateString());
+            ->unique(fn (WorkShift $shift) => $shift->user_id.'|'.$this->shiftDateString($shift))
+            ->keyBy(fn (WorkShift $shift) => $shift->user_id.'|'.$this->shiftDateString($shift));
+    }
+
+    private function shiftDateString(WorkShift $shift): string
+    {
+        $raw = $shift->getRawOriginal('shift_date');
+
+        if (is_string($raw) && preg_match('/^\d{4}-\d{2}-\d{2}/', $raw) === 1) {
+            return substr($raw, 0, 10);
+        }
+
+        if ($shift->shift_date instanceof \DateTimeInterface) {
+            return Carbon::instance($shift->shift_date)->toDateString();
+        }
+
+        return Carbon::parse((string) $shift->shift_date)->toDateString();
     }
 
     private function shiftTimeLabel(WorkShift $shift): string
     {
-        $start = substr(trim((string) $shift->start_time), 0, 5);
-        $end = substr(trim((string) $shift->end_time), 0, 5);
+        $start = $this->timeLabel($shift->start_time);
+        $end = $this->timeLabel($shift->end_time);
 
         if ($start === '') {
             return '';
         }
 
         return $end !== '' ? $start.'-'.$end : $start;
+    }
+
+    private function timeLabel(mixed $time): string
+    {
+        if ($time instanceof \DateTimeInterface) {
+            return Carbon::instance($time)->format('H:i');
+        }
+
+        $string = trim((string) $time);
+
+        if ($string === '') {
+            return '';
+        }
+
+        if (preg_match('/(\d{1,2})[:.](\d{2})/', $string, $matches) === 1) {
+            return sprintf('%02d:%02d', (int) $matches[1], (int) $matches[2]);
+        }
+
+        return substr($string, 0, 5);
     }
 
     private function shiftRoleCell(WorkShift $shift, string $sheet): string

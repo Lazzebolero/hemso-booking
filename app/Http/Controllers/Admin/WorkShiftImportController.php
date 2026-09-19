@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Exports\WorkShiftTemplateExport;
 use App\Http\Controllers\Controller;
+use App\Models\WorkShift;
 use App\Services\WorkShiftGridBuilder;
 use App\Services\WorkShiftImportService;
 use App\Services\WorkShiftStaffDirectory;
@@ -24,12 +25,13 @@ class WorkShiftImportController extends Controller
 
     public function template(Request $request): BinaryFileResponse|RedirectResponse
     {
+        [$defaultFrom, $defaultTo] = WorkShiftGridBuilder::defaultPeriod($this->latestScheduledDate());
         $from = $request->filled('from')
             ? Carbon::parse($request->string('from')->toString())->startOfDay()
-            : now()->startOfMonth();
+            : $defaultFrom;
         $to = $request->filled('to')
             ? Carbon::parse($request->string('to')->toString())->startOfDay()
-            : now()->addMonths(2)->endOfMonth();
+            : $defaultTo;
 
         if ($from->gt($to)) {
             return back()->withErrors([
@@ -53,10 +55,12 @@ class WorkShiftImportController extends Controller
 
     public function create(): View
     {
+        [$from, $to] = WorkShiftGridBuilder::defaultPeriod($this->latestScheduledDate());
+
         return view('admin.work-shifts.import', [
             'staffCount' => $this->directory->forTemplate()->count(),
-            'templateFrom' => now()->startOfMonth()->toDateString(),
-            'templateTo' => now()->addMonths(2)->endOfMonth()->toDateString(),
+            'templateFrom' => $from->toDateString(),
+            'templateTo' => $to->toDateString(),
         ]);
     }
 
@@ -135,5 +139,16 @@ class WorkShiftImportController extends Controller
         return redirect()
             ->route('admin.work-shifts.index')
             ->with('success', $message);
+    }
+
+    private function latestScheduledDate(): ?Carbon
+    {
+        $date = WorkShift::query()
+            ->where(function ($query) {
+                $query->whereNull('status')->orWhere('status', '!=', 'cancelled');
+            })
+            ->max('shift_date');
+
+        return $date ? Carbon::parse($date) : null;
     }
 }

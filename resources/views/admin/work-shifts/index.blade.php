@@ -38,8 +38,8 @@
     <div class="page-actions">
         @if($prefix === 'admin')
             @include('admin.work-shifts.partials.template-download', [
-                'templateFrom' => now()->startOfMonth()->toDateString(),
-                'templateTo' => now()->addMonths(2)->endOfMonth()->toDateString(),
+                'templateFrom' => $selectedDate->copy()->startOfMonth()->toDateString(),
+                'templateTo' => $selectedDate->copy()->startOfMonth()->addMonths(2)->endOfMonth()->toDateString(),
                 'fromId' => 'template-from',
                 'toId' => 'template-to',
             ])

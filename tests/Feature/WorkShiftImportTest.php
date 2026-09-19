@@ -14,7 +14,9 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
@@ -69,6 +71,13 @@ class WorkShiftImportTest extends TestCase
             ->assertSee('Tina Trainee', false)
             ->assertDontSee('Inaktiv Iris', false)
             ->assertDontSee('TV Tomas', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.work-shifts.index', ['date' => '2026-06-15']))
+            ->assertOk()
+            ->assertSee('value="2026-06-01"', false)
+            ->assertSee('value="2026-08-31"', false);
 
         $this->actingAs($admin)
             ->withSession(['active_role' => Roles::ADMIN])
@@ -162,8 +171,8 @@ class WorkShiftImportTest extends TestCase
         WorkShift::query()->create([
             'user_id' => $guide->id,
             'shift_date' => '2026-06-15',
-            'start_time' => '11:00',
-            'end_time' => '16:00',
+            'start_time' => '11:00:00',
+            'end_time' => '16:00:00',
             'shift_role' => Roles::GUIDE,
             'status' => 'planned',
         ]);
@@ -230,8 +239,37 @@ class WorkShiftImportTest extends TestCase
         $this->assertSame('', $guideOff[$gretaCol + 1]);
         $this->assertSame('10:00-16:00', $kitchenDay[$kalleCol]);
         $this->assertSame('Kassa', $kitchenDay[$kalleCol + 1]);
-        $this->assertSame('', $kitchenDay[$bellaKitchenCol]);
-        $this->assertSame('', $kitchenDay[$bellaKitchenCol + 1]);
+        $this->assertSame('10:00', $kitchenDay[$bellaKitchenCol]);
+        $this->assertSame('Guide', $kitchenDay[$bellaKitchenCol + 1]);
+
+        Excel::store($export, 'work-shift-fill-test.xlsx', 'local');
+        $path = storage_path('app/private/work-shift-fill-test.xlsx');
+        $spreadsheet = IOFactory::load($path);
+        $writtenGuides = $spreadsheet->getSheetByName('Guider');
+        $this->assertNotNull($writtenGuides);
+        $writtenDayRow = null;
+
+        for ($row = 1; $row <= $writtenGuides->getHighestRow(); $row++) {
+            if (str_starts_with((string) $writtenGuides->getCell('A'.$row)->getValue(), '2026-06-15')) {
+                $writtenDayRow = $row;
+                break;
+            }
+        }
+
+        $this->assertNotNull($writtenDayRow);
+        $gretaLetter = Coordinate::stringFromColumnIndex($gretaCol + 1);
+        $this->assertSame('11:00-16:00', $writtenGuides->getCell($gretaLetter.$writtenDayRow)->getValue());
+        $spreadsheet->disconnectWorksheets();
+        @unlink($path);
+
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.work-shifts.import'))
+            ->assertOk()
+            ->assertSee('value="2026-06-01"', false)
+            ->assertSee('value="2026-08-31"', false);
     }
 
     public function test_admin_can_preview_and_import_work_shifts_from_csv(): void
