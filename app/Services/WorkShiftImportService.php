@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\RestaurantFunction;
+use App\Models\ShiftRoleDefault;
 use App\Models\User;
 use App\Models\WorkShift;
 use App\Support\Roles;
@@ -749,7 +750,15 @@ class WorkShiftImportService
 
     private function gridCellsHaveContent(mixed $timeCell, mixed $roleCell): bool
     {
-        return $this->cellIsFilled($timeCell) || $this->cellIsFilled($roleCell);
+        if ($this->cellIsFilled($timeCell)) {
+            return true;
+        }
+
+        $roleText = $this->cellString($roleCell);
+
+        return $roleText !== ''
+            && ! $this->isSkippedGridCell($roleText)
+            && $this->looksLikeFunction($roleText);
     }
 
     private function cellIsFilled(mixed $value): bool
@@ -792,6 +801,10 @@ class WorkShiftImportService
             return null;
         }
 
+        if (! $this->cellIsFilled($timeCell) && ! $this->looksLikeFunction($roleText)) {
+            return null;
+        }
+
         $parsedCell = $this->cellIsFilled($timeCell)
             ? $this->parseGridCell($timeCell)
             : ['start' => null, 'end' => null, 'function' => null, 'role' => null];
@@ -825,13 +838,17 @@ class WorkShiftImportService
             $shiftRole = $this->resolveGridRole($user, $column['role']);
         }
 
-        $times = $this->parseTimeRange($parsedCell['start'] ?? null, $parsedCell['end'] ?? null, $column['time']);
+        $function = $this->parseFunction($shiftRole, $functionValue);
+
+        $times = $this->parseTimeRange(
+            $parsedCell['start'] ?? null,
+            $parsedCell['end'] ?? null,
+            $this->defaultTimeForAssignment($shiftRole, $function, $column['time']),
+        );
 
         if (! $user->hasRole($shiftRole)) {
             throw new \InvalidArgumentException($user->name.' har inte rollen '.$this->roleLabel($shiftRole).'.');
         }
-
-        $function = $this->parseFunction($shiftRole, $functionValue);
 
         return [
             'user_id' => $user->id,
@@ -973,6 +990,21 @@ class WorkShiftImportService
         }
 
         throw new \InvalidArgumentException('Starttid saknas.');
+    }
+
+    private function defaultTimeForAssignment(string $shiftRole, ?string $function, string $columnDefault): string
+    {
+        if (is_string($function) && $function !== '') {
+            return RestaurantFunction::timeRangeFor($function);
+        }
+
+        $columnDefault = trim(str_replace(['–', '—'], '-', $columnDefault));
+
+        if ($columnDefault !== '') {
+            return $columnDefault;
+        }
+
+        return ShiftRoleDefault::timeRangeFor($shiftRole);
     }
 
     private function parseGridDate(string $label): string

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Exports\WorkShiftTemplateExport;
 use App\Models\RestaurantFunction;
 use App\Models\Role;
+use App\Models\ShiftRoleDefault;
 use App\Models\User;
 use App\Models\WorkShift;
 use App\Services\WorkShiftGridBuilder;
@@ -702,6 +703,60 @@ class WorkShiftImportTest extends TestCase
         @unlink($path);
     }
 
+    public function test_import_asks_to_remove_when_time_is_cleared_but_role_remains(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+
+        $shift = WorkShift::query()->create([
+            'user_id' => $guide->id,
+            'shift_date' => '2026-06-15',
+            'start_time' => '10:00',
+            'end_time' => '15:00',
+            'shift_role' => Roles::GUIDE,
+            'status' => 'planned',
+        ]);
+
+        $path = $this->storeGridWorkbook(
+            [
+                ['Guider', '2026-06-15', '2026-06-16'],
+                ['', $guide->name],
+                ['', 'Tid', 'Roll'],
+                ['id', $guide->id],
+                ['roll', 'Guide'],
+                ['funktion', ''],
+                ['tid', '10:00'],
+                ['2026-06-15 mån', '', 'Guide'],
+            ],
+            [
+                ['Kök', '2026-06-15', '2026-06-16'],
+                ['id'],
+            ],
+        );
+
+        $file = new UploadedFile($path, 'schema.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('vill du ta bort', false)
+            ->assertSee('Greta Guide', false)
+            ->assertSee('10:00', false)
+            ->assertSee('15:00', false)
+            ->assertDontSee('vill du ändra', false)
+            ->assertDontSee('Nytt i filen', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.confirm'), ['remove' => [$shift->id]])
+            ->assertRedirect(route('admin.work-shifts.index'));
+
+        $this->assertSame(0, WorkShift::query()->where('user_id', $guide->id)->count());
+
+        @unlink($path);
+    }
+
     public function test_import_does_not_remove_when_dual_role_person_is_filled_on_other_sheet(): void
     {
         $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
@@ -783,6 +838,76 @@ class WorkShiftImportTest extends TestCase
             ->assertDontSee('vill du ta bort', false);
 
         $this->assertSame(1, WorkShift::query()->where('user_id', $guide->id)->count());
+    }
+
+    public function test_template_and_import_use_admin_default_times(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN, 'Adam Admin', true);
+        $guide = $this->userWithRole(Roles::GUIDE, 'Greta Guide', true);
+        $cook = $this->userWithRole(Roles::RESTAURANT, 'Kalle Kock', true);
+
+        ShiftRoleDefault::query()->updateOrCreate(
+            ['role_slug' => Roles::GUIDE],
+            ['default_start_time' => '09:30', 'default_end_time' => '14:30'],
+        );
+        RestaurantFunction::query()->where('slug', 'kassa')->update([
+            'default_start_time' => '08:00',
+            'default_end_time' => '14:00',
+        ]);
+
+        $export = new WorkShiftTemplateExport(
+            Carbon::parse('2026-06-15'),
+            Carbon::parse('2026-06-15'),
+            app(WorkShiftStaffDirectory::class),
+            app(WorkShiftGridBuilder::class),
+        );
+        $guideRows = $export->sheets()[0]->array();
+        $kitchenRows = $export->sheets()[1]->array();
+        $gretaCol = array_search('Greta Guide', $guideRows[1], true);
+        $kalleCol = array_search('Kalle Kock', $kitchenRows[1], true);
+
+        $this->assertNotFalse($gretaCol);
+        $this->assertSame('09:30-14:30', $guideRows[6][$gretaCol]);
+        $this->assertNotFalse($kalleCol);
+        $this->assertSame('10:00-16:00', $kitchenRows[6][$kalleCol]);
+
+        $path = $this->storeGridWorkbook(
+            [
+                ['Guider', '2026-06-15', '2026-06-15'],
+                ['id'],
+            ],
+            [
+                ['Kök', '2026-06-15', '2026-06-15'],
+                ['', $cook->name],
+                ['', 'Tid', 'Roll'],
+                ['id', $cook->id],
+                ['roll', 'Restaurang'],
+                ['funktion', 'Kock'],
+                ['tid', '10:00-16:00'],
+                ['2026-06-15 mån', '', 'Kassa'],
+            ],
+        );
+
+        $file = new UploadedFile($path, 'schema.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.store'), ['file' => $file])
+            ->assertOk()
+            ->assertSee('Kalle Kock', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->post(route('admin.work-shifts.import.confirm'))
+            ->assertRedirect(route('admin.work-shifts.index'));
+
+        $shift = WorkShift::query()->where('user_id', $cook->id)->first();
+        $this->assertNotNull($shift);
+        $this->assertSame('08:00', substr((string) $shift->start_time, 0, 5));
+        $this->assertSame('14:00', substr((string) $shift->end_time, 0, 5));
+        $this->assertSame('kassa', $shift->shift_function);
+
+        @unlink($path);
     }
 
     public function test_host_cannot_import_work_shifts(): void

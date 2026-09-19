@@ -5,8 +5,9 @@
     <div>
         <h2 class="page-title">Restaurangfunktioner</h2>
         <div class="page-subtitle">
-            Hantera alternativen i dropplistan för restaurangpass i arbetsschemat.
+            Hantera dropplistan för restaurangpass och standardtider för importmallen.
             Nyckeln (t.ex. <code>kok</code>) sparas i passen — namnet (t.ex. Kök) visas i listor.
+            Tom tid i Excel använder standardtiden här: på kök per station, annars per roll.
         </div>
     </div>
 </div>
@@ -26,6 +27,58 @@
 @endif
 
 <div class="page-card compact-card mb-3">
+    <div class="section-title">Standardtider för roller</div>
+    <p class="small-muted mb-3">
+        Används i arbetsschemamallen för guide, värd, admin och trainee när tiden inte är ifylld.
+    </p>
+
+    <form method="POST" action="{{ route('admin.restaurant-functions.role-defaults') }}" class="role-default-form">
+        @csrf
+        @method('PUT')
+
+        <div class="table-responsive-modern">
+            <table class="table-modern">
+                <thead>
+                    <tr>
+                        <th>Roll</th>
+                        <th style="width: 160px;">Start</th>
+                        <th style="width: 160px;">Slut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($scheduleRoles as $slug => $role)
+                        <tr>
+                            <td>{{ $role['label'] }}</td>
+                            <td>
+                                <input
+                                    type="time"
+                                    name="roles[{{ $slug }}][default_start_time]"
+                                    class="form-control"
+                                    value="{{ $role['default_start_time'] }}"
+                                    required
+                                >
+                            </td>
+                            <td>
+                                <input
+                                    type="time"
+                                    name="roles[{{ $slug }}][default_end_time]"
+                                    class="form-control"
+                                    value="{{ $role['default_end_time'] }}"
+                                >
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-primary">Spara rolltider</button>
+        </div>
+    </form>
+</div>
+
+<div class="page-card compact-card mb-3">
     <div class="section-title">Ny funktion</div>
 
     <form method="POST" action="{{ route('admin.restaurant-functions.store') }}" class="restaurant-function-form-grid">
@@ -40,6 +93,16 @@
             <label class="form-label">Nyckel</label>
             <input type="text" name="slug" class="form-control" placeholder="kok" pattern="[a-z0-9_]+" required>
             <div class="form-text">Små bokstäver, siffror och understreck.</div>
+        </div>
+
+        <div>
+            <label class="form-label">Start</label>
+            <input type="time" name="default_start_time" class="form-control" value="10:00">
+        </div>
+
+        <div>
+            <label class="form-label">Slut</label>
+            <input type="time" name="default_end_time" class="form-control" value="16:00">
         </div>
 
         <div>
@@ -72,6 +135,8 @@
                 <tr>
                     <th>Namn</th>
                     <th style="width: 140px;">Nyckel</th>
+                    <th style="width: 130px;">Start</th>
+                    <th style="width: 130px;">Slut</th>
                     <th style="width: 110px;">Sortering</th>
                     <th style="width: 100px;">Aktiv</th>
                     <th style="width: 170px;">Åtgärder</th>
@@ -79,8 +144,12 @@
             </thead>
             <tbody>
                 @forelse($functions as $function)
+                    @php
+                        $start = \App\Support\ShiftDefaultTimes::normalize($function->default_start_time) ?? '10:00';
+                        $end = \App\Support\ShiftDefaultTimes::normalize($function->default_end_time);
+                    @endphp
                     <tr>
-                        <td colspan="5">
+                        <td colspan="7">
                             <div class="inline-row-form-wrap">
                                 <form method="POST" action="{{ route('admin.restaurant-functions.update', $function) }}" class="inline-row-form">
                                     @csrf
@@ -92,6 +161,14 @@
 
                                     <div>
                                         <input type="text" name="slug" class="form-control" value="{{ $function->slug }}" pattern="[a-z0-9_]+" required>
+                                    </div>
+
+                                    <div>
+                                        <input type="time" name="default_start_time" class="form-control" value="{{ $start }}">
+                                    </div>
+
+                                    <div>
+                                        <input type="time" name="default_end_time" class="form-control" value="{{ $end }}">
                                     </div>
 
                                     <div>
@@ -120,7 +197,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="text-center muted py-4">Inga restaurangfunktioner hittades.</td>
+                        <td colspan="7" class="text-center muted py-4">Inga restaurangfunktioner hittades.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -131,7 +208,7 @@
 <style>
 .restaurant-function-form-grid {
     display: grid;
-    grid-template-columns: minmax(220px, 1.4fr) 160px 120px 110px 140px;
+    grid-template-columns: minmax(180px, 1.2fr) 140px 130px 130px 110px 110px 140px;
     gap: 0.9rem;
     align-items: end;
 }
@@ -143,8 +220,8 @@
 }
 .inline-row-form {
     display: grid;
-    grid-template-columns: minmax(220px, 1.4fr) 140px 110px 100px 120px;
-    gap: 0.9rem;
+    grid-template-columns: minmax(160px, 1.2fr) 120px 120px 120px 100px 90px 110px;
+    gap: 0.75rem;
     align-items: center;
 }
 @media (max-width: 1200px) {

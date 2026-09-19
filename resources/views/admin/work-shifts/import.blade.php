@@ -29,7 +29,7 @@
 
 <div class="page-card">
     <p class="small-muted mb-3">
-        Använd mallen. Redan sparade pass för perioden följer med. Varje person har två kolumner: tid och roll. Roll-listan har personens roller, på kök även station (Kassa, Disk …). Tomma celler = ledigt; vid ny uppladdning får du frågan om du vill ta bort ett sparat pass. TV-produktion ingår inte.
+        Använd mallen. Redan sparade pass för perioden följer med. Varje person har två kolumner: tid och roll. Roll-listan har personens roller, på kök även station (Kassa, Disk …). Tom tid = ledigt, även om rollen står kvar; vid ny uppladdning får du frågan om du vill ta bort passet. På kök räcker station utan tid. TV-produktion ingår inte.
     </p>
     <form method="POST" action="{{ route('admin.work-shifts.import.store') }}" enctype="multipart/form-data">
         @csrf

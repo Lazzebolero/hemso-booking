@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ShiftDefaultTimes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
@@ -15,6 +16,8 @@ class RestaurantFunction extends Model
         'name',
         'sort_order',
         'is_active',
+        'default_start_time',
+        'default_end_time',
     ];
 
     protected function casts(): array
@@ -54,6 +57,36 @@ class RestaurantFunction extends Model
         }
 
         return self::allOptions()[$slug] ?? ucfirst(str_replace('_', ' ', $slug));
+    }
+
+    public static function timeRangeFor(?string $slug): string
+    {
+        if (! is_string($slug) || $slug === '' || ! Schema::hasTable('restaurant_functions')) {
+            return ShiftDefaultTimes::format(null, null, '10:00', '16:00');
+        }
+
+        $function = static::query()->where('slug', $slug)->first();
+
+        if (! $function) {
+            return ShiftDefaultTimes::format(null, null, '10:00', '16:00');
+        }
+
+        return ShiftDefaultTimes::format(
+            $function->default_start_time,
+            $function->default_end_time,
+            '10:00',
+            null,
+        );
+    }
+
+    public function timeRangeLabel(): string
+    {
+        return ShiftDefaultTimes::format(
+            $this->default_start_time,
+            $this->default_end_time,
+            '10:00',
+            null,
+        );
     }
 
     public static function clearCache(): void

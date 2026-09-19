@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\RestaurantFunction;
+use App\Models\ShiftRoleDefault;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Support\Collection;
@@ -96,7 +97,13 @@ class WorkShiftStaffDirectory
 
     public function defaultTimeRange(User $user, string $sheet = ''): string
     {
-        return $this->defaultFunction($user, $sheet) ? '10:00-16:00' : '10:00';
+        $function = $this->defaultFunction($user, $sheet);
+
+        if ($function) {
+            return RestaurantFunction::timeRangeFor($function);
+        }
+
+        return ShiftRoleDefault::timeRangeFor($this->defaultShiftRole($user, $sheet));
     }
 
     /**

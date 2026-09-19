@@ -240,6 +240,7 @@ Route::middleware(['auth', 'ensure.active.role', 'active.role:admin'])
 
         Route::get('restaurant-functions', [RestaurantFunctionController::class, 'index'])->name('restaurant-functions.index');
         Route::post('restaurant-functions', [RestaurantFunctionController::class, 'store'])->name('restaurant-functions.store');
+        Route::put('restaurant-functions/role-defaults', [RestaurantFunctionController::class, 'updateRoleDefaults'])->name('restaurant-functions.role-defaults');
         Route::put('restaurant-functions/{restaurantFunction}', [RestaurantFunctionController::class, 'update'])->name('restaurant-functions.update');
         Route::delete('restaurant-functions/{restaurantFunction}', [RestaurantFunctionController::class, 'destroy'])->name('restaurant-functions.destroy');
 

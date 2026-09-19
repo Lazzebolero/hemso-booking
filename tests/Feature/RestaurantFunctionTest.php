@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\RestaurantFunction;
 use App\Models\Role;
+use App\Models\ShiftRoleDefault;
 use App\Models\User;
 use App\Models\WorkShift;
 use App\Support\Roles;
@@ -55,6 +56,60 @@ class RestaurantFunctionTest extends TestCase
             ->assertRedirect(route('admin.restaurant-functions.index'));
 
         $this->assertSame('Kök & servering', WorkShift::restaurantFunctions()['kok'] ?? RestaurantFunction::activeOptions()['kok']);
+    }
+
+    public function test_admin_can_update_role_and_function_default_times(): void
+    {
+        $admin = $this->userWithRole(Roles::ADMIN);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->get(route('admin.restaurant-functions.index'))
+            ->assertOk()
+            ->assertSee('Standardtider för roller', false)
+            ->assertSee('Guide', false)
+            ->assertSee('Värd', false);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->from(route('admin.restaurant-functions.index'))
+            ->put(route('admin.restaurant-functions.role-defaults'), [
+                'roles' => [
+                    'admin' => ['default_start_time' => '08:00', 'default_end_time' => '16:00'],
+                    'host' => ['default_start_time' => '09:00', 'default_end_time' => '17:00'],
+                    'guide' => ['default_start_time' => '10:00', 'default_end_time' => '15:00'],
+                    'elev' => ['default_start_time' => '11:00', 'default_end_time' => ''],
+                ],
+            ])
+            ->assertRedirect(route('admin.restaurant-functions.index'));
+
+        $this->assertSame('10:00-15:00', ShiftRoleDefault::timeRangeFor(Roles::GUIDE));
+        $this->assertSame('09:00-17:00', ShiftRoleDefault::timeRangeFor(Roles::HOST));
+        $this->assertSame('11:00', ShiftRoleDefault::timeRangeFor(Roles::ELEV));
+
+        $function = RestaurantFunction::query()->create([
+            'slug' => 'buffe',
+            'name' => 'Buffé',
+            'sort_order' => 70,
+            'is_active' => true,
+            'default_start_time' => '08:00',
+            'default_end_time' => '14:00',
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['active_role' => Roles::ADMIN])
+            ->from(route('admin.restaurant-functions.index'))
+            ->put(route('admin.restaurant-functions.update', $function), [
+                'slug' => 'buffe',
+                'name' => 'Buffé',
+                'sort_order' => 70,
+                'is_active' => '1',
+                'default_start_time' => '08:30',
+                'default_end_time' => '13:30',
+            ])
+            ->assertRedirect(route('admin.restaurant-functions.index'));
+
+        $this->assertSame('08:30-13:30', RestaurantFunction::timeRangeFor('buffe'));
     }
 
     public function test_work_shift_dropdown_uses_active_restaurant_functions(): void
