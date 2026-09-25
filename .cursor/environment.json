@@ -1,0 +1,16 @@
+{
+  "name": "Hemso Laravel",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "serve",
+      "command": "php artisan serve --host=0.0.0.0 --port=8000"
+    },
+    {
+      "name": "vite",
+      "command": "npm run dev"
+    }
+  ],
+  "ports": [8000, 5173]
+}
