@@ -12,6 +12,32 @@ use Tests\TestCase;
 
 class ProductionDepartureLogTest extends TestCase
 {
+    public function test_leave_button_asks_if_the_participant_left_the_competition(): void
+    {
+        $productionAdmin = $this->userWithRole(Roles::PRODUKTION_ADMIN, 'Produktionsadmin Anna');
+        $production = Production::factory()->create();
+
+        ProductionPerson::factory()->create([
+            'production_id' => $production->id,
+            'user_id' => $productionAdmin->id,
+            'name' => 'Produktionsadmin Anna',
+            'kind' => ProductionPerson::KIND_ADMIN,
+        ]);
+
+        ProductionPerson::factory()->create([
+            'production_id' => $production->id,
+            'name' => 'Erik Berg',
+            'is_inside' => false,
+        ]);
+
+        $this->actingAs($productionAdmin)
+            ->withSession(['active_role' => Roles::PRODUKTION_ADMIN])
+            ->get(route('berg.presence'))
+            ->assertOk()
+            ->assertSee('Märk Erik Berg som åkt ur tävlingen?', false)
+            ->assertDontSee('som utrest', false);
+    }
+
     public function test_admin_production_page_shows_who_marked_a_participant_as_departed(): void
     {
         $hemsoAdmin = $this->userWithRole(Roles::ADMIN, 'Hemsö Admin');

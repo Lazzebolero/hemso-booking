@@ -19,7 +19,7 @@
         @endif
 
         @if($showLeave && $person->isParticipant())
-            <form method="POST" action="{{ url('/berget/personer/'.$person->id.'/utrest') }}" onsubmit="return confirm('Märk {{ $person->name }} som utrest? Personen tas inte med när gruppen stämplas.');">
+            <form method="POST" action="{{ url('/berget/personer/'.$person->id.'/utrest') }}" onsubmit="return confirm('Märk {{ $person->name }} som åkt ur tävlingen? Personen tas inte med när gruppen stämplas.');">
                 @csrf
                 <button class="mini-btn mini-leave" type="submit" style="background:#dc2626;color:#fff;">Åkt ut</button>
             </form>
