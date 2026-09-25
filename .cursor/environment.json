@@ -2,7 +2,7 @@
   "name": "Hemso Laravel",
   "user": "ubuntu",
   "install": "bash .cursor/install.sh",
-  "start": "cd /workspace && ([ -L public/storage ] || php artisan storage:link)",
+  "start": "cd /workspace && php artisan storage:link --force",
   "terminals": [
     {
       "name": "serve",

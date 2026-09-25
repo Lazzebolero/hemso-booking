@@ -93,10 +93,9 @@ touch database/database.sqlite
 # 8. Migrate and seed demo data (admin/host/guide/restaurant login accounts).
 php artisan migrate --force --seed
 
-# 9. Public storage symlink for uploaded images.
-if [ ! -e public/storage ]; then
-  php artisan storage:link
-fi
+# 9. Public storage symlink for uploaded images (force-recreate to fix any
+#    stale/broken link, e.g. one pointing at a production path).
+php artisan storage:link --force
 
 # 10. Build frontend assets.
 npm run build
