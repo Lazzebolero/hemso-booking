@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Models\Production;
+use App\Models\ProductionDepartureLog;
 use App\Models\ProductionPerson;
 use App\Models\ProductionPresenceLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Roles;
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -226,24 +228,38 @@ class ProductionPresenceService
                 $this->applyStamp($person, ProductionPerson::DIRECTION_OUT, $recordedBy, false);
             }
 
+            $occurredAt = now();
+
             $person->update([
-                'departed_at' => now(),
-                'departed_on' => now()->toDateString(),
+                'departed_at' => $occurredAt,
+                'departed_on' => $occurredAt->toDateString(),
                 'is_inside' => false,
             ]);
+
+            $this->recordDeparture($person, ProductionDepartureLog::ACTION_DEPARTED, $recordedBy, $occurredAt);
         });
     }
 
-    public function restoreDeparted(ProductionPerson $person): void
+    public function restoreDeparted(ProductionPerson $person, User $recordedBy): void
     {
         if (! $person->isParticipant()) {
             throw new InvalidArgumentException('Bara deltagare kan återställas.');
         }
 
-        $person->update([
-            'departed_at' => null,
-            'departed_on' => null,
-        ]);
+        if (! $person->hasDeparted()) {
+            return;
+        }
+
+        DB::transaction(function () use ($person, $recordedBy) {
+            $occurredAt = now();
+
+            $person->update([
+                'departed_at' => null,
+                'departed_on' => null,
+            ]);
+
+            $this->recordDeparture($person, ProductionDepartureLog::ACTION_RESTORED, $recordedBy, $occurredAt);
+        });
     }
 
     public function addPerson(
@@ -541,6 +557,21 @@ class ProductionPresenceService
         ]);
 
         return true;
+    }
+
+    private function recordDeparture(
+        ProductionPerson $person,
+        string $action,
+        User $recordedBy,
+        DateTimeInterface $occurredAt,
+    ): void {
+        ProductionDepartureLog::query()->create([
+            'production_id' => $person->production_id,
+            'production_person_id' => $person->id,
+            'action' => $action,
+            'occurred_at' => $occurredAt,
+            'recorded_by' => $recordedBy->id,
+        ]);
     }
 
     private function isProductionOnlyUser(User $user): bool

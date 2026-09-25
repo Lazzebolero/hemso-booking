@@ -81,6 +81,11 @@ class ProductionPerson extends Model
         return $this->hasMany(ProductionPresenceLog::class);
     }
 
+    public function departureLogs(): HasMany
+    {
+        return $this->hasMany(ProductionDepartureLog::class);
+    }
+
     public function scopeParticipants(Builder $query): Builder
     {
         return $query->where('kind', self::KIND_PARTICIPANT);

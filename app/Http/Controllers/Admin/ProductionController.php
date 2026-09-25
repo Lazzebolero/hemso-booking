@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Production;
+use App\Models\ProductionDepartureLog;
 use App\Models\ProductionPerson;
 use App\Services\ProductionPresenceService;
 use App\Support\ProductionSites;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use InvalidArgumentException;
@@ -79,13 +82,37 @@ class ProductionController extends Controller
             ->orderByDesc('id')
             ->paginate(50);
 
+        $departureLogs = $this->departureLogs($production);
+
         return view('admin.productions.show', [
             'production' => $production,
             'people' => $people,
             'presenceLogs' => $presenceLogs,
+            'departureLogs' => $departureLogs,
+            'latestDepartureByPerson' => $departureLogs
+                ->where('action', ProductionDepartureLog::ACTION_DEPARTED)
+                ->unique('production_person_id')
+                ->keyBy('production_person_id'),
             'insideCount' => $people->where('is_inside', true)->count(),
             'siteLabels' => ProductionSites::labels(),
         ]);
+    }
+
+    /**
+     * @return Collection<int, ProductionDepartureLog>
+     */
+    private function departureLogs(Production $production): Collection
+    {
+        if (! Schema::hasTable('production_departure_logs')) {
+            return collect();
+        }
+
+        return $production->departureLogs()
+            ->with(['person', 'recorder'])
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('id')
+            ->limit(300)
+            ->get();
     }
 
     public function update(Request $request, Production $production): RedirectResponse

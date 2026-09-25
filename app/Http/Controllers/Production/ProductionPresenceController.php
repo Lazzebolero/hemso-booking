@@ -127,7 +127,7 @@ class ProductionPresenceController extends Controller
         }
 
         try {
-            $this->presence->restoreDeparted($person);
+            $this->presence->restoreDeparted($person, $request->user());
         } catch (InvalidArgumentException $exception) {
             return back()->withErrors(['presence' => $exception->getMessage()]);
         }

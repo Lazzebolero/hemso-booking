@@ -167,6 +167,8 @@
                     <th>Namn</th>
                     <th>Nivå</th>
                     <th>Status</th>
+                    <th>Åkt ut</th>
+                    <th>Märkt av</th>
                     <th>Inloggning</th>
                 </tr>
             </thead>
@@ -184,11 +186,59 @@
                                 Ute
                             @endif
                         </td>
+                        <td>
+                            @if($person->hasDeparted())
+                                {{ $person->departed_at?->format('Y-m-d H:i') ?? '—' }}
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td>
+                            @if($person->hasDeparted())
+                                {{ $latestDepartureByPerson->get($person->id)?->recordedByName() ?? 'Loggades inte' }}
+                            @else
+                                —
+                            @endif
+                        </td>
                         <td>{{ $person->user?->email ?? '—' }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="muted">Inga personer ännu.</td>
+                        <td colspan="6" class="muted">Inga personer ännu.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="page-card mt-4">
+    <div class="section-title mb-2">Logg för åkt ut</div>
+    <p class="small-muted mb-3">
+        Varje gång en deltagare märks som utrest eller återställs, med vem som gjorde det.
+        Märkningar som gjordes innan den här loggen fanns har tid. Namnet sparades inte då.
+    </p>
+    <div class="table-responsive-modern">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Tid</th>
+                    <th>Person</th>
+                    <th>Händelse</th>
+                    <th>Av</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($departureLogs as $log)
+                    <tr>
+                        <td>{{ $log->occurred_at->format('Y-m-d H:i') }}</td>
+                        <td>{{ $log->personName() }}</td>
+                        <td>{{ $log->actionLabel() }}</td>
+                        <td>{{ $log->recordedByName() }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="muted">Inga märkningar i loggen ännu.</td>
                     </tr>
                 @endforelse
             </tbody>

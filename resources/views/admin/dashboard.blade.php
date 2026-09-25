@@ -270,6 +270,14 @@
                     <div class="small-muted">
                         {{ $currentProductions->pluck('name')->implode(', ') }}
                         · {{ $productionInsideCount }} inne just nu
+                        @if(($productionDepartedCount ?? 0) > 0)
+                            ·
+                            @if($currentProductions->count() === 1)
+                                <a href="{{ route('admin.productions.show', $currentProductions->first()) }}">{{ $productionDepartedCount === 1 ? '1 deltagare märkt som åkt ut' : $productionDepartedCount.' deltagare märkta som åkt ut' }}</a>
+                            @else
+                                {{ $productionDepartedCount === 1 ? '1 deltagare märkt som åkt ut' : $productionDepartedCount.' deltagare märkta som åkt ut' }}
+                            @endif
+                        @endif
                     </div>
                 @else
                     <div class="small-muted">Ingen aktiv TV-produktion just nu. Skapa ett projekt för att följa in/ut i berget.</div>

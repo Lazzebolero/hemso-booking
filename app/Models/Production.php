@@ -65,6 +65,11 @@ class Production extends Model
         return $this->hasMany(ProductionPresenceLog::class);
     }
 
+    public function departureLogs(): HasMany
+    {
+        return $this->hasMany(ProductionDepartureLog::class);
+    }
+
     public function phoneNumbers(): HasMany
     {
         return $this->hasMany(ProductionPhoneNumber::class)

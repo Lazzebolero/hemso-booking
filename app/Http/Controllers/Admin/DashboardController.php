@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Country;
 use App\Models\DailyCountryLog;
 use App\Models\Production;
+use App\Models\ProductionPerson;
 use App\Models\Tour;
 use App\Services\FacilityReportAlertService;
 use App\Services\FerryScheduleService;
@@ -128,6 +129,7 @@ class DashboardController extends Controller
         ) + [
             'currentProductions' => $productionDashboard['productions'],
             'productionInsideCount' => $productionDashboard['insideCount'],
+            'productionDepartedCount' => $productionDashboard['departedCount'],
             'productionTablesReady' => $productionDashboard['tablesReady'],
         ]);
     }
@@ -174,13 +176,14 @@ class DashboardController extends Controller
     }
 
     /**
-     * @return array{productions: Collection<int, Production>, insideCount: int, tablesReady: bool}
+     * @return array{productions: Collection<int, Production>, insideCount: int, departedCount: int, tablesReady: bool}
      */
     private function productionDashboardState(): array
     {
         $defaults = [
             'productions' => collect(),
             'insideCount' => 0,
+            'departedCount' => 0,
             'tablesReady' => false,
         ];
 
@@ -193,6 +196,9 @@ class DashboardController extends Controller
                 ->currentPeriod()
                 ->withCount([
                     'people as inside_count' => fn ($query) => $query->inside(),
+                    'people as departed_count' => fn ($query) => $query
+                        ->where('kind', ProductionPerson::KIND_PARTICIPANT)
+                        ->whereNotNull('departed_at'),
                 ])
                 ->orderBy('name')
                 ->get();
@@ -200,6 +206,7 @@ class DashboardController extends Controller
             return [
                 'productions' => $productions,
                 'insideCount' => (int) $productions->sum('inside_count'),
+                'departedCount' => (int) $productions->sum('departed_count'),
                 'tablesReady' => true,
             ];
         } catch (\Throwable) {
