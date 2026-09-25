@@ -167,6 +167,8 @@
                     <th>Namn</th>
                     <th>Nivå</th>
                     <th>Status</th>
+                    <th>Senast in</th>
+                    <th>Senast ut</th>
                     <th>Åkt ut</th>
                     <th>Märkt av</th>
                     <th>Inloggning</th>
@@ -186,6 +188,8 @@
                                 Ute
                             @endif
                         </td>
+                        <td>{{ $latestInByPerson->get($person->id)?->format('Y-m-d H:i') ?? '—' }}</td>
+                        <td>{{ $latestOutByPerson->get($person->id)?->format('Y-m-d H:i') ?? '—' }}</td>
                         <td>
                             @if($person->hasDeparted())
                                 {{ $person->departed_at?->format('Y-m-d H:i') ?? '—' }}
@@ -204,7 +208,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="muted">Inga personer ännu.</td>
+                        <td colspan="8" class="muted">Inga personer ännu.</td>
                     </tr>
                 @endforelse
             </tbody>

@@ -8,10 +8,58 @@ use App\Models\ProductionPerson;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Roles;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class ProductionDepartureLogTest extends TestCase
 {
+    public function test_project_page_shows_when_a_person_last_entered_and_left(): void
+    {
+        Carbon::setTestNow('2026-09-25 08:10:00');
+
+        try {
+            $hemsoAdmin = $this->userWithRole(Roles::ADMIN, 'Hemsö Admin');
+            $productionAdmin = $this->userWithRole(Roles::PRODUKTION_ADMIN, 'Produktionsadmin Anna');
+            $production = Production::factory()->create();
+
+            ProductionPerson::factory()->create([
+                'production_id' => $production->id,
+                'user_id' => $productionAdmin->id,
+                'name' => 'Produktionsadmin Anna',
+                'kind' => ProductionPerson::KIND_ADMIN,
+            ]);
+
+            $participant = ProductionPerson::factory()->create([
+                'production_id' => $production->id,
+                'name' => 'Erik Berg',
+                'is_inside' => false,
+            ]);
+
+            $this->actingAs($productionAdmin)
+                ->withSession(['active_role' => Roles::PRODUKTION_ADMIN])
+                ->post(route('berg.people.stamp', $participant), ['direction' => 'in'])
+                ->assertRedirect();
+
+            Carbon::setTestNow('2026-09-25 11:40:00');
+
+            $this->actingAs($productionAdmin)
+                ->withSession(['active_role' => Roles::PRODUKTION_ADMIN])
+                ->post(route('berg.people.stamp', $participant), ['direction' => 'out'])
+                ->assertRedirect();
+
+            $this->actingAs($hemsoAdmin)
+                ->withSession(['active_role' => Roles::ADMIN])
+                ->get(route('admin.productions.show', $production))
+                ->assertOk()
+                ->assertSee('Senast in')
+                ->assertSee('Senast ut')
+                ->assertSee('2026-09-25 08:10')
+                ->assertSee('2026-09-25 11:40');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_leave_button_asks_if_the_participant_left_the_competition(): void
     {
         $productionAdmin = $this->userWithRole(Roles::PRODUKTION_ADMIN, 'Produktionsadmin Anna');

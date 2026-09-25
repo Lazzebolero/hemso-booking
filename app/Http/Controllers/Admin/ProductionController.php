@@ -10,6 +10,7 @@ use App\Services\ProductionPresenceService;
 use App\Support\ProductionSites;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -83,12 +84,15 @@ class ProductionController extends Controller
             ->paginate(50);
 
         $departureLogs = $this->departureLogs($production);
+        $latestPresence = $this->latestPresenceTimes($production);
 
         return view('admin.productions.show', [
             'production' => $production,
             'people' => $people,
             'presenceLogs' => $presenceLogs,
             'departureLogs' => $departureLogs,
+            'latestInByPerson' => $latestPresence['in'],
+            'latestOutByPerson' => $latestPresence['out'],
             'latestDepartureByPerson' => $departureLogs
                 ->where('action', ProductionDepartureLog::ACTION_DEPARTED)
                 ->unique('production_person_id')
@@ -113,6 +117,45 @@ class ProductionController extends Controller
             ->orderByDesc('id')
             ->limit(300)
             ->get();
+    }
+
+    /**
+     * @return array{in: Collection<int, Carbon>, out: Collection<int, Carbon>}
+     */
+    private function latestPresenceTimes(Production $production): array
+    {
+        $empty = [
+            'in' => collect(),
+            'out' => collect(),
+        ];
+
+        if (! Schema::hasTable('production_presence_logs')) {
+            return $empty;
+        }
+
+        $grouped = $production->presenceLogs()
+            ->whereIn('direction', [ProductionPerson::DIRECTION_IN, ProductionPerson::DIRECTION_OUT])
+            ->select('production_person_id', 'direction')
+            ->selectRaw('max(occurred_at) as last_at')
+            ->groupBy('production_person_id', 'direction')
+            ->get()
+            ->groupBy('direction');
+
+        return [
+            'in' => $this->presenceTimesForDirection($grouped, ProductionPerson::DIRECTION_IN),
+            'out' => $this->presenceTimesForDirection($grouped, ProductionPerson::DIRECTION_OUT),
+        ];
+    }
+
+    /**
+     * @param  Collection<string, Collection<int, mixed>>  $grouped
+     * @return Collection<int, Carbon>
+     */
+    private function presenceTimesForDirection(Collection $grouped, string $direction): Collection
+    {
+        return $grouped->get($direction, collect())->mapWithKeys(function (object $row): array {
+            return [(int) $row->production_person_id => Carbon::parse($row->last_at)];
+        });
     }
 
     public function update(Request $request, Production $production): RedirectResponse
