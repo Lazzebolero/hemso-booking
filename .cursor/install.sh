@@ -94,7 +94,9 @@ touch database/database.sqlite
 php artisan migrate --force --seed
 
 # 9. Public storage symlink for uploaded images.
-php artisan storage:link 2>/dev/null || true
+if [ ! -e public/storage ]; then
+  php artisan storage:link
+fi
 
 # 10. Build frontend assets.
 npm run build
